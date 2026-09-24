@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Nova Residence — Nova Tikinti</title>
+  <meta name="description" content="Nova Residence: 16 mərtəbəli premium yaşayış kompleksi. Mənzilinizi 3D-də seçin, planlara baxın və virtual tur edin.">
+  <meta name="theme-color" content="#0b0c10">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%230b0c10%22/%3E%3Ctext x=%2216%22 y=%2223%22 font-size=%2220%22 text-anchor=%22middle%22 fill=%22%23d6b47a%22 font-family=%22Georgia%22%3EN%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/three.module.js",
+        "three/addons/": "./vendor/three/addons/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="scene" aria-label="Binanın 3D modeli"></canvas>
+  <div class="scene-shade" aria-hidden="true"></div>
+
+  <!-- Yüklənmə ekranı -->
+  <div id="loader" class="loader">
+    <div class="loader__mark">N</div>
+    <p class="loader__title">Nova Residence</p>
+    <div class="loader__bar"><span id="loaderBar"></span></div>
+    <p class="loader__text" id="loaderText">3D səhnə hazırlanır…</p>
+  </div>
+
+  <!-- Naviqasiya -->
+  <header class="nav" id="nav">
+    <a href="#top" class="brand">
+      <span class="brand__mark">N</span>
+      <span class="brand__text">Nova <em>Tikinti</em></span>
+    </a>
+    <nav class="nav__links" id="navLinks">
+      <a href="#about">Layihə</a>
+      <a href="#features">Üstünlüklər</a>
+      <a href="#plans">Planlar</a>
+      <a href="#progress">Tikinti</a>
+      <a href="#contact">Əlaqə</a>
+    </nav>
+    <button class="btn btn--gold btn--sm nav__cta" data-action="explore">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg>
+      3D seçim
+    </button>
+    <button class="nav__burger" id="burger" aria-label="Menyu"><span></span><span></span></button>
+  </header>
+
+  <main id="page">
+    <!-- HERO -->
+    <section class="hero" id="top">
+      <div class="hero__inner" data-speed="0.45">
+        <p class="kicker"><span class="line"></span>Nova Tikinti təqdim edir</p>
+        <h1 class="hero__title">
+          <span class="hero__word">Nova</span>
+          <span class="hero__word hero__word--italic">Residence</span>
+        </h1>
+        <p class="hero__lead">Şəhərin üzərində, səmaya yaxın. Panoramik şüşə fasadlı, 16 mərtəbəli premium yaşayış kompleksi.</p>
+        <div class="hero__cta">
+          <button class="btn btn--gold" data-action="explore">
+            Mənzili 3D-də seç
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+          <a href="#plans" class="btn btn--ghost">Planlara bax</a>
+        </div>
+      </div>
+      <div class="hero__stats" data-speed="0.2">
+        <div><strong data-count="16">16</strong><span>mərtəbə</span></div>
+        <div><strong data-count="75">75</strong><span>mənzil</span></div>
+        <div><strong>2027</strong><span>IV rüb təhvil</span></div>
+        <div><strong data-count="2100" data-prefix="">2 100</strong><span>₼ / m²-dən</span></div>
+      </div>
+      <a href="#about" class="scroll-hint"><span></span>Aşağı sürüşdürün</a>
+    </section>
+
+    <!-- LAYİHƏ -->
+    <section class="section section--glass" id="about">
+      <div class="container split">
+        <div class="reveal">
+          <p class="eyebrow">Layihə haqqında</p>
+          <h2 class="h2">Memarlıq, işıq və <em>rahatlıq</em> bir ünvanda</h2>
+          <p class="text">Nova Residence şəhərin mərkəzində, yaşıl ərazi və dəniz mənzərəsi ilə əhatələnmiş 16 mərtəbəli yaşayış kompleksidir. Döşəmədən tavana qədər şüşə fasad hər mənzilə gün boyu təbii işıq gətirir.</p>
+          <p class="text">Hər mərtəbədə cəmi 5 mənzil var: geniş qonaq otaqları, eyvanlar, qarderob otaqları və ağıllı ev sistemi standart olaraq təqdim olunur.</p>
+          <ul class="checks">
+            <li>Monolit karkas, 9 bal seysmik davamlılıq</li>
+            <li>Tavan hündürlüyü 3.0 m</li>
+            <li>Yeraltı 2 səviyyəli parkinq</li>
+            <li>Həyətdə hovuz, uşaq meydançası və yaşıl zona</li>
+          </ul>
+        </div>
+        <div class="about-cards reveal">
+          <div class="stat-card"><strong data-count="5">5</strong><span>mənzil hər mərtəbədə</span></div>
+          <div class="stat-card"><strong data-count="72">72</strong><span>m²-dən başlayan sahə</span></div>
+          <div class="stat-card"><strong data-count="54">54</strong><span>metr hündürlük</span></div>
+          <div class="stat-card"><strong data-count="40">40</strong><span>% yaşıllıq ərazisi</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3D PƏNCƏRƏ -->
+    <section class="window-sec">
+      <div class="window-sec__inner" data-speed="-0.15">
+        <p class="eyebrow">Panorama</p>
+        <p class="quote">“Hər pəncərədən<br>şəhər və dəniz”</p>
+      </div>
+    </section>
+
+    <!-- ÜSTÜNLÜKLƏR -->
+    <section class="section section--glass" id="features">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="eyebrow">Üstünlüklər</p>
+          <h2 class="h2">Gündəlik həyat üçün <em>hər şey</em></h2>
+        </div>
+        <div class="features">
+          <article class="feature reveal">
+            <div class="feature__icon"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg></div>
+            <h3>Seysmik təhlükəsizlik</h3>
+            <p>Monolit dəmir-beton karkas və müasir tikinti normaları.</p>
+          </article>
+          <article class="feature reveal">
+            <div class="feature__icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18M12 3v18"/></svg></div>
+            <h3>Panoramik şüşələr</h3>
+            <p>Döşəmədən tavana qədər enerjiyə qənaət edən şüşə paketlər.</p>
+          </article>
+          <article class="feature reveal">
+            <div class="feature__icon"><svg viewBox="0 0 24 24"><path d="M5 17h14l-1.5-6h-11zM7 17v3M17 17v3M8 11l1.5-5h5L16 11"/></svg></div>
+            <h3>Yeraltı parkinq</h3>
+            <p>Hər mənzil üçün avtomobil yeri və elektromobil şarjı.</p>
+          </article>
+          <article class="feature reveal">
+            <div class="feature__icon"><svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/><circle cx="12" cy="12" r="3"/></svg></div>
+            <h3>Ağıllı ev</h3>
+            <p>İşıq, iqlim və təhlükəsizlik — hamısı telefonunuzdan idarə olunur.</p>
+          </article>
+          <article class="feature reveal">
+            <div class="feature__icon"><svg viewBox="0 0 24 24"><path d="M2 18c2 0 2-1.5 4-1.5S8 18 10 18s2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 4-1.5M7 14V5a2 2 0 0 1 4 0M17 14V5a2 2 0 0 0-4 0M7 9h6"/></svg></div>
+            <h3>Hovuz və SPA</h3>
+            <p>Həyətdə açıq hovuz, fitness zalı və sakinlər üçün SPA.</p>
+          </article>
+          <article class="feature reveal">
+            <div class="feature__icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></div>
+            <h3>24/7 mühafizə</h3>
+            <p>Qapalı ərazi, videomüşahidə və konsyerj xidməti.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3D ÇAĞIRIŞ -->
+    <section class="window-sec window-sec--cta" id="tour3d">
+      <div class="window-sec__inner" data-speed="-0.1">
+        <p class="eyebrow">İnteraktiv 3D</p>
+        <h2 class="h2 h2--xl">Binanı gəzin.<br><em>Mənzilinizi</em> seçin.</h2>
+        <p class="text text--center">Mərtəbəyə yaxınlaşın, mənzilin üzərinə basın və içəridə virtual gəzin — sanki artıq oradasınız.</p>
+        <button class="btn btn--gold btn--lg" data-action="explore">3D seçimə başla</button>
+      </div>
+    </section>
+
+    <!-- PLANLAR -->
+    <section class="section section--solid" id="plans">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="eyebrow">Mənzil planları</p>
+          <h2 class="h2">Sizə uyğun <em>planı</em> seçin</h2>
+          <p class="text">Bütün planlar real ölçülərlə göstərilib. Planı böyüdün və ya birbaşa 3D virtual tura keçin.</p>
+        </div>
+        <div class="plans" id="plansGrid"></div>
+      </div>
+    </section>
+
+    <!-- TİKİNTİ GEDİŞATI -->
+    <section class="section section--glass" id="progress">
+      <div class="container split">
+        <div class="reveal">
+          <p class="eyebrow">Tikinti gedişatı</p>
+          <h2 class="h2">Söz verdiyimiz <em>vaxtda</em></h2>
+          <p class="text">Tikinti cədvələ uyğun gedir. Hər ay sakinlərimiz üçün foto və video hesabat dərc edirik.</p>
+        </div>
+        <div class="progress reveal">
+          <div class="progress__row"><div><span>Özül işləri</span><b>100%</b></div><i style="--p:100%"></i></div>
+          <div class="progress__row"><div><span>Monolit karkas</span><b>85%</b></div><i style="--p:85%"></i></div>
+          <div class="progress__row"><div><span>Fasad şüşələri</span><b>45%</b></div><i style="--p:45%"></i></div>
+          <div class="progress__row"><div><span>Mühəndis sistemləri</span><b>30%</b></div><i style="--p:30%"></i></div>
+          <div class="progress__row"><div><span>Abadlıq və həyət</span><b>10%</b></div><i style="--p:10%"></i></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- YERLƏŞMƏ -->
+    <section class="section section--glass" id="location">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="eyebrow">Yerləşmə</p>
+          <h2 class="h2">Hər şey <em>yaxınlıqda</em></h2>
+        </div>
+        <div class="places reveal">
+          <div class="place"><b>3 dəq</b><span>Metro stansiyası</span></div>
+          <div class="place"><b>5 dəq</b><span>Dənizkənarı bulvar</span></div>
+          <div class="place"><b>7 dəq</b><span>Məktəb və bağça</span></div>
+          <div class="place"><b>10 dəq</b><span>Ticarət mərkəzi</span></div>
+          <div class="place"><b>12 dəq</b><span>Klinika</span></div>
+          <div class="place"><b>25 dəq</b><span>Hava limanı</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ƏLAQƏ -->
+    <section class="section section--solid" id="contact">
+      <div class="container split">
+        <div class="reveal">
+          <p class="eyebrow">Əlaqə</p>
+          <h2 class="h2">Satış ofisinə <em>gəlin</em></h2>
+          <p class="text">Formu doldurun, menecerimiz 15 dəqiqə ərzində sizə zəng etsin. Ya da birbaşa bizimlə əlaqə saxlayın.</p>
+          <ul class="contacts">
+            <li><span>Telefon</span><a href="tel:+994120000000" id="cPhone">+994 12 000 00 00</a></li>
+            <li><span>E-poçt</span><a href="mailto:info@example.com" id="cEmail">info@example.com</a></li>
+            <li><span>Ünvan</span><b id="cAddress">Bakı şəhəri, Nəsimi rayonu</b></li>
+            <li><span>İş saatları</span><b>Hər gün 09:00 – 20:00</b></li>
+          </ul>
+        </div>
+        <form class="form reveal" id="leadForm" novalidate>
+          <label>Adınız<input name="name" required autocomplete="name" placeholder="Ad Soyad"></label>
+          <label>Telefon<input name="phone" required type="tel" autocomplete="tel" placeholder="+994 __ ___ __ __"></label>
+          <label>Maraqlandığınız mənzil
+            <select name="type" id="leadType">
+              <option value="">Fərq etmir</option>
+            </select>
+          </label>
+          <label>Qeyd<textarea name="note" rows="3" placeholder="Sualınız və ya istəyiniz"></textarea></label>
+          <button class="btn btn--gold" type="submit">Müraciət göndər</button>
+          <p class="form__note">Göndərməklə məlumatlarınızın emalına razılıq verirsiniz.</p>
+        </form>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="container footer__inner">
+        <div class="brand"><span class="brand__mark">N</span><span class="brand__text">Nova <em>Tikinti</em></span></div>
+        <p>© <span id="year"></span> Nova Tikinti. Nümunə layihə — bütün məlumatlar təxminidir.</p>
+        <p class="credits">3D: three.js (MIT) · HDRI: Poly Haven (CC0) · Divan və kreslo modelləri: Wayfair / Khronos (CC BY 4.0)</p>
+      </div>
+    </footer>
+  </main>
+
+  <!-- 3D SEÇİM İNTERFEYSİ -->
+  <div id="explorer" class="explorer" hidden>
+    <div class="ex-top">
+      <button class="ex-btn" id="exBack" aria-label="Geri">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+      </button>
+      <nav class="crumbs" id="crumbs"></nav>
+      <button class="ex-btn ex-btn--text" id="exClose">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        <span>Sayta qayıt</span>
+      </button>
+    </div>
+
+    <aside class="ex-floors" id="exFloors">
+      <div class="ex-floors__head">
+        <h4>Mərtəbə seçin</h4>
+        <div class="chips" id="filters">
+          <button class="chip is-on" data-rooms="0">Hamısı</button>
+          <button class="chip" data-rooms="1">1 otaq</button>
+          <button class="chip" data-rooms="2">2 otaq</button>
+          <button class="chip" data-rooms="3">3 otaq</button>
+        </div>
+      </div>
+      <ul class="floor-list" id="floorList"></ul>
+      <div class="legend" id="legend"></div>
+    </aside>
+
+    <div class="ex-hint" id="hint"></div>
+    <div class="tip" id="tip"></div>
+    <div class="labels" id="labels"></div>
+
+    <aside class="apt-panel" id="aptPanel" aria-live="polite"></aside>
+
+    <div class="tour-hud" id="tourHud" hidden>
+      <div class="rooms-bar" id="roomsBar"></div>
+      <div class="minimap" id="minimap"></div>
+      <div class="joystick" id="joystick"><div class="joy-knob"></div></div>
+      <div class="tour-help" id="tourHelp">
+        <span><kbd>Sürüşdür</kbd> ətrafa bax</span>
+        <span><kbd>W A S D</kbd> hərəkət</span>
+        <span><kbd>Klik</kbd> döşəməyə — ora get</span>
+      </div>
+      <button class="btn btn--glass tour-exit" id="tourExit">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        Yuxarıdan bax
+      </button>
+    </div>
+  </div>
+
+  <!-- Plan modalı -->
+  <div class="modal" id="planModal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <button class="modal__close" data-close aria-label="Bağla">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+      <div class="modal__content" id="modalContent"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
