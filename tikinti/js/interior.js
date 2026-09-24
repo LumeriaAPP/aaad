@@ -30,8 +30,8 @@ export function interiorMaterials() {
   return MATS;
 }
 
-const WALL_COLOR = new THREE.Color(0xf3efe8);
-const WALL_EXT_COLOR = new THREE.Color(0xe9e4dc);
+const WALL_COLOR = new THREE.Color(0xe4ddd2);
+const WALL_EXT_COLOR = new THREE.Color(0xd9d2c6);
 const CUT_COLOR = new THREE.Color(0x2b2724);
 
 function boxAt(w, h, d, x, y, z, color) {

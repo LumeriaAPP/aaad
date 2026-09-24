@@ -550,6 +550,7 @@ function exitExplore() {
   explorer.hidden = true;
   tip.classList.remove('is-on');
   aimSun(new THREE.Vector3(0, 20, 0), 60);
+  renderer.toneMappingExposure = 0.9;
   window.scrollTo({ top: savedScroll, behavior: 'instant' });
 }
 
@@ -646,6 +647,7 @@ function selectFloor(f, done) {
   setCrumbs();
   const baseY = floorBaseY(f);
   aimSun(new THREE.Vector3(0, baseY, 0), 26);
+  renderer.toneMappingExposure = 0.62;
   const small = isSmall();
   controls.minDistance = 8;
   controls.maxDistance = 90;
@@ -662,6 +664,7 @@ function backToBuilding() {
   renderFloorList();
   setCrumbs();
   aimSun(new THREE.Vector3(0, 20, 0), 60);
+  renderer.toneMappingExposure = 0.9;
   controls.minDistance = 12;
   controls.maxDistance = 260;
   $('#exFloors').classList.remove('is-hidden');
@@ -835,7 +838,7 @@ function exitTour(silent) {
   lampPool.forEach((l) => (l.intensity = 0));
   scene.environment = envExterior;
   scene.environmentIntensity = 1.0;
-  renderer.toneMappingExposure = 0.9;
+  renderer.toneMappingExposure = 0.62;
   camera.fov = 42;
   camera.updateProjectionMatrix();
   aimSun(new THREE.Vector3(0, floorState.baseY, 0), 26);
