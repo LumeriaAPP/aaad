@@ -96,10 +96,10 @@ export function planSVG(plan, opts = {}) {
     const area = (r.w * r.d).toFixed(1);
     const name = r.name.length > 16 && r.w < 5 ? r.name.split(' ')[0] : r.name;
     if (!opts.compact) {
-      out.push(`<text x="${cx}" y="${cz - 0.08}" font-size="${fs}" text-anchor="middle" fill="#3a332c" font-family="Inter, sans-serif" font-weight="600">${name}</text>`);
-      out.push(`<text x="${cx}" y="${cz + 0.42}" font-size="${fs * 0.95}" text-anchor="middle" fill="#8a7f72" font-family="Inter, sans-serif">${area} m²</text>`);
+      out.push(`<text x="${cx}" y="${cz - 0.08}" font-size="${fs}" text-anchor="middle" fill="#3a332c" font-family="'Plus Jakarta Sans', Inter, sans-serif" font-weight="600">${name}</text>`);
+      out.push(`<text x="${cx}" y="${cz + 0.42}" font-size="${fs * 0.95}" text-anchor="middle" fill="#8a7f72" font-family="'Plus Jakarta Sans', Inter, sans-serif">${area} m²</text>`);
     } else {
-      out.push(`<text x="${cx}" y="${cz + 0.15}" font-size="${fs}" text-anchor="middle" fill="#6b6259" font-family="Inter, sans-serif">${area}</text>`);
+      out.push(`<text x="${cx}" y="${cz + 0.15}" font-size="${fs}" text-anchor="middle" fill="#6b6259" font-family="'Plus Jakarta Sans', Inter, sans-serif">${area}</text>`);
     }
   }
 
@@ -111,13 +111,13 @@ export function planSVG(plan, opts = {}) {
       tick(x1, y1); tick(x2, y2);
       const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
       out.push(vertical
-        ? `<text x="${mx - 0.25}" y="${my}" font-size="0.3" fill="#8a7f72" text-anchor="middle" font-family="Inter, sans-serif" transform="rotate(-90 ${mx - 0.25} ${my})">${label}</text>`
-        : `<text x="${mx}" y="${my - 0.18}" font-size="0.3" fill="#8a7f72" text-anchor="middle" font-family="Inter, sans-serif">${label}</text>`);
+        ? `<text x="${mx - 0.25}" y="${my}" font-size="0.3" fill="#8a7f72" text-anchor="middle" font-family="'Plus Jakarta Sans', Inter, sans-serif" transform="rotate(-90 ${mx - 0.25} ${my})">${label}</text>`
+        : `<text x="${mx}" y="${my - 0.18}" font-size="0.3" fill="#8a7f72" text-anchor="middle" font-family="'Plus Jakarta Sans', Inter, sans-serif">${label}</text>`);
     };
     dim(0, -0.75, W, -0.75, `${W.toFixed(1)} m`, false);
     dim(-0.75, 0, -0.75, D, `${D.toFixed(1)} m`, true);
     // şimal oxu
-    out.push(`<g transform="translate(${W + 0.75} ${-0.6})"><circle r="0.35" fill="none" stroke="#9c9187" stroke-width="0.03"/><path d="M0 -0.28 L0.12 0.12 L0 0.04 L-0.12 0.12Z" style="fill:var(--gold-dark, #2d7a6f)"/><text y="0.62" font-size="0.26" text-anchor="middle" fill="#8a7f72" font-family="Inter, sans-serif">Şm</text></g>`);
+    out.push(`<g transform="translate(${W + 0.75} ${-0.6})"><circle r="0.35" fill="none" stroke="#9c9187" stroke-width="0.03"/><path d="M0 -0.28 L0.12 0.12 L0 0.04 L-0.12 0.12Z" style="fill:var(--gold-dark, #2d7a6f)"/><text y="0.62" font-size="0.26" text-anchor="middle" fill="#8a7f72" font-family="'Plus Jakarta Sans', Inter, sans-serif">Şm</text></g>`);
   }
 
   out.push('</svg>');

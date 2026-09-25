@@ -165,7 +165,7 @@ function signTexture(text) {
   x.fillStyle = '#000';
   x.fillRect(0, 0, c.width, c.height);
   x.fillStyle = '#ffe3b5';
-  x.font = '600 78px "Playfair Display", Georgia, serif';
+  x.font = '600 84px "Cormorant Garamond", Georgia, serif';
   x.textAlign = 'center';
   x.textBaseline = 'middle';
   x.letterSpacing = '18px';

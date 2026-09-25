@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import './accent.js';
+import { playIntro } from './intro.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
@@ -146,7 +147,7 @@ const envPromise = new Promise((r) => (envReady = r));
 manager.onLoad = () => {
   envReady();
   $('#loaderText').textContent = 'Hazırdır';
-  setTimeout(() => $('#loader').classList.add('is-done'), 350);
+  setTimeout(() => { $('#loader').classList.add('is-done'); setTimeout(playIntro, 450); }, 350);
 };
 
 // Modellər (divan, kreslo) — arxa planda yüklənir
