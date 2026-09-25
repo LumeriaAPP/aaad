@@ -14,6 +14,7 @@ import { buildTower, buildSurroundings, buildTrees } from './building.js';
 import { buildApartment, buildCommonAreas } from './interior.js';
 import { planSVG } from './plan-svg.js';
 import { Tour } from './tour.js';
+import { initScroll } from './scroll.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -125,7 +126,10 @@ new EXRLoader(manager).load('assets/hdri/apartment.exr', (tex) => {
   envInterior = pmrem.fromEquirectangular(tex).texture;
   tex.dispose();
 });
+let envReady;
+const envPromise = new Promise((r) => (envReady = r));
 manager.onLoad = () => {
+  envReady();
   $('#loaderText').textContent = 'Hazırdır';
   setTimeout(() => $('#loader').classList.add('is-done'), 350);
 };
@@ -168,7 +172,7 @@ function applyModels(ad) {
 const tower = buildTower();
 scene.add(tower.root);
 scene.add(buildSurroundings());
-buildTrees((trees) => scene.add(trees), [[78, 96], [-62, 74], [-78, -40], [96, -30], [34, 58], [22, 44], [72, 92]]).catch((e) => console.warn('Ağaclar yüklənmədi', e));
+const treesReady = buildTrees((trees) => scene.add(trees), [[78, 96], [-62, 74], [-78, -40], [96, -30], [34, 58], [22, 44], [72, 92]]).catch((e) => console.warn('Ağaclar yüklənmədi', e));
 
 /* =========================================================
    Sonrakı emal: AO (künc kölgələri), yumşaq parıltı
@@ -250,32 +254,53 @@ function flyTo(pos, target, dur = 1400, done) {
 /* =========================================================
    Landing: scroll ilə hərəkət edən kamera (parallax)
    ========================================================= */
+// Kamera açar kadrları bölmələrə bağlıdır: at = 0 bölmənin əvvəli, 1 — sonu
 const PATH = [
-  { p: 0.0, pos: [78, 6, 96], tgt: [-6, 30, 0] },
-  { p: 0.14, pos: [-62, 22, 74], tgt: [0, 30, 0] },
-  { p: 0.3, pos: [-78, 70, -40], tgt: [0, 26, 0] },
-  { p: 0.44, pos: [22, 48, 44], tgt: [0, 44, 0] },
-  { p: 0.6, pos: [96, 24, -30], tgt: [0, 30, 0] },
-  { p: 0.78, pos: [34, 3, 58], tgt: [0, 34, 0] },
-  { p: 1.0, pos: [140, 70, 160], tgt: [0, 22, 0] },
+  { sel: '#top', at: 0, pos: [78, 6, 96], tgt: [-6, 30, 0] },
+  { sel: '#manifest', at: 0.5, pos: [-40, 18, 90], tgt: [0, 28, 0] },
+  { sel: '#about', at: 0, pos: [-72, 24, 72], tgt: [0, 28, 0] },
+  { sel: '#about', at: 1, pos: [26, 46, 34], tgt: [0, 44, 0] },
+  { sel: '#numbers', at: 0.5, pos: [-60, 80, 90], tgt: [0, 26, 0] },
+  { sel: '#tour3d', at: 0, pos: [110, 40, 40], tgt: [0, 30, 0] },
+  { sel: '#tour3d', at: 1, pos: [70, 8, 95], tgt: [0, 36, 0] },
+  { sel: '#location', at: 0.5, pos: [34, 3, 58], tgt: [0, 34, 0] },
+  { sel: '.footer', at: 1, pos: [140, 70, 160], tgt: [0, 22, 0] },
 ];
 const posCurve = new THREE.CatmullRomCurve3(PATH.map((k) => new THREE.Vector3(...k.pos)), false, 'centripetal');
 const tgtCurve = new THREE.CatmullRomCurve3(PATH.map((k) => new THREE.Vector3(...k.tgt)), false, 'centripetal');
-// scroll payını əyri parametrinə çevir (açar nöqtələr bərabər paylanmayıb)
-function pathParam(p) {
+function measurePath() {
+  for (const k of PATH) {
+    const el = document.querySelector(k.sel);
+    if (!el) { k.y = 0; continue; }
+    const top = el.getBoundingClientRect().top + (scrollYNow || scrollY);
+    k.y = top + k.at * Math.max(0, el.offsetHeight - innerHeight);
+  }
+  const max = document.documentElement.scrollHeight - innerHeight;
+  PATH[PATH.length - 1].y = Math.max(PATH[PATH.length - 1].y, max);
+  for (let i = 1; i < PATH.length; i++) PATH[i].y = Math.max(PATH[i].y, PATH[i - 1].y + 1);
+}
+function pathParam(y) {
+  if (y <= PATH[0].y) return 0;
   for (let i = 0; i < PATH.length - 1; i++) {
     const a = PATH[i], b = PATH[i + 1];
-    if (p <= b.p) return (i + (p - a.p) / (b.p - a.p)) / (PATH.length - 1);
+    if (y <= b.y) {
+      const t = (y - a.y) / (b.y - a.y);
+      return (i + t * t * (3 - 2 * t)) / (PATH.length - 1);
+    }
   }
   return 1;
 }
+let scrollYNow = 0;
 const mouse = new THREE.Vector2();
 let scrollP = 0;
 const landingTarget = new THREE.Vector3(0, 30, 0);
 function updateLandingCamera(dt, t) {
-  const u = pathParam(scrollP);
+  const u = pathParam(scrollYNow);
   const want = posCurve.getPoint(u);
   const tgt = tgtCurve.getPoint(u);
+  // dar ekranda (telefon) kameranı uzaqlaşdır ki, bina tam görünsün
+  const aspect = innerWidth / innerHeight;
+  if (aspect < 1) want.sub(tgt).multiplyScalar(1 + (1 - aspect) * 1.1).add(tgt);
   // yavaş fırlanma + siçan parallaksı
   want.x += Math.sin(t * 0.05) * 3 + mouse.x * 4;
   want.y += mouse.y * 2;
@@ -284,7 +309,7 @@ function updateLandingCamera(dt, t) {
   landingTarget.lerp(tgt, k);
   camera.lookAt(landingTarget);
   // geniş ekranda binanı mətndən sağa çək
-  const shift = innerWidth > 900 ? -innerWidth * 0.2 * (1 - Math.min(1, scrollP * 6)) : 0;
+  const shift = innerWidth > 900 ? -innerWidth * 0.2 * (1 - Math.min(1, scrollYNow / innerHeight)) : 0;
   if (Math.abs(shift - viewShift) > 0.5) {
     viewShift += (shift - viewShift) * k;
     camera.setViewOffset(innerWidth, innerHeight, viewShift, 0, innerWidth, innerHeight);
@@ -293,19 +318,9 @@ function updateLandingCamera(dt, t) {
 let viewShift = 0;
 function clearViewShift() { viewShift = 0; camera.clearViewOffset(); }
 
-function onScroll() {
-  const max = document.documentElement.scrollHeight - innerHeight;
-  scrollP = max > 0 ? Math.min(1, Math.max(0, scrollY / max)) : 0;
-  $('#nav').classList.toggle('is-scrolled', scrollY > 40);
-  // DOM parallaksı
-  for (const el of parallaxEls) {
-    const sec = el.closest('section');
-    const off = sec.offsetTop - scrollY;
-    el.style.transform = `translate3d(0, ${(-off * parseFloat(el.dataset.speed)).toFixed(1)}px, 0)`;
-  }
-}
-const parallaxEls = $$('[data-speed]');
-addEventListener('scroll', onScroll, { passive: true });
+function onScroll() { measurePath(); }
+const scrollCtl = initScroll({ onFrame: (y) => { scrollYNow = y; } });
+addEventListener('load', measurePath);
 addEventListener('pointermove', (e) => {
   mouse.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
 });
@@ -331,7 +346,9 @@ const plansGrid = $('#plansGrid');
 const leadType = $('#leadType');
 for (const t of Object.values(PLAN_TYPES)) {
   const card = document.createElement('article');
-  card.className = 'plan-card reveal';
+  card.className = 'plan-card';
+  card.dataset.reveal = '';
+  card.style.setProperty('--d', plansGrid.children.length);
   card.innerHTML = `
     <div class="plan-card__img" data-plan="${t.code}" title="Planı böyüt">${planSVG(t)}</div>
     <div class="plan-card__body">
@@ -345,18 +362,9 @@ for (const t of Object.values(PLAN_TYPES)) {
       </div>
     </div>`;
   plansGrid.appendChild(card);
+  scrollCtl.observe(card);
   leadType.insertAdjacentHTML('beforeend', `<option value="${t.code}">${t.title} (${t.area} m²)</option>`);
 }
-
-// Görünmə animasiyası
-const io = new IntersectionObserver((ents) => {
-  for (const e of ents) {
-    if (!e.isIntersecting) continue;
-    e.target.classList.add('is-visible');
-    io.unobserve(e.target);
-  }
-}, { threshold: 0.15 });
-$$('.reveal, .progress').forEach((el) => io.observe(el));
 
 // Aktiv menyu linki
 const secObs = new IntersectionObserver((ents) => {
@@ -367,6 +375,7 @@ const secObs = new IntersectionObserver((ents) => {
 }, { rootMargin: '-45% 0px -50% 0px' });
 $$('main section[id]').forEach((s) => secObs.observe(s));
 
+scrollCtl.resize();
 $('#burger').addEventListener('click', () => $('#nav').classList.toggle('is-open'));
 $$('#navLinks a').forEach((a) => a.addEventListener('click', () => $('#nav').classList.remove('is-open')));
 
@@ -513,7 +522,8 @@ const BUILDING_VIEW = { pos: new THREE.Vector3(72, 38, 92), tgt: new THREE.Vecto
 
 function enterExplore(opts = {}) {
   if (state.mode !== 'landing') return;
-  savedScroll = scrollY;
+  savedScroll = scrollYNow;
+  scrollCtl.stop();
   state.mode = 'building';
   clearViewShift();
   document.body.classList.add('exploring');
@@ -551,12 +561,14 @@ function exitExplore() {
   tip.classList.remove('is-on');
   aimSun(new THREE.Vector3(0, 20, 0), 60);
   renderer.toneMappingExposure = 0.9;
-  window.scrollTo({ top: savedScroll, behavior: 'instant' });
+  scrollCtl.start();
+  scrollCtl.to(savedScroll, true);
 }
 
 function startTour(apt) {
   if (state.mode === 'landing') {
-    savedScroll = scrollY;
+    savedScroll = scrollYNow;
+    scrollCtl.stop();
     state.mode = 'building';
     clearViewShift();
     document.body.classList.add('exploring');
@@ -757,7 +769,7 @@ aptPanel.addEventListener('click', (e) => {
     exitExplore();
     $('#leadType').value = apt.type.code;
     $('#leadForm').note.value = `Mənzil № ${apt.number}, ${ordinal(apt.floor)} mərtəbə`;
-    document.getElementById('contact').scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => scrollCtl.toEl(document.getElementById('contact')), 50);
   }
 });
 
@@ -962,11 +974,63 @@ addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
   composer.setSize(innerWidth, innerHeight);
+  scrollCtl.resize();
   onScroll();
 });
 
 onScroll();
 requestAnimationFrame(frame);
+
+// "Yaşamaq / İstirahət / İnvestisiya" kartları üçün real 3D kadrlar
+const SNAPS = [
+  { el: '.purpose__img--1', pos: [27, 3, 31], tgt: [6, 30, 4], fov: 52 },
+  { el: '.purpose__img--2', pos: [10, 1.6, 41], tgt: [-3, 9, 12], fov: 58 },
+  { el: '.purpose__img--3', pos: [-95, 85, 80], tgt: [0, 20, 0], fov: 32 },
+];
+function takeSnapshots() {
+  // Ekrandan kənar render hədəfi: əsas səhnənin vəziyyətinə toxunmur
+  const W = 480, H = 600;
+  const rt = new THREE.WebGLRenderTarget(W, H, { type: THREE.FloatType, samples: 4 });
+  const snapCam = new THREE.PerspectiveCamera(50, W / H, 0.1, 4000);
+  const px = new Float32Array(W * H * 4);
+  const out = document.createElement('canvas');
+  out.width = W; out.height = H;
+  const ctx = out.getContext('2d');
+  const img = ctx.createImageData(W, H);
+  const exp = 0.9 / 0.6;
+  const fit = (v) => (v * (v + 0.0245786) - 0.000090537) / (v * (0.983729 * v + 0.432951) + 0.238081);
+  const srgb = (c) => { c = Math.min(1, Math.max(0, c)); return c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055; };
+  const prev = renderer.getRenderTarget();
+  for (const s of SNAPS) {
+    snapCam.fov = s.fov;
+    snapCam.updateProjectionMatrix();
+    snapCam.position.set(...s.pos);
+    snapCam.lookAt(new THREE.Vector3(...s.tgt));
+    renderer.setRenderTarget(rt);
+    renderer.render(scene, snapCam);
+    renderer.readRenderTargetPixels(rt, 0, 0, W, H, px);
+    // ACES Filmic tonlama + sRGB (ekrana çıxışdakı kimi)
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = ((H - 1 - y) * W + x) * 4, o = (y * W + x) * 4;
+        const r = px[i] * exp, g = px[i + 1] * exp, b = px[i + 2] * exp;
+        const ar = fit(0.59719 * r + 0.35458 * g + 0.04823 * b);
+        const ag = fit(0.076 * r + 0.90834 * g + 0.01566 * b);
+        const ab = fit(0.0284 * r + 0.13383 * g + 0.83777 * b);
+        img.data[o] = 255 * srgb(1.60475 * ar - 0.53108 * ag - 0.07367 * ab);
+        img.data[o + 1] = 255 * srgb(-0.10208 * ar + 1.10813 * ag - 0.00605 * ab);
+        img.data[o + 2] = 255 * srgb(-0.00327 * ar - 0.07276 * ag + 1.07602 * ab);
+        img.data[o + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    const el = document.querySelector(s.el);
+    if (el) { el.style.backgroundImage = `url(${out.toDataURL('image/jpeg', 0.86)})`; el.classList.add('has-img'); }
+  }
+  renderer.setRenderTarget(prev);
+  rt.dispose();
+}
+if (!Q.has('nosnap')) Promise.all([envPromise, treesReady]).then(() => setTimeout(() => requestAnimationFrame(takeSnapshots), 600));
 
 // Modelləri səhnə açıldıqdan sonra yüklə
 setTimeout(() => {
@@ -975,4 +1039,4 @@ setTimeout(() => {
 }, 1200);
 
 // Test və sazlama üçün
-window.__nova = { state, enterExplore, selectFloor, openApt, startTour, exitTour, backToBuilding, exitExplore, tour, camera, APARTMENTS };
+window.__nova = { scrollCtl, state, enterExplore, selectFloor, openApt, startTour, exitTour, backToBuilding, exitExplore, tour, camera, APARTMENTS };
