@@ -633,6 +633,7 @@ export function buildCity(GY = -0.4) {
   // ətraf məhəllələr: ağ həcmlər (arxitektura maketi üslubu)
   const massMat = cityMaterial();
   const mass = inst(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), massMat, 700);
+  mass.userData.cityMass = true;
   const blockX = [-E, ...xs, E], blockZ = [-E, ...zs, E];
   const parkGround = new THREE.MeshStandardMaterial({ color: 0x5f7a45, roughness: 1 });
   const parks = [], pavs = [];

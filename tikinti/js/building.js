@@ -408,7 +408,11 @@ export function buildSurroundings() {
 
   // Kompleksin digər binaları və həyəti
   const tmats = createTowerMaterials();
-  for (const n of NEIGHBORS) g.add(buildNeighbor(n));
+  for (const n of NEIGHBORS) {
+    const nb = buildNeighbor(n);
+    nb.userData.neighbor = n.id;
+    g.add(nb);
+  }
   void tmats;
   g.add(buildCourtyard(GY));
   g.add(buildCity(GY));

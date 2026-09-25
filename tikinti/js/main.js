@@ -20,6 +20,7 @@ import { sunPosition, sunDirection, localDate, sunTimes, fmtTime, seasonalSunHou
 import { windowMaterial, NEIGHBORS } from './complex.js';
 import { bakuUniforms } from './baku.js';
 import { buildPTScene, skyEquirect } from './ptscene.js';
+import { CamGuard } from './camguard.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -183,8 +184,11 @@ function applyModels(ad) {
 const tower = buildTower();
 scene.add(tower.root);
 scene.add(buildSurroundings());
+// kamera binaların içinə girməsin; 3D seçimdə önü kəsən qonşu binalar enir
+const guard = new CamGuard();
+guard.collect(scene);
 let streetTrees = null;
-const treesReady = buildTrees((trees) => { scene.add(trees); trees.traverse((o) => { if (o.userData.streetTrees) streetTrees = o; }); }, [[40, 150], [30, 120], [-62, 74], [-78, -40], [96, -30], [34, 58], [22, 44], [72, 92]]).catch((e) => console.warn('Ağaclar yüklənmədi', e));
+const treesReady = buildTrees((trees) => { scene.add(trees); trees.traverse((o) => { if (o.userData.streetTrees) streetTrees = o; }); }, [[40, 150], [30, 120], [-62, 74], [-78, -40], [96, -30], [34, 58], [22, 44], [34, 110], [30, 82]]).catch((e) => console.warn('Ağaclar yüklənmədi', e));
 
 /* =========================================================
    Sonrakı emal: AO (künc kölgələri), yumşaq parıltı
@@ -197,6 +201,11 @@ if (!isTouch && !Q.has('noao')) {
   gtao = new GTAOPass(scene, camera, innerWidth, innerHeight);
   gtao.output = GTAOPass.OUTPUT.Default;
   gtao.blendIntensity = 0.85;
+  // yarımşəffaf konturlar (enmiş qonşu binalar) AO-ya təsir etməsin
+  gtao._overrideVisibility = function () {
+    const cache = this._visibilityCache;
+    this.scene.traverse((o) => { if ((o.isPoints || o.isLine || o.isLine2 || o.userData.noAO) && o.visible) { o.visible = false; cache.push(o); } });
+  };
   gtao.updateGtaoMaterial({ radius: 1.2, distanceExponent: 1.5, thickness: 2, scale: 1.2, samples: 16 });
   gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 16 });
   composer.addPass(gtao);
@@ -224,7 +233,7 @@ controls.enabled = false;
 controls.enableDamping = true;
 controls.dampingFactor = 0.07;
 controls.maxPolarAngle = Math.PI * 0.49;
-controls.minDistance = 12;
+controls.minDistance = 24;
 controls.maxDistance = 260;
 
 const tour = new Tour(camera, canvas);
@@ -272,13 +281,13 @@ const PATH = [
   { sel: '#manifest', at: 0.5, pos: [-40, 18, 90], tgt: [0, 28, 0] },
   { sel: '#masterplan', at: 0, pos: [175, 95, 250], tgt: [-45, 12, -55] },
   { sel: '#masterplan', at: 1, pos: [70, 88, 285], tgt: [-70, 12, -60] },
-  { sel: '#about', at: 0, pos: [-72, 24, 72], tgt: [0, 28, 0] },
+  { sel: '#about', at: 0, pos: [-30, 24, 78], tgt: [0, 28, 0] },
   { sel: '#about', at: 1, pos: [26, 46, 34], tgt: [0, 44, 0] },
   { sel: '#numbers', at: 0.5, pos: [-60, 80, 90], tgt: [0, 26, 0] },
-  { sel: '#tour3d', at: 0, pos: [110, 40, 40], tgt: [0, 30, 0] },
-  { sel: '#tour3d', at: 1, pos: [70, 8, 95], tgt: [0, 36, 0] },
-  { sel: '#location', at: 0.5, pos: [34, 3, 58], tgt: [0, 34, 0] },
-  { sel: '.footer', at: 1, pos: [140, 70, 160], tgt: [0, 22, 0] },
+  { sel: '#tour3d', at: 0, pos: [105, 44, 62], tgt: [0, 30, 0] },
+  { sel: '#tour3d', at: 1, pos: [26, 7, 76], tgt: [0, 36, 0] },
+  { sel: '#location', at: 0.5, pos: [34, 4, 58], tgt: [0, 34, 0] },
+  { sel: '.footer', at: 1, pos: [150, 80, 90], tgt: [0, 22, 0] },
 ];
 const posCurve = new THREE.CatmullRomCurve3(PATH.map((k) => new THREE.Vector3(...k.pos)), false, 'centripetal');
 const tgtCurve = new THREE.CatmullRomCurve3(PATH.map((k) => new THREE.Vector3(...k.tgt)), false, 'centripetal');
@@ -305,6 +314,7 @@ function pathParam(y) {
   return 1;
 }
 let scrollYNow = 0;
+const baseFov = () => { const a = innerWidth / innerHeight; return a < 1 ? 42 + (1 - a) * 22 : 42; };
 const mouse = new THREE.Vector2();
 let scrollP = 0;
 const landingTarget = new THREE.Vector3(0, 30, 0);
@@ -312,14 +322,19 @@ function updateLandingCamera(dt, t) {
   const u = pathParam(scrollYNow);
   const want = posCurve.getPoint(u);
   const tgt = tgtCurve.getPoint(u);
-  // dar ekranda (telefon) kameranı uzaqlaşdır ki, bina tam görünsün
+  // dar ekranda (telefon) baxış bucağını genişləndir və kameranı bir az uzaqlaşdır ki, bina tam görünsün
+  // (çox uzaqlaşdırsaq kamera qonşu binaların arxasına keçir)
   const aspect = innerWidth / innerHeight;
-  if (aspect < 1) want.sub(tgt).multiplyScalar(1 + (1 - aspect) * 1.1).add(tgt);
+  if (Math.abs(camera.fov - baseFov()) > 0.01) { camera.fov = baseFov(); camera.updateProjectionMatrix(); }
+  if (aspect < 1) want.sub(tgt).multiplyScalar(1 + (1 - aspect) * 0.37).add(tgt);
   // yavaş fırlanma + siçan parallaksı
   want.x += Math.sin(t * 0.05) * 3 + mouse.x * 4;
   want.y += mouse.y * 2;
+  // kamera heç vaxt binanın içinə və ya yerin altına düşməsin
+  guard.pushOut(want, 4, { ground: 2.5 });
   const k = Q.has('snapcam') ? 1 : 1 - Math.pow(0.02, dt);
   camera.position.lerp(want, k);
+  guard.pushOut(camera.position, 1.5, { ground: 2 });
   landingTarget.lerp(tgt, k);
   camera.lookAt(landingTarget);
   // geniş ekranda binanı mətndən sağa çək
@@ -532,7 +547,7 @@ $('#exClose').addEventListener('click', exitExplore);
 
 function setHint(text) { hint.textContent = text || ''; }
 
-const BUILDING_VIEW = { pos: new THREE.Vector3(72, 38, 92), tgt: new THREE.Vector3(0, 28, 0) };
+const BUILDING_VIEW = { pos: new THREE.Vector3(34, 40, 110), tgt: new THREE.Vector3(0, 28, 0) };
 
 function enterExplore(opts = {}) {
   if (state.mode !== 'landing') return;
@@ -694,7 +709,7 @@ function backToBuilding() {
   setCrumbs();
   aimSun(new THREE.Vector3(0, 20, 20), 105);
   renderer.toneMappingExposure = 0.9;
-  controls.minDistance = 12;
+  controls.minDistance = 24;
   controls.maxDistance = 260;
   $('#exFloors').classList.remove('is-hidden');
   setHint(isTouch ? 'Mərtəbəyə toxunun və ya siyahıdan seçin' : 'Mərtəbənin üzərinə gəlin və klikləyin');
@@ -872,7 +887,7 @@ function exitTour(silent) {
   scene.environment = sunSim.on && skyEnvRT ? skyEnvRT.texture : envExterior;
   scene.environmentIntensity = 1.0;
   renderer.toneMappingExposure = 0.62;
-  camera.fov = 42;
+  camera.fov = baseFov();
   camera.updateProjectionMatrix();
   aimSun(new THREE.Vector3(0, floorState.baseY, 0), 26);
   state.mode = 'floor';
@@ -1319,6 +1334,32 @@ $('#renderSave').addEventListener('click', () => {
 });
 
 /* =========================================================
+   Kamera qoruyucusu (3D seçim rejimi)
+   ========================================================= */
+const TOWER_PTS = [[0, 14, 0], [0, 32, 0], [0, 52, 0], [15, 30, 10], [-15, 30, 10], [15, 30, -10], [-15, 30, -10]].map((p) => new THREE.Vector3(...p));
+const floorPts = [0, 0, 0, 0, 0].map(() => new THREE.Vector3());
+function updateGuard(dt, now) {
+  const m = state.mode;
+  if (rendering) return;
+  if (m !== 'building' && m !== 'floor') { guard.update(camera, null, dt, now); return; }
+  // baxış nöqtəsi kompleksdən çox uzaqlaşmasın
+  const tg = controls.target;
+  if (!camTween) {
+    tg.x = THREE.MathUtils.clamp(tg.x, -45, 45);
+    tg.z = THREE.MathUtils.clamp(tg.z, -40, 45);
+    tg.y = THREE.MathUtils.clamp(tg.y, 2, 70);
+    guard.pushOut(camera.position, 2, { neighbors: false, tower: m === 'building', ground: 2 });
+  }
+  let pts = TOWER_PTS;
+  if (m === 'floor' && floorState) {
+    const y = floorState.baseY + 1.2;
+    [[0, 0], [14, 9], [-14, 9], [14, -9], [-14, -9]].forEach(([x, z], i) => floorPts[i].set(x, y, z));
+    pts = floorPts;
+  }
+  guard.update(camera, pts, dt, now);
+}
+
+/* =========================================================
    Əsas dövr
    ========================================================= */
 const timer = new THREE.Timer();
@@ -1340,6 +1381,7 @@ function frame(now) {
   else if (state.mode === 'landing') { updateLandingCamera(dt, t); updateMasterplan(); }
   else if (state.mode === 'tour') { if (!camTween) tour.update(Math.min(rawDt, 0.25)); }
   else if (!camTween) controls.update();
+  updateGuard(Math.min(rawDt, 0.25), now);
 
   // mənzil etiketləri
   if (floorState && state.mode === 'floor') {
@@ -1432,4 +1474,4 @@ setTimeout(() => {
 }, 1200);
 
 // Test və sazlama üçün
-window.__nova = { get camTween() { return camTween; }, get rendering() { return rendering; }, startRender, stopRender, setSunMode, setSunDay, sunSim, applySun, controls, scene, renderer, scrollCtl, state, enterExplore, selectFloor, openApt, startTour, exitTour, backToBuilding, exitExplore, tour, camera, APARTMENTS };
+window.__nova = { guard, PATH, posCurve, tgtCurve, BUILDING_VIEW, get camTween() { return camTween; }, get rendering() { return rendering; }, startRender, stopRender, setSunMode, setSunDay, sunSim, applySun, controls, scene, renderer, scrollCtl, state, enterExplore, selectFloor, openApt, startTour, exitTour, backToBuilding, exitExplore, tour, camera, APARTMENTS };
