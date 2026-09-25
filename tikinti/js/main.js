@@ -818,8 +818,8 @@ function startTourFor(ad) {
       l.intensity = p ? 5 : 0;
       if (p) l.position.copy(p);
     });
-    if (envInterior) { scene.environment = envInterior; scene.environmentIntensity = 0.55; }
-    renderer.toneMappingExposure = 1.0;
+    if (envInterior) { scene.environment = envInterior; scene.environmentIntensity = 0.3; }
+    renderer.toneMappingExposure = 0.72;
     aimSun(new THREE.Vector3((ad.bounds.x0 + ad.bounds.x1) / 2, ad.baseY, (ad.bounds.z0 + ad.bounds.z1) / 2), 14);
     tourHud.hidden = false;
     setupTourHud(ad);
@@ -857,6 +857,7 @@ tour.onMove = (pos, yaw) => {
 
 function exitTour(silent) {
   if (state.mode !== 'tour') return;
+  stopRender();
   tour.stop();
   tourHud.hidden = true;
   const ad = tourData;
@@ -1025,7 +1026,7 @@ function applySun() {
   skyNight.value = night;
   bakuUniforms.uNight.value = night;
   const envK = 0.4 + 0.6 * smooth(-6, 15, altDeg);
-  scene.environmentIntensity = state.mode === 'tour' ? 0.5 * envK : envK;
+  scene.environmentIntensity = state.mode === 'tour' ? 0.3 * envK : envK;
   scene.fog.density = 0.00035 + night * 0.0003;
   // axşam: fənərlər, lobbi, lövhə yanır
   for (const m of glowMats()) {
@@ -1034,7 +1035,7 @@ function applySun() {
   }
   // turda: otaq lampaları qaranlıqlaşdıqca yanır
   if (state.mode === 'tour' && tourData) lampPool.forEach((l, i) => (l.intensity = tourData.lamps[i] ? 0.3 + 3.2 * night : 0));
-  renderer.toneMappingExposure = (state.mode === 'tour' ? 0.8 : state.mode === 'floor' ? 0.6 : 0.8) * (1 + night * 0.9);
+  renderer.toneMappingExposure = (state.mode === 'tour' ? 0.72 : state.mode === 'floor' ? 0.6 : 0.8) * (1 + night * 0.9);
   const dusk = 1 - smooth(4, 20, Math.abs(altDeg));
   scene.fog.color.copy(FOG_DAY).lerp(FOG_DUSK, dusk * day).lerp(FOG_NIGHT, night);
   aimSun(lastAim.center, lastAim.size);
@@ -1112,7 +1113,7 @@ function setSunMode(on) {
       if (m.userData.nightGlow != null) m.emissiveIntensity = m.userData.nightGlow;
       if (m.userData.nightOpacity != null) m.opacity = 0;
     }
-    renderer.toneMappingExposure = state.mode === 'tour' ? 1.0 : state.mode === 'floor' ? 0.62 : 0.9;
+    renderer.toneMappingExposure = state.mode === 'tour' ? 0.72 : state.mode === 'floor' ? 0.62 : 0.9;
     if (state.mode === 'tour' && tourData) lampPool.forEach((l, i) => (l.intensity = tourData.lamps[i] ? 5 : 0));
     if (hdrTex) scene.fog.color.copy(horizonColor(hdrTex));
     aimSun(lastAim.center, lastAim.size);
@@ -1191,6 +1192,99 @@ $$('[data-daytime]').forEach((b) => b.addEventListener('click', () => {
 }));
 
 /* =========================================================
+   Foto-render: işıq izləmə (path tracing) ilə real render
+   ========================================================= */
+const RENDER_TARGET_SAMPLES = isTouch ? 120 : 400;
+let pt = null, ptScene = null, rendering = false, renderT0 = 0, savedExposure = null;
+async function startRender() {
+  if (!tourData || rendering) return;
+  rendering = true;
+  document.body.classList.add('rendering');
+  $('#renderHud').hidden = false;
+  $('#renderText').textContent = 'Səhnə hazırlanır…';
+  tour.active = false;
+  try {
+    const { WebGLPathTracer } = await import('../vendor/pathtracer/index.module.js');
+    ptScene = new THREE.Scene();
+    const apt = tourData.group.clone(true);
+    // seçim/örtük obyektləri render-ə düşməsin
+    const drop = [];
+    apt.traverse((o) => {
+      if (o.userData.tourOnly) o.visible = true;
+      if (o.isLineSegments || (o.material && (o.material.visible === false || (o.material.isMeshBasicMaterial && o.material.opacity < 0.5)))) drop.push(o);
+    });
+    drop.forEach((o) => o.parent && o.parent.remove(o));
+    ptScene.add(apt);
+    // döşəmə plitəsi və tavan (qonşu mənzillərdən işıq keçməsin)
+    const b = tourData.bounds;
+    const slabGeo = new THREE.BoxGeometry(b.x1 - b.x0 + 2, 0.3, b.z1 - b.z0 + 2);
+    const slabMat = new THREE.MeshStandardMaterial({ color: 0x999999 });
+    for (const y of [tourData.baseY - 0.15, tourData.baseY + 3.15]) {
+      const m = new THREE.Mesh(slabGeo, slabMat);
+      m.position.set((b.x0 + b.x1) / 2, y, (b.z0 + b.z1) / 2);
+      ptScene.add(m);
+    }
+    // işıqlar
+    const sun = new THREE.DirectionalLight(sunLight.color, sunLight.intensity);
+    sun.position.copy(sunLight.position);
+    sun.target.position.copy(sunLight.target.position);
+    ptScene.add(sun, sun.target);
+    lampPool.forEach((l) => { if (l.intensity > 0) { const c = new THREE.PointLight(l.color, l.intensity, l.distance, l.decay); c.position.copy(l.position); ptScene.add(c); } });
+    if (hdrTex) { ptScene.environment = hdrTex; ptScene.background = hdrTex; }
+    const night = windowMaterial().userData.uniforms.uNight.value;
+    ptScene.environmentIntensity = sunSim.on ? Math.max(0.03, 1 - night) : 1.0;
+    ptScene.backgroundIntensity = ptScene.environmentIntensity;
+
+    pt = new WebGLPathTracer(renderer);
+    pt.bounces = 6;
+    pt.transmissiveBounces = 6;
+    pt.filterGlossyFactor = 0.5;
+    pt.tiles.set(isTouch ? 3 : 2, isTouch ? 3 : 2);
+    pt.renderScale = isTouch ? 0.6 : 1;
+    pt.minSamples = 1;
+    pt.fadeDuration = 400;
+    pt.renderDelay = 0;
+    pt.setScene(ptScene, camera);
+    savedExposure = renderer.toneMappingExposure;
+    renderer.toneMappingExposure = savedExposure * 1.35;
+    renderT0 = performance.now();
+  } catch (e) {
+    console.error('Render xətası', e);
+    $('#renderText').textContent = 'Bu cihaz foto-render-i dəstəkləmir';
+    setTimeout(stopRender, 2500);
+  }
+}
+function stopRender() {
+  if (!rendering) return;
+  rendering = false;
+  if (pt) { pt.dispose?.(); pt = null; }
+  if (savedExposure != null) { renderer.toneMappingExposure = savedExposure; savedExposure = null; }
+  ptScene = null;
+  document.body.classList.remove('rendering');
+  $('#renderHud').hidden = true;
+  if (state.mode === 'tour') tour.active = true;
+}
+function renderTick() {
+  if (!pt) return false;
+  if (pt.samples < RENDER_TARGET_SAMPLES) pt.renderSample();
+  const k = Math.min(1, pt.samples / RENDER_TARGET_SAMPLES);
+  $('#renderBar').style.width = `${(k * 100).toFixed(1)}%`;
+  const sec = ((performance.now() - renderT0) / 1000).toFixed(0);
+  $('#renderText').textContent = pt.isCompiling ? 'Şeyderlər hazırlanır…' : k < 1 ? `İşıq hesablanır · ${Math.floor(pt.samples)}/${RENDER_TARGET_SAMPLES} · ${sec} san` : `Hazırdır · ${sec} san`;
+  return true;
+}
+$('#renderBtn').addEventListener('click', startRender);
+$('#renderClose').addEventListener('click', stopRender);
+$('#renderSave').addEventListener('click', () => {
+  if (!pt) return;
+  pt.renderSample();
+  const a = document.createElement('a');
+  a.href = renderer.domElement.toDataURL('image/jpeg', 0.93);
+  a.download = `nova-residence-render-${Date.now()}.jpg`;
+  a.click();
+});
+
+/* =========================================================
    Əsas dövr
    ========================================================= */
 const timer = new THREE.Timer();
@@ -1225,7 +1319,8 @@ function frame(now) {
     if (ad) ad.overlay.material.opacity = 0.22 + Math.sin(t * 3) * 0.1;
   }
 
-  if (Q.has('nopp')) renderer.render(scene, camera);
+  if (rendering) { if (!renderTick()) renderer.render(scene, camera); }
+  else if (Q.has('nopp')) renderer.render(scene, camera);
   else composer.render(dt);
   requestAnimationFrame(frame);
 }
@@ -1300,4 +1395,4 @@ setTimeout(() => {
 }, 1200);
 
 // Test və sazlama üçün
-window.__nova = { setSunMode, setSunDay, sunSim, applySun, controls, scene, renderer, scrollCtl, state, enterExplore, selectFloor, openApt, startTour, exitTour, backToBuilding, exitExplore, tour, camera, APARTMENTS };
+window.__nova = { startRender, stopRender, setSunMode, setSunDay, sunSim, applySun, controls, scene, renderer, scrollCtl, state, enterExplore, selectFloor, openApt, startTour, exitTour, backToBuilding, exitExplore, tour, camera, APARTMENTS };

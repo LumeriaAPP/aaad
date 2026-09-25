@@ -2,6 +2,7 @@
 // Mərkəz (0, 0) — əşyanın döşəmədəki izinin ortası.
 import * as THREE from 'three';
 import { marbleTexture } from './textures.js';
+import { rugMaterial } from './decor.js';
 
 let M = null;
 
@@ -102,7 +103,8 @@ const B = {
   tv(g) {
     box(g, 1.9, 0.42, 0.42, M.woodDark, 0, 0.12, 0.04);
     box(g, 1.9, 0.12, 0.42, M.black, 0, 0, 0.04);
-    box(g, 1.45, 0.82, 0.04, M.screen, 0, 1.0, -0.13);
+    box(g, 1.45, 0.82, 0.03, M.screen, 0, 1.0, 0.035);
+    box(g, 1.47, 0.84, 0.01, M.black, 0, 0.99, 0.018);
     cyl(g, 0.07, 0.07, 0.25, M.ceramic, 0.7, 0.54, 0.05, 16);
   },
   kitchenRun(g, o) {
@@ -194,18 +196,40 @@ const B = {
     cyl(g, 0.07, 0.05, 0.3, M.ceramic, 0.38, 0.83, 0, 16);
   },
   plant(g) {
-    cyl(g, 0.2, 0.15, 0.42, M.pot, 0, 0, 0, 20);
-    const geo = new THREE.IcosahedronGeometry(0.3, 0);
-    const pts = [[0, 0.8, 0, 1], [0.15, 1.05, 0.05, 0.8], [-0.12, 1.2, -0.05, 0.7], [0.05, 1.4, 0.1, 0.55]];
-    pts.forEach(([x, y, z, s], i) => {
-      const m = new THREE.Mesh(geo, i % 2 ? M.plant2 : M.plant);
-      m.position.set(x, y, z);
-      m.scale.setScalar(s);
-      m.rotation.set(i, i * 2, 0);
-      m.castShadow = true;
-      g.add(m);
-    });
-    cyl(g, 0.02, 0.025, 0.5, M.woodDark, 0, 0.4, 0, 6);
+    cyl(g, 0.21, 0.16, 0.44, M.pot, 0, 0, 0, 24);
+    cyl(g, 0.19, 0.19, 0.02, M.soil || (M.soil = new THREE.MeshStandardMaterial({ color: 0x3a2a1f, roughness: 1 })), 0, 0.42, 0, 20);
+    // yarpaqlar: əyilmiş uzunsov lövhələr (monstera/fikus kimi)
+    if (!M.leafGeo) {
+      const lg = new THREE.PlaneGeometry(0.16, 0.42, 2, 6);
+      const p = lg.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        const y = p.getY(i) + 0.21, x = p.getX(i);
+        const w = Math.sin((y / 0.42) * Math.PI) * 1.1;
+        p.setX(i, x * w);
+        p.setZ(i, -Math.pow(y / 0.42, 2) * 0.14 + Math.abs(x) * 0.25);
+        p.setY(i, y);
+      }
+      lg.computeVertexNormals();
+      M.leafGeo = lg;
+      M.leaf = [0x2f5a2a, 0x3b6b31, 0x4a7a3a].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.6, side: THREE.DoubleSide }));
+    }
+    let seed = 7;
+    const r = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 26; i++) {
+      const stemH = 0.45 + r() * 0.75;
+      const ang = r() * Math.PI * 2, tilt = 0.35 + r() * 0.7;
+      const l = new THREE.Mesh(M.leafGeo, M.leaf[i % 3]);
+      l.position.set(Math.cos(ang) * 0.05, stemH, Math.sin(ang) * 0.05);
+      l.rotation.set(0, -ang + Math.PI / 2, 0);
+      l.rotateX(tilt);
+      const k = 0.8 + r() * 0.6;
+      l.scale.setScalar(k);
+      l.castShadow = true;
+      g.add(l);
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.008, stemH - 0.4, 4), M.leaf[0]);
+      stem.position.set(Math.cos(ang) * 0.025, 0.4 + (stemH - 0.4) / 2, Math.sin(ang) * 0.025);
+      g.add(stem);
+    }
   },
   pendant(g) {
     g.userData.tourOnly = true;
@@ -284,7 +308,7 @@ export function buildFurniture(item) {
   furnitureMaterials();
   const g = new THREE.Group();
   if (item.k === 'rug') {
-    const m = new THREE.Mesh(boxGeo(item.w, 0.012, item.d), new THREE.MeshStandardMaterial({ color: item.color || '#b5a898', roughness: 1 }));
+    const m = new THREE.Mesh(boxGeo(item.w, 0.012, item.d), rugMaterial(Math.round(item.x * 7 + item.z * 3)));
     m.position.y = 0.006;
     m.receiveShadow = true;
     g.add(m);

@@ -5,6 +5,7 @@ import { BUILDING, WALL_H, STATUS } from './data.js';
 import { computeLayout, exteriorSides } from './layout.js';
 import { buildFurniture, furnitureMaterials, FOOTPRINT } from './furniture.js';
 import { woodTexture, marbleTexture, tileTexture } from './textures.js';
+import { decorate } from './decor.js';
 
 let MATS = null;
 export function interiorMaterials() {
@@ -201,6 +202,7 @@ export function buildApartment(apt, baseY) {
       furnColliders.push({ x0: cx - w / 2, x1: cx + w / 2, z0: cz - d / 2, z1: cz + d / 2 });
     }
   }
+  decorate(plan, ext, openings, furn, tourOnly);
   group.add(mergeByMaterial(furn));
 
   // Tavan (yalnız virtual turda görünür)

@@ -23,6 +23,7 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
 html { scroll-behavior: smooth; }
 body {
   font-family: var(--sans);
@@ -972,3 +973,18 @@ body.sun-on .minimap { bottom: 240px; }
 .mp-copy { position: absolute; left: 16px; bottom: 7vh; max-width: 560px; text-shadow: 0 4px 30px rgba(0, 0, 0, 0.7); }
 @media (min-width: 768px) { .mp-copy { left: 40px; } }
 .mp-copy .text { color: #efe9df; }
+
+/* ============ Foto-render ============ */
+.tour-render { position: absolute; right: 16px; top: 72px; padding: 10px 16px; font-size: 0.85rem; }
+.render-hud {
+  position: absolute; left: 50%; top: 72px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; border-radius: 999px;
+  background: rgba(13, 14, 18, 0.85); border: 1px solid var(--line-2);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  font-size: 0.82rem; white-space: nowrap; z-index: 6;
+}
+.render-hud__bar { width: 140px; height: 4px; border-radius: 4px; background: var(--line-2); overflow: hidden; }
+.render-hud__bar span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--gold-2), var(--gold)); }
+body.rendering .rooms-bar, body.rendering .minimap, body.rendering .joystick, body.rendering .tour-help, body.rendering .tour-render, body.rendering .sun-panel, body.rendering .ex-top, body.rendering .tour-exit { opacity: 0; pointer-events: none; }
+@media (max-width: 760px) { .tour-render { top: 118px; left: 12px; right: auto; } .render-hud { top: auto; bottom: 16px; flex-wrap: wrap; justify-content: center; border-radius: 18px; } }

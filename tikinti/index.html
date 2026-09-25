@@ -16,7 +16,9 @@
     {
       "imports": {
         "three": "./vendor/three/three.module.js",
-        "three/addons/": "./vendor/three/addons/"
+        "three/addons/": "./vendor/three/addons/",
+        "three/examples/jsm/": "./vendor/three/addons/",
+        "three-mesh-bvh": "./vendor/three-mesh-bvh/index.module.js"
       }
     }
   </script>
@@ -375,6 +377,16 @@
         <span><kbd>Sürüşdür</kbd> ətrafa bax</span>
         <span><kbd>W A S D</kbd> hərəkət</span>
         <span><kbd>Klik</kbd> döşəməyə — ora get</span>
+      </div>
+      <button class="btn btn--gold tour-render" id="renderBtn">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="13" r="4"/></svg>
+        Foto-render
+      </button>
+      <div class="render-hud" id="renderHud" hidden>
+        <div class="render-hud__bar"><span id="renderBar"></span></div>
+        <span id="renderText">Hazırlanır…</span>
+        <button class="btn btn--ghost btn--sm" id="renderSave">Şəkli saxla</button>
+        <button class="btn btn--glass btn--sm" id="renderClose">Bağla</button>
       </div>
       <button class="btn btn--glass tour-exit" id="tourExit">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>

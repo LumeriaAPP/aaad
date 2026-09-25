@@ -220,3 +220,87 @@ export function cityFacadeTexture() {
     for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) g.fillRect(x * cw + 2, y * rh + 2, cw - 4, rh - 3);
   });
 }
+
+// Abstrakt divar şəkli (hər seed üçün fərqli kompozisiya)
+export function artTexture(seed = 1) {
+  const r = rng(seed * 97 + 13);
+  const pal = [
+    ['#e9e1d3', '#c9a27a', '#2f3b45', '#9a5b3c', '#d8c3a5'],
+    ['#efe9df', '#6b7f6a', '#c7b08a', '#2c2c2c', '#b8603c'],
+    ['#f1ece4', '#34506b', '#d6b98c', '#8aa0ad', '#1d1d1d'],
+  ][seed % 3];
+  return canvasTexture(512, (g, S) => {
+    g.fillStyle = pal[0];
+    g.fillRect(0, 0, S, S);
+    for (let i = 0; i < 7; i++) {
+      g.fillStyle = pal[1 + Math.floor(r() * 4)];
+      g.globalAlpha = 0.75 + r() * 0.25;
+      const t = r();
+      if (t < 0.4) { g.beginPath(); g.arc(r() * S, r() * S, 40 + r() * 150, 0, Math.PI * (1 + r())); g.fill(); }
+      else if (t < 0.7) g.fillRect(r() * S * 0.8, r() * S * 0.8, 40 + r() * 200, 20 + r() * 220);
+      else { g.lineWidth = 6 + r() * 14; g.strokeStyle = g.fillStyle; g.beginPath(); g.moveTo(r() * S, r() * S); g.bezierCurveTo(r() * S, r() * S, r() * S, r() * S, r() * S, r() * S); g.stroke(); }
+    }
+    g.globalAlpha = 1;
+    const n = makeNoise(seed);
+    const img = g.getImageData(0, 0, S, S);
+    for (let y = 0; y < S; y += 1) for (let x = 0; x < S; x += 1) {
+      const k = (n(x / 3, y / 3) - 0.5) * 18;
+      const i = (y * S + x) * 4;
+      img.data[i] += k; img.data[i + 1] += k; img.data[i + 2] += k;
+    }
+    g.putImageData(img, 0, 0);
+  });
+}
+
+// Naxışlı xalça
+export function rugTexture(seed = 1, base = [176, 160, 140]) {
+  const r = rng(seed * 31 + 5);
+  return canvasTexture(512, (g, S) => {
+    const n = makeNoise(seed + 7);
+    const img = g.createImageData(S, S);
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const v = fbm(n, x / 6, y / 6, 3) * 0.25 + 0.85;
+      const i = (y * S + x) * 4;
+      img.data[i] = base[0] * v; img.data[i + 1] = base[1] * v; img.data[i + 2] = base[2] * v; img.data[i + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    const dark = `rgba(${base[0] * 0.55},${base[1] * 0.55},${base[2] * 0.55},0.8)`;
+    g.strokeStyle = dark;
+    g.lineWidth = 10;
+    g.strokeRect(26, 26, S - 52, S - 52);
+    g.lineWidth = 3;
+    g.strokeRect(46, 46, S - 92, S - 92);
+    g.globalAlpha = 0.35;
+    for (let i = 0; i < 9; i++) {
+      g.beginPath();
+      g.moveTo(80 + r() * (S - 160), 80 + r() * (S - 160));
+      g.lineTo(80 + r() * (S - 160), 80 + r() * (S - 160));
+      g.lineWidth = 2 + r() * 5;
+      g.stroke();
+    }
+    g.globalAlpha = 1;
+  });
+}
+
+// Divar plitəsi (hamam) — 1 tekstur = 0.6 m x 0.6 m, uzunsov plitələr
+export function wallTileTexture() {
+  return canvasTexture(512, (g, S) => {
+    const n = makeNoise(77);
+    g.fillStyle = '#b9b2a8';
+    g.fillRect(0, 0, S, S);
+    const rows = 4, cols = 2, th = S / rows, tw = S / cols;
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      const off = (y % 2) * tw / 2;
+      for (const dx of [0, -tw]) {
+        const x0 = x * tw + off + dx;
+        const img = g.createImageData(tw - 4, th - 4);
+        for (let yy = 0; yy < img.height; yy++) for (let xx = 0; xx < img.width; xx++) {
+          const v = 0.93 + fbm(n, (x0 + xx) / 40, (y * th + yy) / 40, 2) * 0.1;
+          const i = (yy * img.width + xx) * 4;
+          img.data[i] = 236 * v; img.data[i + 1] = 233 * v; img.data[i + 2] = 226 * v; img.data[i + 3] = 255;
+        }
+        g.putImageData(img, x0 + 2, y * th + 2);
+      }
+    }
+  });
+}
