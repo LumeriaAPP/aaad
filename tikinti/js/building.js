@@ -1,5 +1,6 @@
 // Binanın xarici görünüşü, ətraf ərazi və şəhər konteksti
 import * as THREE from 'three';
+import { accent } from './accent.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { BUILDING, floorBaseY, COMPANY } from './data.js';
@@ -294,8 +295,8 @@ export function buildTower() {
   // Seçilmiş mərtəbənin işıqlanması
   const hlGeo = new THREE.BoxGeometry(W + BAL * 2 + 0.8, FH, D + BAL * 2 + 0.8);
   const highlight = new THREE.Group();
-  const hlMesh = new THREE.Mesh(hlGeo, new THREE.MeshBasicMaterial({ color: 0xd8b26e, transparent: true, opacity: 0.22, depthWrite: false }));
-  const hlEdges = new THREE.LineSegments(new THREE.EdgesGeometry(hlGeo), new THREE.LineBasicMaterial({ color: 0xffe2a8 }));
+  const hlMesh = new THREE.Mesh(hlGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color(accent('--gold')), transparent: true, opacity: 0.24, depthWrite: false }));
+  const hlEdges = new THREE.LineSegments(new THREE.EdgesGeometry(hlGeo), new THREE.LineBasicMaterial({ color: new THREE.Color(accent('--gold-hi', '#a8ddd2')) }));
   highlight.add(hlMesh, hlEdges);
   highlight.visible = false;
   root.add(highlight);

@@ -84,7 +84,7 @@ export function planSVG(plan, opts = {}) {
         const cx = o.axis === 'h' ? X((o.a + o.b) / 2) : X(o.c);
         const cz = o.axis === 'h' ? Z(o.c) : Z((o.a + o.b) / 2);
         const dz = slot.mz ? -0.55 : 0.55;
-        out.push(`<path d="M ${cx - 0.22} ${cz + dz} L ${cx} ${cz + dz * 0.45} L ${cx + 0.22} ${cz + dz}" fill="none" stroke="#c9a15c" stroke-width="0.07" stroke-linecap="round" stroke-linejoin="round"/>`);
+        out.push(`<path d="M ${cx - 0.22} ${cz + dz} L ${cx} ${cz + dz * 0.45} L ${cx + 0.22} ${cz + dz}" fill="none" style="stroke:var(--gold-dark, #2d7a6f)" stroke-width="0.07" stroke-linecap="round" stroke-linejoin="round"/>`);
       }
     }
   }
@@ -117,7 +117,7 @@ export function planSVG(plan, opts = {}) {
     dim(0, -0.75, W, -0.75, `${W.toFixed(1)} m`, false);
     dim(-0.75, 0, -0.75, D, `${D.toFixed(1)} m`, true);
     // şimal oxu
-    out.push(`<g transform="translate(${W + 0.75} ${-0.6})"><circle r="0.35" fill="none" stroke="#9c9187" stroke-width="0.03"/><path d="M0 -0.28 L0.12 0.12 L0 0.04 L-0.12 0.12Z" fill="#c9a15c"/><text y="0.62" font-size="0.26" text-anchor="middle" fill="#8a7f72" font-family="Inter, sans-serif">Şm</text></g>`);
+    out.push(`<g transform="translate(${W + 0.75} ${-0.6})"><circle r="0.35" fill="none" stroke="#9c9187" stroke-width="0.03"/><path d="M0 -0.28 L0.12 0.12 L0 0.04 L-0.12 0.12Z" style="fill:var(--gold-dark, #2d7a6f)"/><text y="0.62" font-size="0.26" text-anchor="middle" fill="#8a7f72" font-family="Inter, sans-serif">Şm</text></g>`);
   }
 
   out.push('</svg>');

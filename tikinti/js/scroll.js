@@ -48,6 +48,7 @@ function splitWords(el) {
    data-p='{"y":[0,-120],"scale":[1,1.2],"opacity":[1,0],"blur":[0,6]}'
    data-p-range="enter" — element ekrana girəndən çıxana qədər (standart)
    data-p-range="exit"  — yalnız bölmə ekrandan çıxarkən (hero üçün)
+   data-p-range="end"   — ekrana girəndən səhifənin sonuna qədər (footer üçün)
    data-p-range="pin"   — ən yaxın .pin bölməsinin daxili irəliləyişi */
 const P_UNITS = { y: 'px', x: 'px', blur: 'px', rotate: 'deg' };
 function readP(el) {
@@ -169,7 +170,11 @@ export function initScroll({ onFrame } = {}) {
       } else {
         const r = (it.pin || it.el).getBoundingClientRect();
         if (it.range === 'exit') t = clamp(-r.top / Math.max(1, r.height));
-        else {
+        else if (it.range === 'end') {
+          // səhifənin sonundakı elementlər: ekrana girəndən səhifə tam sona çatana qədər
+          const max = document.documentElement.scrollHeight - vh;
+          t = clamp((vh - r.top) / Math.max(1, max - y + vh - r.top));
+        } else {
           if (r.bottom < -vh * 0.5 || r.top > vh * 1.5) continue;
           t = clamp((vh - r.top) / (vh + r.height));
         }

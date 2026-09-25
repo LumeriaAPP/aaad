@@ -1,6 +1,7 @@
 // Dizayn studiyası: mənzilə yuxarıdan baxıb otaqların təyinatını, rəngləri,
 // döşəməni və mebelin yerini dəyişmək üçün interfeys.
 import * as THREE from 'three';
+import { accent } from './accent.js';
 import {
   USES, WALL_COLORS, FLOORS, FABRICS, STYLES, CATALOG, DEFAULT_WALL,
   allowedUses, furnishRoom, furnishAll, addItem, applyStyle, saveDesign, clearDesign, defaultDesign, itemRect, roomAt, placementOk,
@@ -38,9 +39,9 @@ export function initStudio(env) {
   const hl = new THREE.Group(); // seçim işarələri (mənzilin yerli koordinatlarında)
   hl.renderOrder = 20;
 
-  const gold = new THREE.LineBasicMaterial({ color: 0xd6b47a, transparent: true, depthTest: false });
+  const gold = new THREE.LineBasicMaterial({ color: new THREE.Color(accent('--gold')), transparent: true, depthTest: false });
   const red = new THREE.LineBasicMaterial({ color: 0xef5b5b, transparent: true, depthTest: false });
-  const roomFillMat = new THREE.MeshBasicMaterial({ color: 0xd6b47a, transparent: true, opacity: 0.12, depthWrite: false, depthTest: false });
+  const roomFillMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(accent('--gold')), transparent: true, opacity: 0.14, depthWrite: false, depthTest: false });
 
   const plan = () => ad.plan;
   const design = () => ad.design;

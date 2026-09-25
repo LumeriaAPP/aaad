@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import './accent.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
@@ -933,7 +934,7 @@ function setupTourHud(ad) {
   roomsBar.innerHTML = ad.rooms.map((r, i) => `<button data-room="${i}">${r.name}</button>`).join('');
   minimap.innerHTML = planSVG(ad.plan || ad.apt.type, { slot: ad.apt.slot, compact: true });
   const svg = minimap.querySelector('svg');
-  svg.insertAdjacentHTML('beforeend', `<g id="mapMarker"><path d="M0 0 L2.4 -1.1 A2.6 2.6 0 0 1 2.4 1.1 Z" fill="rgba(201,161,92,0.35)"/><circle r="0.32" fill="#c9a15c" stroke="#fff" stroke-width="0.1"/></g>`);
+  svg.insertAdjacentHTML('beforeend', `<g id="mapMarker"><path d="M0 0 L2.4 -1.1 A2.6 2.6 0 0 1 2.4 1.1 Z" style="fill:rgba(var(--gold-rgb),0.35)"/><circle r="0.32" style="fill:var(--gold)" stroke="#fff" stroke-width="0.1"/></g>`);
   mapMarker = svg.querySelector('#mapMarker');
 }
 
@@ -1506,6 +1507,25 @@ const SNAPS = [
   { el: '.purpose__img--2', pos: [10, 1.6, 41], tgt: [-3, 9, 12], fov: 58 },
   { el: '.purpose__img--3', pos: [-95, 85, 80], tgt: [0, 20, 0], fov: 32 },
 ];
+// Hazır şəkillər: index.html-də kartın data-photo atributu (məs. assets/img/yasamaq.jpg).
+// Şəkil varsa o göstərilir, yoxdursa 3D səhnədən kadr çəkilir.
+function loadPhoto(s) {
+  const el = document.querySelector(s.el);
+  const url = el && el.dataset.photo;
+  if (!url) return Promise.resolve(false);
+  return new Promise((res) => {
+    const im = new Image();
+    im.onload = () => {
+      el.style.backgroundImage = `url(${url})`;
+      el.classList.add('has-img', 'is-photo');
+      s.done = true;
+      res(true);
+    };
+    im.onerror = () => res(false);
+    im.src = url;
+  });
+}
+const photosReady = Promise.all(SNAPS.map(loadPhoto));
 function takeSnapshots() {
   // Ekrandan kənar render hədəfi: əsas səhnənin vəziyyətinə toxunmur
   const W = 480, H = 600;
@@ -1521,6 +1541,7 @@ function takeSnapshots() {
   const srgb = (c) => { c = Math.min(1, Math.max(0, c)); return c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055; };
   const prev = renderer.getRenderTarget();
   for (const s of SNAPS) {
+    if (s.done) continue; // hazır şəkil var
     snapCam.fov = s.fov;
     snapCam.updateProjectionMatrix();
     snapCam.position.set(...s.pos);
@@ -1549,7 +1570,11 @@ function takeSnapshots() {
   renderer.setRenderTarget(prev);
   rt.dispose();
 }
-if (!Q.has('nosnap')) Promise.all([envPromise, treesReady]).then(() => setTimeout(() => requestAnimationFrame(takeSnapshots), 600));
+if (!Q.has('nosnap')) {
+  Promise.all([envPromise, treesReady, photosReady]).then(() => {
+    if (SNAPS.some((s) => !s.done)) setTimeout(() => requestAnimationFrame(takeSnapshots), 600);
+  });
+}
 
 // Modelləri səhnə açıldıqdan sonra yüklə
 setTimeout(() => {
