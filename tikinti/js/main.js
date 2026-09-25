@@ -18,6 +18,7 @@ import { initScroll } from './scroll.js';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { sunPosition, sunDirection, localDate, sunTimes, fmtTime, seasonalSunHours, SEASONS } from './sun.js';
 import { windowMaterial, NEIGHBORS } from './complex.js';
+import { bakuUniforms } from './baku.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -39,7 +40,7 @@ renderer.toneMappingExposure = 0.9;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0xc9d6e2, 0.0011);
+scene.fog = new THREE.FogExp2(0xc9d6e2, 0.00045);
 const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.3, 4000);
 camera.position.set(90, 10, 110);
 
@@ -181,7 +182,7 @@ function applyModels(ad) {
 const tower = buildTower();
 scene.add(tower.root);
 scene.add(buildSurroundings());
-const treesReady = buildTrees((trees) => scene.add(trees), [[78, 96], [-62, 74], [-78, -40], [96, -30], [34, 58], [22, 44], [72, 92]]).catch((e) => console.warn('Ağaclar yüklənmədi', e));
+const treesReady = buildTrees((trees) => scene.add(trees), [[40, 150], [30, 120], [-62, 74], [-78, -40], [96, -30], [34, 58], [22, 44], [72, 92]]).catch((e) => console.warn('Ağaclar yüklənmədi', e));
 
 /* =========================================================
    Sonrakı emal: AO (künc kölgələri), yumşaq parıltı
@@ -265,10 +266,10 @@ function flyTo(pos, target, dur = 1400, done) {
    ========================================================= */
 // Kamera açar kadrları bölmələrə bağlıdır: at = 0 bölmənin əvvəli, 1 — sonu
 const PATH = [
-  { sel: '#top', at: 0, pos: [78, 6, 96], tgt: [-6, 30, 0] },
+  { sel: '#top', at: 0, pos: [40, 6, 150], tgt: [-8, 32, 0] },
   { sel: '#manifest', at: 0.5, pos: [-40, 18, 90], tgt: [0, 28, 0] },
-  { sel: '#masterplan', at: 0, pos: [-150, 125, 205], tgt: [0, 10, 12] },
-  { sel: '#masterplan', at: 1, pos: [160, 120, 185], tgt: [0, 10, 12] },
+  { sel: '#masterplan', at: 0, pos: [175, 95, 250], tgt: [-45, 12, -55] },
+  { sel: '#masterplan', at: 1, pos: [70, 88, 285], tgt: [-70, 12, -60] },
   { sel: '#about', at: 0, pos: [-72, 24, 72], tgt: [0, 28, 0] },
   { sel: '#about', at: 1, pos: [26, 46, 34], tgt: [0, 44, 0] },
   { sel: '#numbers', at: 0.5, pos: [-60, 80, 90], tgt: [0, 26, 0] },
@@ -1022,12 +1023,13 @@ function applySun() {
   hemi.color.set(night > 0.5 ? 0x5d7098 : 0xcfe0f5);
   windowMaterial().userData.uniforms.uNight.value = night;
   skyNight.value = night;
+  bakuUniforms.uNight.value = night;
   const envK = 0.4 + 0.6 * smooth(-6, 15, altDeg);
   scene.environmentIntensity = state.mode === 'tour' ? 0.5 * envK : envK;
-  scene.fog.density = 0.0007 + night * 0.0008;
+  scene.fog.density = 0.00035 + night * 0.0003;
   // axşam: fənərlər, lobbi, lövhə yanır
   for (const m of glowMats()) {
-    if (m.userData.nightGlow != null) m.emissiveIntensity = m.userData.nightGlow * (1 + night * 9);
+    if (m.userData.nightGlow != null) m.emissiveIntensity = m.userData.nightGlow * (1 + night * 9) + (m.userData.nightGlowAdd || 0) * night;
     if (m.userData.nightOpacity != null) m.opacity = m.userData.nightOpacity * night;
   }
   // turda: otaq lampaları qaranlıqlaşdıqca yanır
@@ -1104,7 +1106,8 @@ function setSunMode(on) {
     hemi.color.set(0xcfe0f5);
     windowMaterial().userData.uniforms.uNight.value = 0;
     skyNight.value = 0;
-    scene.fog.density = 0.0011;
+    bakuUniforms.uNight.value = 0;
+    scene.fog.density = 0.00045;
     for (const m of glowMats()) {
       if (m.userData.nightGlow != null) m.emissiveIntensity = m.userData.nightGlow;
       if (m.userData.nightOpacity != null) m.opacity = 0;
@@ -1199,8 +1202,9 @@ function frame(now) {
   const t = timer.getElapsed();
   runTweens(performance.now());
   if (sunSim.on && sunSim.playing) { sunSim.min = (sunSim.min + dt * 50) % 1440; applySun(); }
-  if (!waterTex) scene.traverse((o) => { if (o.userData.water) waterTex = o.userData.water; });
-  if (waterTex) { waterTex.offset.x = t * 0.012; waterTex.offset.y = t * 0.008; }
+  if (!waterTex) { waterTex = []; scene.traverse((o) => { if (o.userData.water) waterTex.push(o.userData.water); }); if (!waterTex.length) waterTex = null; }
+  if (waterTex) for (const w of waterTex) { w.offset.x = t * 0.012; w.offset.y = t * 0.008; }
+  bakuUniforms.uTime.value = t;
 
   if (state.mode === 'landing') { updateLandingCamera(dt, t); updateMasterplan(); }
   else if (state.mode === 'tour') { if (!camTween) tour.update(dt); }

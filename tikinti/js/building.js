@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { BUILDING, floorBaseY, COMPANY } from './data.js';
 import { paverTexture } from './textures.js';
+import { buildBaku } from './baku.js';
 import { windowMaterial, buildNeighbor, buildCourtyard, buildCity, streetTreeSpots, facadeMats, NEIGHBORS } from './complex.js';
 
 const { width: W, depth: D, floorHeight: FH, firstFloor, lastFloor, groundHeight } = BUILDING;
@@ -369,6 +370,7 @@ export function buildSurroundings() {
   void tmats;
   g.add(buildCourtyard(GY));
   g.add(buildCity(GY));
+  g.add(buildBaku(GY));
 
   return g;
 }

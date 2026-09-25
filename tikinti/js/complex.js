@@ -1,6 +1,7 @@
 // Yaşayış kompleksi: realistik şüşə (pəncərə arxasında otaq), qonşu binalar və həyət
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { cityMaterial } from './baku.js';
 
 function rng(seed) {
   let s = seed >>> 0;
@@ -469,8 +470,8 @@ export const NEIGHBORS = [
   { id: 4, x: -42, z: -52, rot: 0, w: 26, d: 20, floors: 20 },
   { id: 5, x: 6, z: -58, rot: 0, w: 26, d: 20, floors: 17 },
   { id: 6, x: 52, z: -54, rot: 0, w: 26, d: 20, floors: 15 },
-  { id: 7, x: -40, z: 96, rot: Math.PI, w: 28, d: 18, floors: 9 },
-  { id: 8, x: 40, z: 96, rot: Math.PI, w: 28, d: 18, floors: 10 },
+  { id: 7, x: -64, z: 96, rot: Math.PI, w: 28, d: 18, floors: 9 },
+  { id: 8, x: 64, z: 96, rot: Math.PI, w: 28, d: 18, floors: 10 },
 ];
 
 /* =========================================================
@@ -617,7 +618,7 @@ export function buildCity(GY = -0.4) {
   g.add(poles, arms, lampHeads, pools);
 
   // ətraf məhəllələr: ağ həcmlər (arxitektura maketi üslubu)
-  const massMat = new THREE.MeshStandardMaterial({ color: 0xe9e7e2, roughness: 0.92 });
+  const massMat = cityMaterial();
   const mass = inst(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), massMat, 700);
   const blockX = [-E, ...xs, E], blockZ = [-E, ...zs, E];
   const parkGround = new THREE.MeshStandardMaterial({ color: 0x5f7a45, roughness: 1 });
