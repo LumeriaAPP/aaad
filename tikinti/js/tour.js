@@ -63,16 +63,24 @@ export class Tour {
       this.camera.fov = THREE.MathUtils.clamp(this.camera.fov + e.deltaY * 0.03, 40, 85);
       this.camera.updateProjectionMatrix();
     }, { passive: false });
+    // Düymələr fiziki yerinə görə (e.code) tanınır — klaviaturanın dili (AZ, RU, EN) fərq etmir
+    const KEYMAP = {
+      KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd',
+      ArrowUp: 'arrowup', ArrowDown: 'arrowdown', ArrowLeft: 'arrowleft', ArrowRight: 'arrowright',
+    };
+    const keyOf = (e) => KEYMAP[e.code] || { w: 'w', a: 'a', s: 's', d: 'd', ц: 'w', ф: 'a', ы: 's', в: 'd', ü: 'w' }[e.key?.toLowerCase()];
     window.addEventListener('keydown', (e) => {
       if (!this.active) return;
-      const k = e.key.toLowerCase();
-      if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) {
+      const t = e.target;
+      if (t && (t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && t.type !== 'range'))) return;
+      const k = keyOf(e);
+      if (k) {
         this.keys.add(k);
         this.walkTarget = null;
         e.preventDefault();
       }
     });
-    window.addEventListener('keyup', (e) => this.keys.delete(e.key.toLowerCase()));
+    window.addEventListener('keyup', (e) => { const k = keyOf(e); if (k) this.keys.delete(k); });
     window.addEventListener('blur', () => this.keys.clear());
   }
 

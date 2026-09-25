@@ -182,7 +182,8 @@ function applyModels(ad) {
 const tower = buildTower();
 scene.add(tower.root);
 scene.add(buildSurroundings());
-const treesReady = buildTrees((trees) => scene.add(trees), [[40, 150], [30, 120], [-62, 74], [-78, -40], [96, -30], [34, 58], [22, 44], [72, 92]]).catch((e) => console.warn('Ağaclar yüklənmədi', e));
+let streetTrees = null;
+const treesReady = buildTrees((trees) => { scene.add(trees); trees.traverse((o) => { if (o.userData.streetTrees) streetTrees = o; }); }, [[40, 150], [30, 120], [-62, 74], [-78, -40], [96, -30], [34, 58], [22, 44], [72, 92]]).catch((e) => console.warn('Ağaclar yüklənmədi', e));
 
 /* =========================================================
    Sonrakı emal: AO (künc kölgələri), yumşaq parıltı
@@ -1026,8 +1027,8 @@ function applySun() {
   }
   const duskK = Math.exp(-Math.pow((altDeg + 2.5) / 3.2, 2));
   hemi.intensity = 0.25 + 0.12 * smooth(-10, 20, altDeg) + night * 0.35 + duskK * 0.35;
-  bloom.threshold = 1.6 - night * 0.95;
-  bloom.strength = 0.12 + night * 0.28;
+  bloom.threshold = 1.6 - night * 0.7;
+  bloom.strength = 0.12 + night * 0.16;
   hemi.color.set(duskK > 0.4 ? 0x9a93c0 : night > 0.5 ? 0x5d7098 : 0xcfe0f5);
   windowMaterial().userData.uniforms.uNight.value = night;
   skyNight.value = night;
@@ -1303,7 +1304,8 @@ let waterTex = null;
 const tmp = new THREE.Vector3();
 function frame(now) {
   timer.update(now);
-  const dt = Math.min(timer.getDelta(), 0.05);
+  const rawDt = timer.getDelta();
+  const dt = Math.min(rawDt, 0.05);
   const t = timer.getElapsed();
   runTweens(performance.now());
   if (sunSim.on && sunSim.playing) { sunSim.min = (sunSim.min + dt * 50) % 1440; applySun(); }
@@ -1311,8 +1313,9 @@ function frame(now) {
   if (waterTex) for (const w of waterTex) { w.offset.x = t * 0.012; w.offset.y = t * 0.008; }
   bakuUniforms.uTime.value = t;
 
+  if (streetTrees) streetTrees.visible = state.mode === 'landing' || state.mode === 'building';
   if (state.mode === 'landing') { updateLandingCamera(dt, t); updateMasterplan(); }
-  else if (state.mode === 'tour') { if (!camTween) tour.update(dt); }
+  else if (state.mode === 'tour') { if (!camTween) tour.update(Math.min(rawDt, 0.25)); }
   else if (!camTween) controls.update();
 
   // mənzil etiketləri
@@ -1406,4 +1409,4 @@ setTimeout(() => {
 }, 1200);
 
 // Test və sazlama üçün
-window.__nova = { startRender, stopRender, setSunMode, setSunDay, sunSim, applySun, controls, scene, renderer, scrollCtl, state, enterExplore, selectFloor, openApt, startTour, exitTour, backToBuilding, exitExplore, tour, camera, APARTMENTS };
+window.__nova = { get camTween() { return camTween; }, get rendering() { return rendering; }, startRender, stopRender, setSunMode, setSunDay, sunSim, applySun, controls, scene, renderer, scrollCtl, state, enterExplore, selectFloor, openApt, startTour, exitTour, backToBuilding, exitExplore, tour, camera, APARTMENTS };

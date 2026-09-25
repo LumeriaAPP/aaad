@@ -140,7 +140,7 @@ export function facadeMats() {
     rail: new THREE.MeshStandardMaterial({ color: 0x9fb2bd, roughness: 0.05, metalness: 0.3, transparent: true, opacity: 0.35, depthWrite: false }),
     roof: new THREE.MeshStandardMaterial({ color: 0x6f6d69, roughness: 0.9 }),
     wood: new THREE.MeshStandardMaterial({ color: 0x7a5a40, roughness: 0.7 }),
-    shop: Object.assign(new THREE.MeshStandardMaterial({ color: 0x2b2722, emissive: 0xffc98a, emissiveIntensity: 0.15, roughness: 0.2, metalness: 0.3 }), { userData: { nightGlow: 0.15 } }),
+    shop: Object.assign(new THREE.MeshStandardMaterial({ color: 0x2b2722, emissive: 0xffb574, emissiveIntensity: 0.06, roughness: 0.2, metalness: 0.3 }), { userData: { nightGlow: 0.06 } }),
     uplight: Object.assign(new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0.0, blending: THREE.AdditiveBlending, depthWrite: false }), { userData: { nightOpacity: 0.55 } }),
   };
   return FM;
@@ -276,7 +276,7 @@ export function buildNeighbor(opt) {
 
   // fasad işıqlandırması (gecə): pilyastrların dibindən yuxarı
   const up = new THREE.MeshBasicMaterial({ map: uplightTexture(), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
-  up.userData.nightOpacity = 0.75;
+  up.userData.nightOpacity = 0.35;
   const ups = [];
   for (const s of sides) {
     const n = Math.max(2, Math.round(s.len / 3)), bw = s.len / n;

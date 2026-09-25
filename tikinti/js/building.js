@@ -29,7 +29,7 @@ export function createTowerMaterials() {
     gold: new THREE.MeshStandardMaterial({ color: 0x4a3526, metalness: 0.55, roughness: 0.45 }),
     stone: new THREE.MeshStandardMaterial({ color: 0xd9ccb4, roughness: 0.7 }),
     lobby: Object.assign(new THREE.MeshStandardMaterial({ color: 0x3c3a36, emissive: 0xffd6a0, emissiveIntensity: 0.12, roughness: 0.3, metalness: 0.4 }), { userData: { nightGlow: 0.12 } }),
-    shop: Object.assign(new THREE.MeshStandardMaterial({ color: 0x2c2823, emissive: 0xffcf95, emissiveIntensity: 0.25, roughness: 0.35 }), { userData: { nightGlow: 0.25 } }),
+    shop: Object.assign(new THREE.MeshStandardMaterial({ color: 0x2c2823, emissive: 0xffc07e, emissiveIntensity: 0.1, roughness: 0.35 }), { userData: { nightGlow: 0.1 } }),
     shopGlass: new THREE.MeshStandardMaterial({ color: 0x9fb3bf, metalness: 0.2, roughness: 0.04, transparent: true, opacity: 0.25, depthWrite: false }),
     ledStrip: Object.assign(new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffe0b0, emissiveIntensity: 0.2 }), { userData: { nightGlow: 0.2 } }),
     planter: new THREE.MeshStandardMaterial({ color: 0x55585c, roughness: 0.8 }),
@@ -455,6 +455,7 @@ export async function buildTrees(onDone, keepClear = []) {
     const x = (rand() - 0.5) * 170, z = -88 + rand() * 220;
     if (!avoid(x, z)) spots.push([x, z]);
   }
+  const nearCount = spots.length;
   // küçə ağacları
   const lowEnd = matchMedia('(hover: none)').matches;
   streetTreeSpots().forEach((sp, i) => { if ((!lowEnd || i % 3 === 0) && !keepClear.some(([cx, cz]) => Math.hypot(sp[0] - cx, sp[1] - cz) < 26)) spots.push(sp); });
@@ -462,31 +463,40 @@ export async function buildTrees(onDone, keepClear = []) {
   let triCount = 0;
   // hər variant üçün InstancedMesh (az draw call)
   const buckets = variants.map(() => []);
-  spots.forEach(([x, z], i) => buckets[i % variants.length].push([x + (rand() - 0.5) * 2, z + (rand() - 0.5) * 2, rand() * Math.PI * 2, 0.8 + rand() * 0.35]));
+  const farBuckets = variants.map(() => []);
+  spots.forEach(([x, z], i) => (i < nearCount ? buckets : farBuckets)[i % variants.length].push([x + (rand() - 0.5) * 2, z + (rand() - 0.5) * 2, rand() * Math.PI * 2, 0.8 + rand() * 0.35]));
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), ps = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
-  variants.forEach((v, vi) => {
-    const list = buckets[vi];
-    for (const ch of v.children) {
-      if (!ch.isMesh || !ch.geometry.attributes.position || ch.geometry.attributes.position.count === 0) continue;
-      // EZ-Tree yarpaq materialının külək şeyderi instancing-i dəstəkləmir — standart materialla əvəz et
-      const src = ch.material;
-      const mat = src.onBeforeCompile && src.onBeforeCompile.toString().length > 30
-        ? new THREE.MeshStandardMaterial({ map: src.map, color: src.color, alphaTest: src.alphaTest || 0.5, side: src.side, transparent: false, roughness: 0.85 })
-        : src;
-      const im = new THREE.InstancedMesh(ch.geometry, mat, list.length);
-      im.castShadow = true;
-      im.receiveShadow = true;
-      list.forEach(([x, z, r, k], i) => {
-        q.setFromAxisAngle(up, r);
-        im.setMatrixAt(i, m4.compose(ps.set(x, GY, z), q, sc.setScalar(v.scale.x * k)).multiply(ch.matrix));
-      });
-      im.instanceMatrix.needsUpdate = true;
-      im.frustumCulled = false;
-      im.computeBoundingSphere?.();
-      group.add(im);
-      triCount += (ch.geometry.index ? ch.geometry.index.count : ch.geometry.attributes.position.count) / 3 * list.length;
-    }
-  });
+  const farGroup = new THREE.Group();
+  farGroup.userData.streetTrees = true;
+  group.add(farGroup);
+  const matCache = new Map();
+  for (const [bk, target] of [[buckets, group], [farBuckets, farGroup]]) {
+    variants.forEach((v, vi) => {
+      const list = bk[vi];
+      if (!list.length) return;
+      for (const ch of v.children) {
+        if (!ch.isMesh || !ch.geometry.attributes.position || ch.geometry.attributes.position.count === 0) continue;
+        // EZ-Tree yarpaq materialının külək şeyderi instancing-i dəstəkləmir — standart materialla əvəz et
+        const src = ch.material;
+        if (!matCache.has(src)) {
+          matCache.set(src, src.onBeforeCompile && src.onBeforeCompile.toString().length > 30
+            ? new THREE.MeshStandardMaterial({ map: src.map, color: src.color, alphaTest: src.alphaTest || 0.5, side: src.side, transparent: false, roughness: 0.85 })
+            : src);
+        }
+        const im = new THREE.InstancedMesh(ch.geometry, matCache.get(src), list.length);
+        im.castShadow = true;
+        im.receiveShadow = true;
+        list.forEach(([x, z, r, k], i) => {
+          q.setFromAxisAngle(up, r);
+          im.setMatrixAt(i, m4.compose(ps.set(x, GY, z), q, sc.setScalar(v.scale.x * k)).multiply(ch.matrix));
+        });
+        im.instanceMatrix.needsUpdate = true;
+        im.computeBoundingSphere();
+        target.add(im);
+        triCount += (ch.geometry.index ? ch.geometry.index.count : ch.geometry.attributes.position.count) / 3 * list.length;
+      }
+    });
+  }
   console.info('Ağaclar:', spots.length, 'üçbucaq:', Math.round(triCount));
   onDone(group);
 }

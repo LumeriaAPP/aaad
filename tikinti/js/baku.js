@@ -96,7 +96,7 @@ function flameMaterial() {
           float cyc = smoothstep(0.45, 0.55, fract(uTime / 24.0));
           vec3 led = mix(fire, flag * 1.1, cyc);
           float px = step(0.25, fract(vFUv.x * 90.0)) * step(0.2, fract(y / 3.6)); // LED piksel şəbəkəsi
-          totalEmissiveRadiance += led * px * uNight * 2.0;
+          totalEmissiveRadiance += led * px * uNight * 1.1;
         }`);
   };
   m.customProgramCacheKey = () => 'baku-flame-v2';
@@ -249,13 +249,48 @@ export const CITY_COLORS = [0xd9c9ad, 0xb98a6c, 0xc8c3ba, 0xa8795f, 0xe2dccf, 0x
 let _cityMat = null;
 export function cityMaterial() {
   if (_cityMat) return _cityMat;
-  const { map, em } = cityTextures();
-  map.repeat.set(3, 6);
-  em.repeat.set(3, 6);
-  _cityMat = new THREE.MeshStandardMaterial({ map, emissiveMap: em, emissive: 0xffffff, emissiveIntensity: 0.0, roughness: 0.85 });
-  _cityMat.userData.nightGlow = 0.0;
-  _cityMat.userData.nightGlowAdd = 1.4;
-  return _cityMat;
+  // Pəncərələr dünya koordinatlarında hesablanır: hər binada real ölçü (mərtəbə 3.2 m)
+  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85 });
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uNight = bakuUniforms.uNight;
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vCW; varying vec3 vCN;')
+      .replace('#include <worldpos_vertex>', `#include <worldpos_vertex>
+        mat4 cM = modelMatrix;
+        #ifdef USE_INSTANCING
+          cM = modelMatrix * instanceMatrix;
+        #endif
+        vCW = (cM * vec4(transformed, 1.0)).xyz;
+        vCN = normalize(mat3(cM) * objectNormal);`);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+        varying vec3 vCW; varying vec3 vCN; uniform float uNight;
+        float ch(vec2 p) { return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }
+        float winMask(out vec2 cell, out float isWall) {
+          isWall = 1.0 - step(0.6, abs(vCN.y));
+          vec2 uvw = vec2(abs(vCN.x) > abs(vCN.z) ? vCW.z : vCW.x, vCW.y);
+          vec2 sz = vec2(3.4, 3.2);
+          cell = floor(uvw / sz);
+          vec2 f = fract(uvw / sz);
+          float w = step(0.22, f.x) * step(f.x, 0.78) * step(0.28, f.y) * step(f.y, 0.86);
+          return w * isWall * step(0.5, cell.y);
+        }`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        vec2 cCell; float cWall;
+        float cWin = winMask(cCell, cWall);
+        diffuseColor.rgb *= mix(0.62, 1.0, cWall); // dam bir az tünd
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.1, 0.12, 0.14), cWin * 0.88);`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        {
+          float seed = ch(cCell + floor(vCW.xz / 40.0) * 7.13 + vec2(vCN.x * 3.0, vCN.z * 5.0));
+          float on = step(0.6, seed);
+          vec3 warm = mix(vec3(1.0, 0.72, 0.42), vec3(1.0, 0.88, 0.7), ch(cCell * 1.7));
+          totalEmissiveRadiance += cWin * on * warm * (0.35 + 0.45 * ch(cCell + 3.3)) * uNight * 1.1;
+        }`);
+  };
+  m.customProgramCacheKey = () => 'city-facade-v1';
+  _cityMat = m;
+  return m;
 }
 
 export function buildBaku(GY = -0.4) {
