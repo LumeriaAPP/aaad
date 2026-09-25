@@ -17,7 +17,7 @@ import { Tour } from './tour.js';
 import { initScroll } from './scroll.js';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { sunPosition, sunDirection, localDate, sunTimes, fmtTime, seasonalSunHours, SEASONS } from './sun.js';
-import { windowMaterial } from './complex.js';
+import { windowMaterial, NEIGHBORS } from './complex.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -40,7 +40,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0xc9d6e2, 0.0011);
-const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 4000);
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.3, 4000);
 camera.position.set(90, 10, 110);
 
 // Günəş (istiqaməti HDRI panoramadan hesablanır)
@@ -267,6 +267,8 @@ function flyTo(pos, target, dur = 1400, done) {
 const PATH = [
   { sel: '#top', at: 0, pos: [78, 6, 96], tgt: [-6, 30, 0] },
   { sel: '#manifest', at: 0.5, pos: [-40, 18, 90], tgt: [0, 28, 0] },
+  { sel: '#masterplan', at: 0, pos: [-150, 125, 205], tgt: [0, 10, 12] },
+  { sel: '#masterplan', at: 1, pos: [160, 120, 185], tgt: [0, 10, 12] },
   { sel: '#about', at: 0, pos: [-72, 24, 72], tgt: [0, 28, 0] },
   { sel: '#about', at: 1, pos: [26, 46, 34], tgt: [0, 44, 0] },
   { sel: '#numbers', at: 0.5, pos: [-60, 80, 90], tgt: [0, 26, 0] },
@@ -313,7 +315,7 @@ function updateLandingCamera(dt, t) {
   // yavaş fırlanma + siçan parallaksı
   want.x += Math.sin(t * 0.05) * 3 + mouse.x * 4;
   want.y += mouse.y * 2;
-  const k = 1 - Math.pow(0.02, dt);
+  const k = Q.has('snapcam') ? 1 : 1 - Math.pow(0.02, dt);
   camera.position.lerp(want, k);
   landingTarget.lerp(tgt, k);
   camera.lookAt(landingTarget);
@@ -559,6 +561,7 @@ function exitExplore() {
   if (state.mode === 'landing') return;
   if (state.mode === 'tour') exitTour(true);
   setSunMode(false);
+  $$('[data-daytime]').forEach((x) => x.classList.toggle('is-on', x.dataset.daytime === 'day'));
   closeApt(true);
   restoreFloors();
   disposeFloor();
@@ -971,7 +974,7 @@ for (const sk of [skyMesh, skyEnv]) {
         void main() {`)
       .replace('gl_FragColor = vec4( texColor, 1.0 );', `vec3 dirN = normalize(vWorldPosition - cameraPosition);
         float up = clamp(dirN.y, 0.0, 1.0);
-        vec3 nightCol = mix(vec3(0.030, 0.045, 0.085), vec3(0.004, 0.008, 0.022), pow(up, 0.5));
+        vec3 nightCol = mix(vec3(0.07, 0.09, 0.16), vec3(0.012, 0.02, 0.05), pow(up, 0.45));
         vec3 q = floor(dirN * 420.0);
         float star = step(0.9965, starHash(q)) * smoothstep(0.03, 0.25, up) * (0.4 + 0.6 * starHash(q + 3.1));
         gl_FragColor = vec4(texColor * 0.2 + (nightCol + vec3(star) * 0.9) * uNightSky, 1.0);`);
@@ -982,13 +985,13 @@ for (const sk of [skyMesh, skyEnv]) {
 let skyEnvRT = null, envTimer = 0;
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const SUN_WARM = new THREE.Color(0xff9a52), SUN_DAY = new THREE.Color(0xfff3e2);
-const FOG_DAY = new THREE.Color(0xc4d2de), FOG_DUSK = new THREE.Color(0xd9a383), FOG_NIGHT = new THREE.Color(0x0d1320);
+const FOG_DAY = new THREE.Color(0xc4d2de), FOG_DUSK = new THREE.Color(0xd9a383), FOG_NIGHT = new THREE.Color(0x1a2438);
 
 let _glow = null;
 function glowMats() {
   if (_glow) return _glow;
   const set = new Set();
-  scene.traverse((o) => { if (o.material && o.material.userData && o.material.userData.nightGlow != null) set.add(o.material); });
+  scene.traverse((o) => { if (o.material && o.material.userData && (o.material.userData.nightGlow != null || o.material.userData.nightOpacity != null)) set.add(o.material); });
   return (_glow = [...set]);
 }
 function rebuildSkyEnv() {
@@ -1005,23 +1008,34 @@ function applySun() {
   const altDeg = THREE.MathUtils.radToDeg(altitude);
   for (const sk of [skyMesh, skyEnv]) sk.material.uniforms.sunPosition.value.copy(lightDir);
   const day = smooth(-1, 6, altDeg);
-  sunLight.intensity = 3.6 * day * (0.55 + 0.45 * smooth(0, 30, altDeg));
-  sunLight.color.lerpColors(SUN_WARM, SUN_DAY, smooth(2, 28, altDeg));
-  hemi.intensity = 0.06 + 0.3 * smooth(-10, 20, altDeg);
   const night = 1 - smooth(-7, 3, altDeg);
+  if (altDeg > -1.5) {
+    sunLight.intensity = 3.6 * day * (0.55 + 0.45 * smooth(0, 30, altDeg));
+    sunLight.color.lerpColors(SUN_WARM, SUN_DAY, smooth(2, 28, altDeg));
+  } else {
+    // günəş batıb: ay işığı (soyuq, zəif) formaları göstərir
+    lightDir.set(0.35, 0.82, -0.45).normalize();
+    sunLight.intensity = 0.55 * night;
+    sunLight.color.set(0x9fb2e0);
+  }
+  hemi.intensity = 0.25 + 0.12 * smooth(-10, 20, altDeg) + night * 0.35;
+  hemi.color.set(night > 0.5 ? 0x5d7098 : 0xcfe0f5);
   windowMaterial().userData.uniforms.uNight.value = night;
   skyNight.value = night;
-  const envK = 0.1 + 0.9 * smooth(-6, 15, altDeg);
+  const envK = 0.4 + 0.6 * smooth(-6, 15, altDeg);
   scene.environmentIntensity = state.mode === 'tour' ? 0.5 * envK : envK;
   scene.fog.density = 0.0007 + night * 0.0008;
   // axşam: fənərlər, lobbi, lövhə yanır
-  for (const m of glowMats()) m.emissiveIntensity = m.userData.nightGlow * (1 + night * 9);
+  for (const m of glowMats()) {
+    if (m.userData.nightGlow != null) m.emissiveIntensity = m.userData.nightGlow * (1 + night * 9);
+    if (m.userData.nightOpacity != null) m.opacity = m.userData.nightOpacity * night;
+  }
   // turda: otaq lampaları qaranlıqlaşdıqca yanır
   if (state.mode === 'tour' && tourData) lampPool.forEach((l, i) => (l.intensity = tourData.lamps[i] ? 0.3 + 3.2 * night : 0));
-  renderer.toneMappingExposure = (state.mode === 'tour' ? 0.8 : state.mode === 'floor' ? 0.6 : 0.8) * (1 + night * 0.35);
+  renderer.toneMappingExposure = (state.mode === 'tour' ? 0.8 : state.mode === 'floor' ? 0.6 : 0.8) * (1 + night * 0.9);
   const dusk = 1 - smooth(4, 20, Math.abs(altDeg));
   scene.fog.color.copy(FOG_DAY).lerp(FOG_DUSK, dusk * day).lerp(FOG_NIGHT, night);
-  if (altitude > 0) aimSun(lastAim.center, lastAim.size);
+  aimSun(lastAim.center, lastAim.size);
   // mühit işığını tez-tez yox, 150 ms-dən bir yenilə
   clearTimeout(envTimer);
   envTimer = setTimeout(rebuildSkyEnv, sunSim.playing ? 0 : 120);
@@ -1087,10 +1101,14 @@ function setSunMode(on) {
     sunLight.intensity = 3.4;
     sunLight.color.set(0xfff1dc);
     hemi.intensity = 0.25;
+    hemi.color.set(0xcfe0f5);
     windowMaterial().userData.uniforms.uNight.value = 0;
     skyNight.value = 0;
     scene.fog.density = 0.0011;
-    for (const m of glowMats()) m.emissiveIntensity = m.userData.nightGlow;
+    for (const m of glowMats()) {
+      if (m.userData.nightGlow != null) m.emissiveIntensity = m.userData.nightGlow;
+      if (m.userData.nightOpacity != null) m.opacity = 0;
+    }
     renderer.toneMappingExposure = state.mode === 'tour' ? 1.0 : state.mode === 'floor' ? 0.62 : 0.9;
     if (state.mode === 'tour' && tourData) lampPool.forEach((l, i) => (l.intensity = tourData.lamps[i] ? 5 : 0));
     if (hdrTex) scene.fog.color.copy(horizonColor(hdrTex));
@@ -1109,6 +1127,67 @@ function sunHoursBlock(apt) {
 }
 
 /* =========================================================
+   Baş plan: nömrəli korpuslar + gündüz/gecə
+   ========================================================= */
+const MP = [
+  { id: 1, pos: new THREE.Vector3(0, floorBaseY(BUILDING.lastFloor + 1) + 9, 0), floors: BUILDING.lastFloor, apts: APARTMENTS.length, status: 'Satışda', main: true },
+  ...NEIGHBORS.map((n) => ({ id: n.id, pos: new THREE.Vector3(n.x, 4.6 + 4.2 + n.floors * 3.2 + 6, n.z), floors: n.floors + 2, apts: n.floors * 6, status: n.id <= 3 ? 'Satışda' : n.id <= 6 ? 'Tikintidə' : 'Təhvil verilib' })),
+];
+const mpSection = $('#masterplan');
+const mpMarkers = $('#mpMarkers');
+const mpCard = $('#mpCard');
+MP.forEach((b) => {
+  const el = document.createElement('button');
+  el.className = 'mp-marker' + (b.main ? ' mp-marker--main' : '');
+  el.textContent = b.id;
+  el.setAttribute('aria-label', `Korpus ${b.id}`);
+  el.addEventListener('click', (e) => { e.stopPropagation(); openMpCard(b); });
+  mpMarkers.appendChild(el);
+  b.el = el;
+});
+let mpOpen = null;
+function openMpCard(b) {
+  mpOpen = b;
+  MP.forEach((x) => x.el.classList.toggle('is-on', x === b));
+  mpCard.innerHTML = `<h4>Korpus ${b.id}${b.main ? ' · Nova Residence' : ''}</h4>
+    <dl><dt>Mərtəbə</dt><dd>${b.floors}</dd><dt>Mənzil</dt><dd>${b.apts}</dd><dt>Vəziyyət</dt><dd>${b.status}</dd></dl>
+    ${b.main ? '<button class="btn btn--gold" data-action="explore">3D-də mənzil seç</button>' : '<button class="btn btn--ghost" data-mp-close>Bağla</button>'}`;
+  mpCard.hidden = false;
+}
+mpCard.addEventListener('click', (e) => { if (e.target.closest('[data-mp-close]')) { mpCard.hidden = true; mpOpen = null; MP.forEach((x) => x.el.classList.remove('is-on')); } });
+const _mp = new THREE.Vector3();
+function updateMasterplan() {
+  camera.updateMatrixWorld();
+  const r = mpSection.getBoundingClientRect();
+  const visible = state.mode === 'landing' && r.top < innerHeight && r.bottom > 0;
+  mpMarkers.style.display = visible ? '' : 'none';
+  if (!visible) { mpCard.hidden = true; return; }
+  const sticky = mpSection.querySelector('.pin__sticky').getBoundingClientRect();
+  for (const b of MP) {
+    _mp.copy(b.pos).project(camera);
+    const x = (_mp.x * 0.5 + 0.5) * innerWidth, y = (-_mp.y * 0.5 + 0.5) * innerHeight - sticky.top;
+    b.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+    b.el.style.opacity = _mp.z < 1 ? '1' : '0';
+    b.sx = x; b.sy = y;
+  }
+  if (mpOpen && !mpCard.hidden) {
+    const x = Math.min(innerWidth - 276, Math.max(16, mpOpen.sx + 28)), y = Math.min(innerHeight - 220, Math.max(80, mpOpen.sy - 40));
+    mpCard.style.transform = `translate(${x}px, ${y}px)`;
+  }
+}
+$$('[data-daytime]').forEach((b) => b.addEventListener('click', () => {
+  const night = b.dataset.daytime === 'night';
+  $$('[data-daytime]').forEach((x) => x.classList.toggle('is-on', x === b));
+  if (night) {
+    sunSim.m = 6; sunSim.d = 21; sunSim.min = 20 * 60 + 58;
+    setSunMode(true);
+    setSunDay(6, 21);
+  } else {
+    setSunMode(false);
+  }
+}));
+
+/* =========================================================
    Əsas dövr
    ========================================================= */
 const timer = new THREE.Timer();
@@ -1123,7 +1202,7 @@ function frame(now) {
   if (!waterTex) scene.traverse((o) => { if (o.userData.water) waterTex = o.userData.water; });
   if (waterTex) { waterTex.offset.x = t * 0.012; waterTex.offset.y = t * 0.008; }
 
-  if (state.mode === 'landing') updateLandingCamera(dt, t);
+  if (state.mode === 'landing') { updateLandingCamera(dt, t); updateMasterplan(); }
   else if (state.mode === 'tour') { if (!camTween) tour.update(dt); }
   else if (!camTween) controls.update();
 

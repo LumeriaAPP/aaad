@@ -929,3 +929,46 @@ body.sun-on .ex-hint { opacity: 0; }
 body.sun-on .tour-help { display: none; }
 body.sun-on .minimap { bottom: 240px; }
 @media (max-width: 760px) { body.sun-on .joystick { bottom: 250px; } body.sun-on .minimap { bottom: auto; top: 118px; } }
+
+/* ============ Baş plan ============ */
+.pin--master { height: 260vh; }
+.mp-markers { position: absolute; inset: 0; pointer-events: none; }
+.mp-marker {
+  position: absolute; left: 0; top: 0;
+  width: 34px; height: 34px;
+  margin: -17px 0 0 -17px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-weight: 600; font-size: 0.85rem; color: #fff;
+  background: #b5452f;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), 0 0 0 0 rgba(181, 69, 47, 0.6);
+  pointer-events: auto;
+  transition: transform 0.25s var(--ease), background 0.2s, opacity 0.3s;
+  animation: mpPulse 2.6s infinite;
+}
+.mp-marker:hover, .mp-marker.is-on { transform: scale(1.18); background: var(--gold-2); }
+.mp-marker--main { width: 42px; height: 42px; margin: -21px 0 0 -21px; background: var(--gold-2); font-size: 1rem; }
+@keyframes mpPulse { 0% { box-shadow: 0 4px 14px rgba(0,0,0,.45), 0 0 0 0 rgba(214,180,122,.55); } 70% { box-shadow: 0 4px 14px rgba(0,0,0,.45), 0 0 0 14px rgba(214,180,122,0); } 100% { box-shadow: 0 4px 14px rgba(0,0,0,.45), 0 0 0 0 rgba(214,180,122,0); } }
+.mp-card {
+  position: absolute; left: 0; top: 0;
+  width: 260px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: rgba(13, 14, 18, 0.9);
+  border: 1px solid var(--line-2);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  z-index: 3;
+}
+.mp-card h4 { font-family: var(--serif); font-weight: 500; font-size: 1.3rem; margin-bottom: 8px; }
+.mp-card dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 0.85rem; }
+.mp-card dt { color: var(--muted); }
+.mp-card .btn { margin-top: 14px; width: 100%; padding: 10px; font-size: 0.85rem; }
+.mp-toggle { position: absolute; right: 16px; top: 86px; display: flex; padding: 4px; border-radius: 999px; background: rgba(13, 14, 18, 0.7); border: 1px solid var(--line-2); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+@media (min-width: 768px) { .mp-toggle { right: 40px; } }
+.mp-toggle button { padding: 8px 16px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #d6cfc4; }
+.mp-toggle button.is-on { background: var(--gold); color: #1b150c; }
+.mp-copy { position: absolute; left: 16px; bottom: 7vh; max-width: 560px; text-shadow: 0 4px 30px rgba(0, 0, 0, 0.7); }
+@media (min-width: 768px) { .mp-copy { left: 40px; } }
+.mp-copy .text { color: #efe9df; }

@@ -71,7 +71,7 @@ const OCCLUDERS = (() => {
   const list = [];
   const top = floorBaseY(BUILDING.lastFloor + 1) + 7;
   list.push({ x: 0, z: 0, rot: 0, hw: BUILDING.width / 2 + 0.9, hd: BUILDING.depth / 2 + 0.9, h: top });
-  for (const n of NEIGHBORS) list.push({ x: n.x, z: n.z, rot: n.rot, hw: n.w / 2 + 0.5, hd: n.d / 2 + 0.9, h: 5.2 + n.floors * 3.3 + 1 });
+  for (const n of NEIGHBORS) list.push({ x: n.x, z: n.z, rot: n.rot, hw: n.w / 2 + 0.5, hd: n.d / 2 + 0.9, h: 4.6 + 4.2 + n.floors * 3.2 + 1.3 });
   return list;
 })();
 

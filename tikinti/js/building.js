@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { BUILDING, floorBaseY, COMPANY } from './data.js';
 import { paverTexture } from './textures.js';
-import { windowMaterial, buildNeighbor, buildCourtyard, NEIGHBORS } from './complex.js';
+import { windowMaterial, buildNeighbor, buildCourtyard, buildCity, streetTreeSpots, facadeMats, NEIGHBORS } from './complex.js';
 
 const { width: W, depth: D, floorHeight: FH, firstFloor, lastFloor, groundHeight } = BUILDING;
 
@@ -13,16 +13,16 @@ function rng(seed) {
 
 export function createTowerMaterials() {
   return {
-    slab: new THREE.MeshStandardMaterial({ color: 0xe4dccd, roughness: 0.65 }),
+    slab: new THREE.MeshStandardMaterial({ color: 0xd9ccb4, roughness: 0.75 }),
     glass: windowMaterial(),
     lit: windowMaterial(),
-    mullion: new THREE.MeshStandardMaterial({ color: 0x6d6a66, metalness: 0.8, roughness: 0.35 }),
-    fin: new THREE.MeshStandardMaterial({ color: 0xd8cbb4, roughness: 0.62 }),
+    mullion: new THREE.MeshStandardMaterial({ color: 0x4a3526, metalness: 0.55, roughness: 0.45 }),
+    fin: new THREE.MeshStandardMaterial({ color: 0xd9ccb4, roughness: 0.75 }),
     stone: new THREE.MeshStandardMaterial({ color: 0xd9ccb6, roughness: 0.7 }),
     lobby: Object.assign(new THREE.MeshStandardMaterial({ color: 0x3c3a36, emissive: 0xffd6a0, emissiveIntensity: 0.12, roughness: 0.3, metalness: 0.4 }), { userData: { nightGlow: 0.12 } }),
-    led: new THREE.MeshStandardMaterial({ color: 0x9a968f, metalness: 0.8, roughness: 0.3 }),
+    led: new THREE.MeshStandardMaterial({ color: 0xd9ccb4, roughness: 0.75 }),
     rail: new THREE.MeshStandardMaterial({ color: 0x9ec3d6, metalness: 0.2, roughness: 0.05, transparent: true, opacity: 0.35, depthWrite: false }),
-    gold: new THREE.MeshStandardMaterial({ color: 0xc9a466, metalness: 1, roughness: 0.3 }),
+    gold: new THREE.MeshStandardMaterial({ color: 0x4a3526, metalness: 0.55, roughness: 0.45 }),
   };
 }
 
@@ -365,8 +365,10 @@ export function buildSurroundings() {
 
   // Kompleksin digər binaları və həyəti
   const tmats = createTowerMaterials();
-  for (const n of NEIGHBORS) g.add(buildNeighbor(n, tmats));
+  for (const n of NEIGHBORS) g.add(buildNeighbor(n));
+  void tmats;
   g.add(buildCourtyard(GY));
+  g.add(buildCity(GY));
 
   return g;
 }
@@ -376,15 +378,18 @@ export async function buildTrees(onDone, keepClear = []) {
   const { Tree } = await import('../vendor/ez-tree/ez-tree.es.js');
   const GY = -0.4;
   const variants = [];
-  const presets = [['Ash Medium', 12], ['Oak Medium', 10], ['Aspen Medium', 13], ['Ash Small', 8]];
+  const presets = [['Ash Medium', 10], ['Oak Medium', 9], ['Aspen Medium', 11], ['Ash Small', 7]];
   presets.forEach(([name, height], i) => {
     const t = new Tree();
     t.loadPreset(name);
     t.options.seed = 1000 + i * 77;
+    // performans: yarpaq sayını azalt (uzaqdan fərq görünmür)
+    t.options.leaves.count = Math.max(4, Math.round(t.options.leaves.count * 0.55));
     t.generate();
     t.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(t);
-    const s = height / (box.max.y - box.min.y);
+    // hündürlük və tac eni ilə məhdudlaşdır (bəzi variantlar çox enli olur)
+    const s = Math.min(height / (box.max.y - box.min.y), (height * 0.8) / Math.max(box.max.x - box.min.x, box.max.z - box.min.z));
     t.scale.setScalar(s);
     t.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     variants.push(t);
@@ -392,32 +397,47 @@ export async function buildTrees(onDone, keepClear = []) {
   const rand = rng(77);
   const group = new THREE.Group();
   const spots = [];
-  // meydanın kənarları boyunca xiyaban
+  // həyət xiyabanları
   for (let x = -54; x <= 54; x += 12) spots.push([x, 72], [x + 6, -30]);
   for (let z = -10; z <= 60; z += 12) spots.push([-22, z], [22, z]);
   for (const [x, z] of [[-14, 36], [14, 36], [-14, 56], [14, 56], [-38, 60], [38, 60]]) spots.push([x, z]);
-  // ətraf çəmənlikdə təsadüfi ağaclar
   const avoid = (x, z) =>
-    keepClear.some(([cx, cz]) => Math.hypot(x - cx, z - cz) < 28) ||
-    NEIGHBORS.some((n) => Math.hypot(x - n.x, z - n.z) < Math.max(n.w, n.d) * 0.75) ||
-    (Math.abs(x) < 20 && Math.abs(z - 46) < 12) || (Math.abs(x) < 18 && Math.abs(z) < 14);
-  const base = spots.length;
+    keepClear.some(([cx, cz]) => Math.hypot(x - cx, z - cz) < 22) ||
+    NEIGHBORS.some((n) => Math.hypot(x - n.x, z - n.z) < Math.max(n.w, n.d) * 0.72) ||
+    (Math.abs(x) < 20 && Math.abs(z - 46) < 12) || (Math.abs(x) < 24 && Math.abs(z) < 20);
   for (const sp of spots.splice(0)) if (!avoid(sp[0], sp[1])) spots.push(sp);
-  void base;
-  for (let i = 0; i < 90 && spots.length < 90; i++) {
-    const a = rand() * Math.PI * 2, r = 95 + rand() * 120;
-    const x = Math.cos(a) * r, z = Math.sin(a) * r + 6;
+  // kompleksin kənarlarında təsadüfi ağaclar
+  for (let i = 0; i < 400 && spots.length < 110; i++) {
+    const x = (rand() - 0.5) * 170, z = -88 + rand() * 220;
     if (!avoid(x, z)) spots.push([x, z]);
   }
-  spots.forEach(([x, z], i) => {
-    const v = variants[i % variants.length];
-    const t = new THREE.Group();
-    for (const ch of v.children) t.add(ch.clone());
-    t.scale.copy(v.scale);
-    t.position.set(x + (rand() - 0.5) * 2, GY, z + (rand() - 0.5) * 2);
-    t.rotation.y = rand() * Math.PI * 2;
-    t.scale.multiplyScalar(0.85 + rand() * 0.3);
-    group.add(t);
+  // küçə ağacları
+  const lowEnd = matchMedia('(hover: none)').matches;
+  streetTreeSpots().forEach((sp, i) => { if (!lowEnd || i % 3 === 0) spots.push(sp); });
+
+  let triCount = 0;
+  // hər variant üçün InstancedMesh (az draw call)
+  const buckets = variants.map(() => []);
+  spots.forEach(([x, z], i) => buckets[i % variants.length].push([x + (rand() - 0.5) * 2, z + (rand() - 0.5) * 2, rand() * Math.PI * 2, 0.8 + rand() * 0.35]));
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), ps = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+  variants.forEach((v, vi) => {
+    const list = buckets[vi];
+    for (const ch of v.children) {
+      if (!ch.isMesh || !ch.geometry.attributes.position || ch.geometry.attributes.position.count === 0) continue;
+      const im = new THREE.InstancedMesh(ch.geometry, ch.material, list.length);
+      im.castShadow = true;
+      im.receiveShadow = true;
+      list.forEach(([x, z, r, k], i) => {
+        q.setFromAxisAngle(up, r);
+        im.setMatrixAt(i, m4.compose(ps.set(x, GY, z), q, sc.setScalar(v.scale.x * k)).multiply(ch.matrix));
+      });
+      im.instanceMatrix.needsUpdate = true;
+      im.frustumCulled = false;
+      im.computeBoundingSphere?.();
+      group.add(im);
+      triCount += (ch.geometry.index ? ch.geometry.index.count : ch.geometry.attributes.position.count) / 3 * list.length;
+    }
   });
+  console.info('Ağaclar:', spots.length, 'üçbucaq:', Math.round(triCount));
   onDone(group);
 }
