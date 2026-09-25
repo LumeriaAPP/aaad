@@ -32,6 +32,14 @@ Sonra `http://localhost:8080` ünvanını açın.
 
 Zəif cihazlar üçün: `?noao` (ambient occlusion-u söndürür), `?nopp` (bütün sonrakı emal effektlərini söndürür).
 
+## Vercel-də yayımlamaq
+1. [vercel.com](https://vercel.com) → **Continue with GitHub** ilə daxil olun.
+2. **Add New… → Project** → `LumeriaAPP/aaad` reposunu seçin (**Import**).
+   Görünmürsə: **Adjust GitHub App Permissions** → bu repoya icazə verin.
+3. Ayarlar: **Framework Preset: Other**, **Root Directory: `tikinti`** (Edit düyməsi ilə seçin), Build Command boş qalsın.
+4. **Deploy** — təxminən 1 dəqiqəyə `https://<layihə-adı>.vercel.app` linki hazır olur.
+   Bundan sonra `main` budağına hər `git push` saytı avtomatik yeniləyir.
+
 ## İstifadə olunan pulsuz resurslar
 | Resurs | Mənbə | Lisenziya |
 |---|---|---|
