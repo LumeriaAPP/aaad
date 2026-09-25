@@ -128,11 +128,15 @@ export function decorate(plan, ext, openings, stat, tourOnly) {
             const [x, z] = at(along, 0);
             add(stat, drapeGeo(0.62, dh), mat, x, dh / 2, z, ry).castShadow = false;
           }
-          // yarı şəffaf tül
-          const [sx, sz] = at(mid, -0.06);
-          const sheer = add(stat, drapeGeo(Math.max(0.5, wide - 0.9), dh), M.sheer, sx, dh / 2, sz, ry);
-          sheer.castShadow = false;
-          sheer.renderOrder = 2;
+          // yarı şəffaf tül — iki tərəfə yığılıb, pəncərənin ortası (mənzərə) açıq qalır
+          const sw = Math.min(1.1, Math.max(0.45, wide * 0.2));
+          for (const side of [-1, 1]) {
+            const along = mid + side * (railLen / 2 - 0.55 - sw / 2);
+            const [sx, sz] = at(along, -0.06);
+            const sheer = add(stat, drapeGeo(sw, dh), M.sheer, sx, dh / 2, sz, ry);
+            sheer.castShadow = false;
+            sheer.renderOrder = 2;
+          }
         }
       }
     }
