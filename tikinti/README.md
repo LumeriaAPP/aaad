@@ -6,8 +6,10 @@ Tikinti şirkəti üçün interaktiv 3D sayt (nümunə layihə: "Nova Tikinti" /
 - **Parallax ana səhifə** — aşağı sürüşdürdükcə kamera binanın ətrafında hərəkət edir.
 - **3D mənzil seçimi** — binanı fırladın, mərtəbənin üzərinə gəlin və klikləyin. Yuxarı mərtəbələr qalxır və seçilmiş mərtəbənin içi (divarlar, mebel) görünür.
 - **Mənzil paneli** — status (satışda / bron / satılıb), sahə, qiymət, otaqlar və real ölçülü plan.
+- **Dizayn studiyası** — mənzil panelində "Dizayn studiyası": mənzilə yuxarıdan baxılır, hər otağın təyinatı seçilir (qonaq, yataq, uşaq, iş otağı, mətbəx, yemək otağı, qarderob, loft...) və mebel qapı/pəncərələrə dəymədən avtomatik düzülür. Mebeli siçanla (telefonda barmaqla) sürüşdürmək, R ilə fırlatmaq, Delete ilə silmək, kataloqdan əlavə etmək olur. Divar rəngi (palitra + istənilən rəng), döşəmə (palıd, qoz, mərmər, keramika, mikrosement), parça rəngi və hazır stillər (Skandinav, Müasir klassik, Japandi, Loft, Tünd lüks). Dizayn brauzerdə yadda qalır və virtual turda görünür.
 - **Virtual tur** — mənzilin içində gəzin: siçanla sürüşdürərək ətrafa baxın, W A S D ilə hərəkət edin, döşəməyə klikləyərək ora gedin. Otaq düymələri və mini xəritə var. Telefonda joystik işləyir.
 - **Foto-render** — işıq izləmə (path tracing) ilə real render: baş planda, 3D seçimdə ("Render") və virtual turda. Şəkli yadda saxlamaq olar.
+- **Kamera qoruyucusu** — kamera heç vaxt binaların içinə girmir; 3D seçimdə önü kəsən qonşu bina müvəqqəti yerə enir (yerində kontur və kölgəsi qalır).
 - **Günəş simulyasiyası** — Bakı üçün astronomik hesablama, tarix/saat, gündüz/axşam/gecə, mənzillər üçün günəş saatları.
 - **Planlar bölməsi**, plan modalı, müraciət forması, mobil uyğunluq.
 

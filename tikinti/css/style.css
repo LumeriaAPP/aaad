@@ -994,3 +994,113 @@ body.rendering .rooms-bar, body.rendering .minimap, body.rendering .joystick, bo
 .ex-btn--render + .ex-btn--sun { margin-left: 0; }
 body.rendering .nav, body.rendering .mp-toggle, body.rendering .mp-render, body.rendering .mp-markers, body.rendering .mp-copy, body.rendering .mp-card, body.rendering .scene-shade, body.rendering #page .hero__inner, body.rendering .ex-floors, body.rendering .labels, body.rendering .ex-hint, body.rendering .apt-panel, body.rendering .scroll-progress { opacity: 0 !important; pointer-events: none !important; }
 @media (max-width: 640px) { .ex-btn--render span { display: none; } .ex-btn--render { padding: 0; } }
+
+/* ============ Dizayn studiyası ============ */
+.btn--design small { color: var(--muted); font-weight: 400; margin-left: 4px; }
+.dz-panel {
+  position: absolute;
+  right: 16px; top: 76px; bottom: 16px;
+  width: 392px;
+  display: flex; flex-direction: column;
+  border-radius: 22px;
+  background: rgba(13, 14, 18, 0.92);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  overflow: hidden;
+  transform: translateX(120%);
+  opacity: 0;
+  transition: transform 0.55s var(--ease), opacity 0.4s;
+  z-index: 6;
+}
+.dz-panel.is-open { transform: none; opacity: 1; }
+.dz-scroll { overflow-y: auto; flex: 1; scrollbar-width: thin; padding-bottom: 8px; }
+.dz-head { padding: 22px 22px 8px; position: relative; }
+.dz-head h3 { font-family: var(--serif); font-weight: 500; font-size: 1.7rem; line-height: 1.1; margin: 10px 0 8px; }
+.dz-head p { color: var(--muted); font-size: 0.84rem; line-height: 1.5; padding-right: 20px; }
+.dz-sec { padding: 14px 18px 4px; border-top: 1px solid var(--line); margin-top: 10px; }
+.dz-sec h4 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); font-weight: 600; margin-bottom: 10px; }
+.dz-sec h4 span { color: var(--gold); text-transform: none; letter-spacing: 0; font-size: 0.8rem; }
+.dz-sec h5 { font-size: 0.74rem; color: var(--muted); font-weight: 500; margin: 14px 0 8px; }
+.dz-note { font-size: 0.8rem; color: var(--muted); line-height: 1.45; margin: 4px 0 8px; }
+.dz-rooms { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.dz-rooms button { display: grid; grid-template-columns: 12px 1fr; column-gap: 8px; align-items: center; text-align: left; padding: 9px 10px; border-radius: 12px; border: 1px solid var(--line); font-size: 0.8rem; line-height: 1.25; transition: border-color 0.2s, background 0.2s; }
+.dz-rooms button i { width: 12px; height: 12px; border-radius: 4px; grid-row: span 2; border: 1px solid rgba(255, 255, 255, 0.25); }
+.dz-rooms button small { color: var(--muted); font-size: 0.72rem; }
+.dz-rooms button:hover { border-color: var(--line-2); }
+.dz-rooms button.is-on { border-color: var(--gold); background: var(--gold-soft); }
+.dz-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.dz-chips button { padding: 8px 12px; border-radius: 999px; border: 1px solid var(--line-2); font-size: 0.8rem; color: #ddd6ca; transition: all 0.2s; }
+.dz-chips button:hover { border-color: var(--gold); }
+.dz-chips button.is-on { background: var(--gold); border-color: var(--gold); color: #1b150c; font-weight: 600; }
+.dz-chips--small button { padding: 6px 10px; font-size: 0.76rem; }
+.dz-link { display: inline-flex; align-items: center; gap: 6px; margin: 10px 0 6px; font-size: 0.8rem; color: var(--gold); }
+.dz-link:hover { text-decoration: underline; }
+.dz-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 8px; }
+.dz-sw { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 0.66rem; color: var(--muted); cursor: pointer; position: relative; }
+.dz-sw i { width: 100%; aspect-ratio: 1.35; border-radius: 10px; background: var(--c); border: 1px solid rgba(255, 255, 255, 0.14); box-shadow: inset 0 -10px 18px -12px rgba(0, 0, 0, 0.35); transition: transform 0.2s, box-shadow 0.2s; }
+.dz-sw:hover i { transform: translateY(-2px); }
+.dz-sw.is-on i { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--gold); }
+.dz-sw.is-on span { color: var(--text); }
+.dz-sw--custom i { background: conic-gradient(from 90deg, #e56b6b, #e5c16b, #8fd46b, #6bd4c8, #6b86e5, #c46be5, #e56b6b); }
+.dz-sw--custom input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.dz-swatches--floor .dz-sw i { aspect-ratio: 1.8; }
+.dz-swatches--round { grid-template-columns: repeat(8, 1fr); }
+.dz-swatches--round .dz-sw i { aspect-ratio: 1; border-radius: 50%; }
+.dz-swatches--round .dz-sw span { display: none; }
+.dz-check { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #d6cfc4; margin: 12px 0 6px; cursor: pointer; }
+.dz-check input { accent-color: var(--gold); width: 16px; height: 16px; }
+.dz-styles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.dz-styles button { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 14px; border: 1px solid var(--line); font-size: 0.8rem; text-align: left; transition: border-color 0.2s; }
+.dz-styles button:hover { border-color: var(--line-2); }
+.dz-styles button.is-on { border-color: var(--gold); background: var(--gold-soft); }
+.dz-pal { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; height: 30px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.12); }
+.dz-sel { background: var(--gold-soft); }
+.dz-selrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.dz-selrow span { display: flex; gap: 6px; }
+.dz-icon { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; border: 1px solid var(--line-2); background: rgba(255, 255, 255, 0.04); }
+.dz-icon:hover { border-color: var(--gold); color: var(--gold); }
+.dz-icon--bad:hover { border-color: var(--bad); color: var(--bad); }
+.dz-actions { display: grid; gap: 8px; padding: 14px 16px 16px; border-top: 1px solid var(--line); }
+.dz-actions__row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.dz-actions__row .btn { padding: 11px 12px; font-size: 0.82rem; gap: 6px; }
+
+.dz-room-label {
+  position: absolute; left: 0; top: 0;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 6px 11px; border-radius: 12px;
+  background: rgba(14, 16, 21, 0.78);
+  border: 1px solid var(--line-2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-size: 0.74rem; line-height: 1.2; white-space: nowrap;
+  pointer-events: auto; cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.dz-room-label small { color: var(--muted); font-size: 0.68rem; }
+.dz-room-label:hover { border-color: var(--gold); }
+.dz-room-label.is-on { background: var(--gold); border-color: var(--gold); color: #1b150c; }
+.dz-room-label.is-on small { color: rgba(27, 21, 12, 0.7); }
+.dz-bar {
+  position: absolute; left: 0; top: 0; z-index: 5;
+  display: flex; gap: 4px; padding: 4px;
+  border-radius: 12px;
+  background: rgba(14, 16, 21, 0.9);
+  border: 1px solid var(--gold);
+}
+.dz-bar button { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; }
+.dz-bar button:hover { background: rgba(255, 255, 255, 0.08); color: var(--gold); }
+.dz-bar button[data-del]:hover { color: var(--bad); }
+body.designing .ex-hint { display: none; }
+body.rendering .dz-panel, body.rendering .dz-bar { opacity: 0 !important; pointer-events: none !important; }
+
+@media (max-width: 760px) {
+  .dz-panel { left: 0; right: 0; bottom: 0; top: auto; width: auto; max-height: 48vh; border-radius: 22px 22px 0 0; transform: translateY(110%); }
+  .dz-head { padding: 16px 18px 4px; }
+  .dz-head h3 { font-size: 1.3rem; margin: 6px 0 4px; }
+  .dz-head p { display: none; }
+  .dz-sec { padding: 12px 14px 2px; margin-top: 6px; }
+  .dz-rooms { grid-template-columns: 1fr 1fr 1fr; }
+  .dz-actions { padding: 10px 12px 12px; }
+  .dz-room-label { font-size: 0.66rem; padding: 4px 8px; }
+}

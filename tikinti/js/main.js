@@ -21,6 +21,8 @@ import { windowMaterial, NEIGHBORS } from './complex.js';
 import { bakuUniforms } from './baku.js';
 import { buildPTScene, skyEquirect } from './ptscene.js';
 import { CamGuard } from './camguard.js';
+import { loadDesign, isCustom, DEFAULT_FABRIC } from './design.js';
+import { initStudio } from './studio.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -162,18 +164,35 @@ function loadModel(name, url, width, turn = 0) {
     root.updateMatrixWorld(true);
     const b2 = new THREE.Box3().setFromObject(root);
     root.position.sub(new THREE.Vector3((b2.min.x + b2.max.x) / 2, b2.min.y, (b2.min.z + b2.max.z) / 2));
-    root.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } });
+    root.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.geometry.userData.shared = true; } });
     wrap.add(root);
     models[name] = wrap;
     if (floorState) floorState.apts.forEach(applyModels);
   });
 }
+// Dizayn studiyasında seçilmiş parça rəngi — yalnız məxmər (sheen) materiallar boyanır
+const tintCache = new Map();
+function tinted(mat, hex) {
+  if (!hex || hex === DEFAULT_FABRIC || !(mat.sheen > 0)) return mat;
+  const key = mat.uuid + hex;
+  if (!tintCache.has(key)) {
+    const m = mat.clone();
+    m.map = null;
+    m.color.set(hex);
+    if (m.sheenColor) m.sheenColor.set(hex).lerp(new THREE.Color(0xffffff), 0.12);
+    tintCache.set(key, m);
+  }
+  return tintCache.get(key);
+}
 function applyModels(ad) {
+  const hex = ad.design && ad.design.fabric;
   for (const slot of ad.modelSlots) {
     const m = models[slot.userData.modelKind];
     if (!m || slot.userData.filled) continue;
     slot.clear();
-    slot.add(m.clone());
+    const c = m.clone();
+    if (hex && hex !== DEFAULT_FABRIC) c.traverse((o) => { if (o.isMesh) o.material = tinted(o.material, hex); });
+    slot.add(c);
     slot.userData.filled = true;
   }
 }
@@ -465,6 +484,7 @@ addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   if (!modal.hidden) return closeModal();
   if (state.mode === 'tour') return exitTour();
+  if (state.mode === 'design') return studio.escape();
   if (state.mode === 'floor') return state.apt ? closeApt() : backToBuilding();
   if (state.mode === 'building') return exitExplore();
 });
@@ -536,10 +556,12 @@ $('#crumbs').addEventListener('click', (e) => {
   const c = e.target.closest('[data-crumb]');
   if (!c) return;
   if (state.mode === 'tour') exitTour(true);
+  if (state.mode === 'design') { const ad = studio.exit(); state.mode = 'floor'; floorState.labels.forEach((l) => (l.style.display = '')); ad.overlay.visible = ad.border.visible = true; }
   if (c.dataset.crumb === 'building') backToBuilding();
   else if (c.dataset.crumb === 'floor') closeApt();
 });
 $('#exBack').addEventListener('click', () => {
+  if (state.mode === 'design') { studio.escape(); return; }
   if (state.mode === 'tour') exitTour();
   else if (state.mode === 'floor') (state.apt ? closeApt() : backToBuilding());
 });
@@ -578,6 +600,7 @@ function enterExplore(opts = {}) {
 function exitExplore() {
   if (state.mode === 'landing') return;
   if (state.mode === 'tour') exitTour(true);
+  if (state.mode === 'design') { studio.exit(); state.mode = 'floor'; }
   stopRender();
   setSunMode(false);
   $$('[data-daytime]').forEach((x) => x.classList.toggle('is-on', x.dataset.daytime === 'day'));
@@ -658,7 +681,7 @@ function buildFloorInterior(f) {
   disposeFloor();
   const baseY = floorBaseY(f);
   const group = new THREE.Group();
-  const apts = APARTMENTS.filter((a) => a.floor === f).map((a) => buildApartment(a, baseY));
+  const apts = APARTMENTS.filter((a) => a.floor === f).map((a) => buildApartment(a, baseY, loadDesign(a)));
   apts.forEach((ad) => { group.add(ad.group); applyModels(ad); });
   group.add(buildCommonAreas(baseY));
   scene.add(group);
@@ -674,6 +697,27 @@ function buildFloorInterior(f) {
   });
   floorState = { f, group, apts, labels, baseY };
   refreshAptVisuals();
+}
+
+// Bir mənzili dizayna görə yenidən qur (dizayn studiyası)
+function disposeGroup(g) {
+  g.traverse((o) => { if ((o.isMesh || o.isLine) && !o.geometry.userData.shared) o.geometry.dispose(); });
+}
+function rebuildApt(ad, editable) {
+  if (!floorState) return ad;
+  const i = floorState.apts.indexOf(ad);
+  const nad = buildApartment(ad.apt, floorState.baseY, ad.design, { editable });
+  nad.label = ad.label;
+  nad.anchor = ad.anchor;
+  floorState.group.remove(ad.group);
+  disposeGroup(ad.group);
+  floorState.group.add(nad.group);
+  applyModels(nad);
+  nad.overlay.visible = ad.overlay.visible;
+  nad.border.visible = ad.border.visible;
+  if (i >= 0) floorState.apts[i] = nad;
+  if (state.hoverApt === ad) state.hoverApt = null;
+  return nad;
 }
 
 function selectFloor(f, done) {
@@ -734,6 +778,7 @@ function openApt(apt, andTour = false) {
   state.apt = apt;
   const ad = floorState.apts.find((x) => x.apt.id === apt.id);
   const plan = apt.type;
+  const dplan = (ad && ad.plan) || plan; // dizayn studiyasında dəyişdirilmiş otaq adları
   const st = STATUS[apt.status];
   const perM2 = Math.round(apt.price / plan.area);
   aptPanel.innerHTML = `
@@ -744,7 +789,7 @@ function openApt(apt, andTour = false) {
         <h3>Mənzil № ${apt.number}</h3>
         <p>${ordinal(apt.floor)} mərtəbə · ${plan.title} · Tip ${plan.code}</p>
       </div>
-      <div class="apt-plan" data-apt-plan title="Planı böyüt">${planSVG(plan, { slot: apt.slot })}</div>
+      <div class="apt-plan" data-apt-plan title="Planı böyüt">${planSVG(dplan, { slot: apt.slot })}</div>
       <dl class="facts">
         <div><dt>Sahə</dt><dd>${plan.area} m²</dd></div>
         <div><dt>Otaq</dt><dd>${plan.rooms}</dd></div>
@@ -754,12 +799,16 @@ function openApt(apt, andTour = false) {
         <div><dt>1 m²</dt><dd>${apt.status === 'sold' ? '—' : fmtPrice(perM2)}</dd></div>
       </dl>
       ${sunHoursBlock(apt)}
-      ${roomList(plan)}
+      ${roomList(dplan)}
     </div>
     <div class="apt-actions">
       <button class="btn btn--gold btn--block" data-apt-tour>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a15 15 0 0 1 0 20M2 12h20"/></svg>
         Virtual tura başla
+      </button>
+      <button class="btn btn--ghost btn--block btn--design" data-apt-design>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22a10 10 0 1 1 10-10c0 2.8-2.2 4-4 4h-2a2 2 0 0 0-1.5 3.3A1.6 1.6 0 0 1 12 22z"/><circle cx="7.5" cy="10.5" r="1.2"/><circle cx="11" cy="6.8" r="1.2"/><circle cx="16" cy="8" r="1.2"/></svg>
+        Dizayn studiyası${isCustom(apt) ? ' <small>· fərdi dizayn</small>' : ''}
       </button>
       ${apt.status === 'sold' ? '' : '<button class="btn btn--ghost btn--block" data-apt-lead>Bu mənzilə müraciət et</button>'}
     </div>`;
@@ -798,6 +847,7 @@ aptPanel.addEventListener('click', (e) => {
     const ad = floorState.apts.find((x) => x.apt.id === state.apt.id);
     startTourFor(ad);
   }
+  if (e.target.closest('[data-apt-design]')) enterDesign(floorState.apts.find((x) => x.apt.id === state.apt.id));
   if (e.target.closest('[data-apt-lead]')) {
     const apt = state.apt;
     exitExplore();
@@ -806,6 +856,39 @@ aptPanel.addEventListener('click', (e) => {
     setTimeout(() => scrollCtl.toEl(document.getElementById('contact')), 50);
   }
 });
+
+/* ---------- Dizayn studiyası ---------- */
+const studio = initStudio({
+  camera, canvas, controls, flyTo, toast,
+  rebuild: rebuildApt,
+  onClose: (ad) => {
+    state.mode = 'floor';
+    floorState.labels.forEach((l) => (l.style.display = ''));
+    ad.overlay.visible = true;
+    ad.border.visible = true;
+    openApt(ad.apt);
+  },
+  onTour: (ad) => {
+    state.mode = 'floor';
+    floorState.labels.forEach((l) => (l.style.display = ''));
+    ad.overlay.visible = true;
+    ad.border.visible = true;
+    state.apt = ad.apt;
+    startTourFor(ad);
+  },
+});
+function enterDesign(ad) {
+  if (!ad) return;
+  state.mode = 'design';
+  aptPanel.classList.remove('is-open');
+  $('#exFloors').classList.add('is-hidden');
+  tip.classList.remove('is-on');
+  setHint('');
+  floorState.labels.forEach((l) => (l.style.display = 'none'));
+  ad.overlay.visible = false;
+  ad.border.visible = false;
+  studio.enter(ad);
+}
 
 /* ---------- Virtual tur ---------- */
 const tourHud = $('#tourHud');
@@ -848,7 +931,7 @@ function startTourFor(ad) {
 
 function setupTourHud(ad) {
   roomsBar.innerHTML = ad.rooms.map((r, i) => `<button data-room="${i}">${r.name}</button>`).join('');
-  minimap.innerHTML = planSVG(ad.apt.type, { slot: ad.apt.slot, compact: true });
+  minimap.innerHTML = planSVG(ad.plan || ad.apt.type, { slot: ad.apt.slot, compact: true });
   const svg = minimap.querySelector('svg');
   svg.insertAdjacentHTML('beforeend', `<g id="mapMarker"><path d="M0 0 L2.4 -1.1 A2.6 2.6 0 0 1 2.4 1.1 Z" fill="rgba(201,161,92,0.35)"/><circle r="0.32" fill="#c9a15c" stroke="#fff" stroke-width="0.1"/></g>`);
   mapMarker = svg.querySelector('#mapMarker');
@@ -945,7 +1028,7 @@ canvas.addEventListener('pointermove', (e) => {
       showTip(e, `<b>Mənzil № ${a.number}</b><small>${a.type.title} · ${a.type.area} m² · ${a.status === 'sold' ? STATUS.sold.label : fmtPrice(a.price)}</small>`);
       canvas.style.cursor = 'pointer';
     } else { tip.classList.remove('is-on'); canvas.style.cursor = ''; }
-  } else {
+  } else if (state.mode !== 'design') {
     tip.classList.remove('is-on');
     canvas.style.cursor = state.mode === 'tour' ? 'grab' : '';
   }
@@ -1341,7 +1424,7 @@ const floorPts = [0, 0, 0, 0, 0].map(() => new THREE.Vector3());
 function updateGuard(dt, now) {
   const m = state.mode;
   if (rendering) return;
-  if (m !== 'building' && m !== 'floor') { guard.update(camera, null, dt, now); return; }
+  if (m !== 'building' && m !== 'floor' && m !== 'design') { guard.update(camera, null, dt, now); return; }
   // baxış nöqtəsi kompleksdən çox uzaqlaşmasın
   const tg = controls.target;
   if (!camTween) {
@@ -1351,7 +1434,7 @@ function updateGuard(dt, now) {
     guard.pushOut(camera.position, 2, { neighbors: false, tower: m === 'building', ground: 2 });
   }
   let pts = TOWER_PTS;
-  if (m === 'floor' && floorState) {
+  if (m !== 'building' && floorState) {
     const y = floorState.baseY + 1.2;
     [[0, 0], [14, 9], [-14, 9], [14, -9], [-14, -9]].forEach(([x, z], i) => floorPts[i].set(x, y, z));
     pts = floorPts;
@@ -1383,6 +1466,7 @@ function frame(now) {
   else if (!camTween) controls.update();
   updateGuard(Math.min(rawDt, 0.25), now);
 
+  studio.update();
   // mənzil etiketləri
   if (floorState && state.mode === 'floor') {
     for (const ad of floorState.apts) {
@@ -1474,4 +1558,4 @@ setTimeout(() => {
 }, 1200);
 
 // Test və sazlama üçün
-window.__nova = { guard, PATH, posCurve, tgtCurve, BUILDING_VIEW, get camTween() { return camTween; }, get rendering() { return rendering; }, startRender, stopRender, setSunMode, setSunDay, sunSim, applySun, controls, scene, renderer, scrollCtl, state, enterExplore, selectFloor, openApt, startTour, exitTour, backToBuilding, exitExplore, tour, camera, APARTMENTS };
+window.__nova = { studio, guard, PATH, posCurve, tgtCurve, BUILDING_VIEW, get camTween() { return camTween; }, get rendering() { return rendering; }, startRender, stopRender, setSunMode, setSunDay, sunSim, applySun, controls, scene, renderer, scrollCtl, state, enterExplore, selectFloor, openApt, startTour, exitTour, backToBuilding, exitExplore, tour, camera, APARTMENTS };

@@ -6,6 +6,7 @@ import { computeLayout, exteriorSides } from './layout.js';
 import { buildFurniture, furnitureMaterials, FOOTPRINT } from './furniture.js';
 import { woodTexture, marbleTexture, tileTexture } from './textures.js';
 import { decorate } from './decor.js';
+import { designedPlan, DEFAULT_FABRIC } from './design.js';
 
 let MATS = null;
 export function interiorMaterials() {
@@ -15,8 +16,10 @@ export function interiorMaterials() {
       wood: new THREE.MeshStandardMaterial({ map: woodTexture(), roughness: 0.5 }),
       marble: new THREE.MeshStandardMaterial({ map: marbleTexture(), roughness: 0.15 }),
       tile: new THREE.MeshStandardMaterial({ map: tileTexture(), roughness: 0.3 }),
+      walnut: new THREE.MeshStandardMaterial({ map: woodTexture([112, 76, 52]), roughness: 0.45 }),
+      concrete: new THREE.MeshStandardMaterial({ map: marbleTexture([184, 181, 176], [160, 157, 152]), roughness: 0.62 }),
     },
-    floorScale: { wood: 2, marble: 2, tile: 1.2 },
+    floorScale: { wood: 2, marble: 2, tile: 1.2, walnut: 2, concrete: 3.5 },
     wall: new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.92 }),
     ceiling: new THREE.MeshStandardMaterial({ color: 0xfaf9f6, roughness: 1 }),
     glass: new THREE.MeshPhysicalMaterial({
@@ -55,6 +58,52 @@ function boxAt(w, h, d, x, y, z, color) {
 function segBox(s, color) {
   const L = s.b - s.a, h = s.y1 - s.y0, mid = (s.a + s.b) / 2, y = (s.y0 + s.y1) / 2;
   return s.axis === 'h' ? boxAt(L, h, s.t, mid, y, s.c, color) : boxAt(s.t, h, L, s.c, y, mid, color);
+}
+
+// Divarları otaq sərhədlərində bölüb hər üzü qonşu otağın rəngi ilə boya
+const colorCache = new Map();
+const colorOf = (hex) => {
+  if (!colorCache.has(hex)) colorCache.set(hex, new THREE.Color(hex));
+  return colorCache.get(hex);
+};
+function wallGeometries(plan, segs) {
+  const find = (x, z) => plan.rooms_.find((r) => x > r.x && x < r.x + r.w && z > r.z && z < r.z + r.d);
+  const faceCol = (x, z) => { const r = find(x, z); return r ? colorOf(r.wall || '#e4ddd2') : WALL_EXT_COLOR; };
+  const out = [];
+  for (const s of segs) {
+    const cuts = new Set([s.a, s.b]);
+    for (const r of plan.rooms_) for (const v of s.axis === 'h' ? [r.x, r.x + r.w] : [r.z, r.z + r.d]) if (v > s.a + 0.01 && v < s.b - 0.01) cuts.add(v);
+    const pts = [...cuts].sort((p, q) => p - q);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1], mid = (a + b) / 2, o = s.t / 2 + 0.05;
+      const g = segBox({ ...s, a, b }, WALL_COLOR);
+      // BoxGeometry üzləri: +x(0-3) −x(4-7) +y(8-11) −y(12-15) +z(16-19) −z(20-23)
+      const plus = s.axis === 'h' ? faceCol(mid, s.c + o) : faceCol(s.c + o, mid);
+      const minus = s.axis === 'h' ? faceCol(mid, s.c - o) : faceCol(s.c - o, mid);
+      const col = g.attributes.color;
+      const faces = s.axis === 'h' ? { plus: [16, 20], minus: [20, 24], ends: [0, 8] } : { plus: [0, 4], minus: [4, 8], ends: [16, 24] };
+      const paint = ([f0, f1], c) => { for (let k = f0; k < f1; k++) col.setXYZ(k, c.r, c.g, c.b); };
+      paint(faces.plus, plus);
+      paint(faces.minus, minus);
+      paint(faces.ends, plus === WALL_EXT_COLOR ? minus : plus);
+      out.push(g);
+    }
+  }
+  return out;
+}
+
+// Parça rəngi (divan, kreslo, stullar) — dizayna görə material nüsxələri
+const fabricCache = new Map();
+function fabricSwap(hex) {
+  if (!hex || hex === DEFAULT_FABRIC) return null;
+  if (!fabricCache.has(hex)) {
+    const M = furnitureMaterials();
+    const c = new THREE.Color(hex);
+    const f = M.fabric.clone(); f.color.copy(c);
+    const fd = M.fabricDark.clone(); fd.color.copy(c).multiplyScalar(0.62);
+    fabricCache.set(hex, new Map([[M.fabric, f], [M.fabricDark, fd]]));
+  }
+  return fabricCache.get(hex);
 }
 
 function mergeMesh(geos, mat, { cast = true, receive = true } = {}) {
@@ -98,9 +147,10 @@ export function slotTransform(slot, plan) {
 /**
  * apt: APARTMENTS elementi, baseY: mərtəbə döşəməsinin dünya hündürlüyü
  */
-export function buildApartment(apt, baseY) {
+export function buildApartment(apt, baseY, design = null, opts = {}) {
   const mats = interiorMaterials();
-  const plan = apt.type;
+  const plan = design ? designedPlan(apt.type, design) : apt.type;
+  const editable = !!opts.editable;
   const ext = exteriorSides(apt.slot, plan);
   const { segs, openings, colliders } = computeLayout(plan, ext);
   const { sx, sz, tx, tz } = slotTransform(apt.slot, plan);
@@ -111,15 +161,16 @@ export function buildApartment(apt, baseY) {
   group.userData.apt = apt;
 
   // Döşəmələr
-  const floorGeos = { wood: [], marble: [], tile: [] };
+  const floorGeos = {};
   for (const r of plan.rooms_) {
     const g = new THREE.PlaneGeometry(r.w, r.d);
     g.rotateX(-Math.PI / 2);
     g.translate(r.x + r.w / 2, 0.004, r.z + r.d / 2);
-    const s = mats.floorScale[r.floor];
+    const fk = mats.floor[r.floor] ? r.floor : 'wood';
+    const s = mats.floorScale[fk];
     const pos = g.attributes.position, uv = g.attributes.uv;
     for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / s, pos.getZ(i) / s);
-    floorGeos[r.floor].push(g);
+    (floorGeos[fk] ||= []).push(g);
   }
   for (const [k, geos] of Object.entries(floorGeos)) {
     const m = mergeMesh(geos, mats.floor[k], { cast: false });
@@ -127,7 +178,7 @@ export function buildApartment(apt, baseY) {
   }
 
   // Divarlar
-  const wallGeos = segs.map((s) => segBox(s, s.exterior ? WALL_EXT_COLOR : WALL_COLOR));
+  const wallGeos = design ? wallGeometries(plan, segs) : segs.map((s) => segBox(s, s.exterior ? WALL_EXT_COLOR : WALL_COLOR));
   group.add(mergeMesh(wallGeos, mats.wall));
 
   // Pəncərələr, qapılar
@@ -175,14 +226,23 @@ export function buildApartment(apt, baseY) {
   const modelSlots = [];
   const lamps = [];
   const furnColliders = [];
-  for (const item of plan.furniture) {
+  const items = [];
+  const itemsGroup = new THREE.Group();
+  const swap = fabricSwap(design && design.fabric);
+  plan.furniture.forEach((item, idx) => {
     const obj = buildFurniture(item);
+    if (swap) obj.traverse((o) => { if (o.isMesh && swap.has(o.material)) o.material = swap.get(o.material); });
     if (item.k === 'pendant') {
       tourOnly.add(obj);
       lamps.push(new THREE.Vector3(item.x, 1.95, item.z));
-      continue;
+      return;
     }
-    if (item.k === 'sofa' || item.k === 'armchair') {
+    if (editable) {
+      obj.userData.itemIndex = idx;
+      items.push(obj);
+      itemsGroup.add(obj);
+      if (item.k === 'sofa' || item.k === 'armchair') { obj.userData.modelKind = item.k; modelSlots.push(obj); }
+    } else if (item.k === 'sofa' || item.k === 'armchair') {
       obj.userData.modelKind = item.k;
       modelSlots.push(obj);
       group.add(obj);
@@ -192,6 +252,7 @@ export function buildApartment(apt, baseY) {
     let fp = FOOTPRINT[item.k];
     if (item.k === 'dining' && item.small) fp = [1.0, 1.3];
     if (item.k === 'kitchenRun' || item.k === 'wardrobe') fp = [item.len, 0.62];
+    if (item.k === 'shelf') fp = [item.len || 2, 0.35];
     if (item.k === 'shower') fp = [item.w, 0.05];
     if (fp) {
       const a = THREE.MathUtils.degToRad(item.rot || 0);
@@ -201,9 +262,11 @@ export function buildApartment(apt, baseY) {
       if (item.k === 'shower') { cz = item.z - item.d / 2; }
       furnColliders.push({ x0: cx - w / 2, x1: cx + w / 2, z0: cz - d / 2, z1: cz + d / 2 });
     }
-  }
+  });
   decorate(plan, ext, openings, furn, tourOnly);
+  if (swap) furn.traverse((o) => { if (o.isMesh && swap.has(o.material)) o.material = swap.get(o.material); });
   group.add(mergeByMaterial(furn));
+  if (editable) group.add(itemsGroup);
 
   // Tavan (yalnız virtual turda görünür)
   const ceil = new THREE.PlaneGeometry(plan.w, plan.d);
@@ -262,6 +325,10 @@ export function buildApartment(apt, baseY) {
     border,
     tourOnly,
     modelSlots,
+    items,
+    plan,
+    design,
+    slotT: { sx, sz, tx, tz },
     lamps: lamps.map((p) => toWorld(p.x, p.z).setY(baseY + p.y)),
     colliders: [...colliders, ...furnColliders].map(toWorldRect),
     rooms,

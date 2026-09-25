@@ -81,6 +81,7 @@ export function decorate(plan, ext, openings, stat, tourOnly) {
 
   let artI = 0;
   for (const r of plan.rooms_) {
+    const use = r.use || r.kind; // dizayn studiyasında seçilmiş təyinat
     const edges = [
       { axis: 'h', c: r.z, a: r.x, b: r.x + r.w, inward: 1 },
       { axis: 'h', c: r.z + r.d, a: r.x, b: r.x + r.w, inward: -1 },
@@ -108,7 +109,7 @@ export function decorate(plan, ext, openings, stat, tourOnly) {
         }
       }
       // pərdələr (yaşayış otaqlarının pəncərələrində)
-      if (['living', 'bedroom', 'kids'].includes(r.kind)) {
+      if (['living', 'livingKitchen', 'studio', 'bedroom', 'kids', 'office', 'dining'].includes(use)) {
         for (const o of openings) {
           if (o.type !== 'window' || o.axis !== e.axis || Math.abs(o.c - e.c) > 1e-3) continue;
           if (o.a < e.a - 1e-3 || o.b > e.b + 1e-3) continue;
@@ -118,7 +119,7 @@ export function decorate(plan, ext, openings, stat, tourOnly) {
           const mid = (o.a + o.b) / 2;
           const ry = e.axis === 'h' ? 0 : Math.PI / 2;
           const dh = WALL_H - 0.08;
-          const mat = r.kind === 'bedroom' ? M.drapeDark : M.drape;
+          const mat = use === 'bedroom' ? M.drapeDark : M.drape;
           const at = (along, dd) => (e.axis === 'h' ? [along, inset + e.inward * dd] : [inset + e.inward * dd, along]);
           const [rx, rz] = at(mid, 0);
           add(stat, new THREE.BoxGeometry(e.axis === 'h' ? railLen : 0.03, 0.03, e.axis === 'h' ? 0.03 : railLen), M.rail, rx, WALL_H - 0.06, rz);
@@ -143,7 +144,7 @@ export function decorate(plan, ext, openings, stat, tourOnly) {
       const x = r.x + ((i + 0.5) * r.w) / nx, z = r.z + ((j + 0.5) * r.d) / nz;
       add(tourOnly, dl, M.downlight, x, WALL_H - 0.006, z).castShadow = false;
     }
-    if (r.kind === 'living') {
+    if (use === 'living' || use === 'livingKitchen' || use === 'studio') {
       const inset = 0.45, y = WALL_H - 0.12;
       const band = [
         [r.w - inset * 2 + 0.3, r.x + r.w / 2, r.z + inset, 'h'], [r.w - inset * 2 + 0.3, r.x + r.w / 2, r.z + r.d - inset, 'h'],
@@ -162,7 +163,14 @@ export function decorate(plan, ext, openings, stat, tourOnly) {
     const a = THREE.MathUtils.degToRad(it.rot || 0);
     return [it.x - Math.sin(a) * dist, it.z - Math.cos(a) * dist, a];
   };
+  // arxası divara yaxındırmı (istifadəçi əşyanı otağın ortasına çəkə bilər)
+  const nearWall = (x, z) => plan.rooms_.some((r) => {
+    const inX = x > r.x - 0.05 && x < r.x + r.w + 0.05, inZ = z > r.z - 0.05 && z < r.z + r.d + 0.05;
+    const dx = Math.min(Math.abs(x - r.x), Math.abs(x - r.x - r.w)), dz = Math.min(Math.abs(z - r.z), Math.abs(z - r.z - r.d));
+    return inX && inZ && Math.min(dx, dz) < 0.35;
+  });
   for (const it of plan.furniture) {
+    if ((it.k === 'tv' || it.k === 'bed') && !nearWall(...backOf(it, it.k === 'tv' ? 0.2 : 1.12))) continue;
     if (it.k === 'tv') {
       // taxta lamelli TV divarı
       const [x, z, a] = backOf(it, 0.085);
@@ -188,12 +196,7 @@ export function decorate(plan, ext, openings, stat, tourOnly) {
       const dist = it.k === 'sofa' ? 0.6 : 0.2;
       const [x, z, a] = backOf(it, dist);
       // arxada divar varmı? (sadə yoxlama: plan sərhədinə və ya otaq kənarına yaxınlıq)
-      const nearWall = plan.rooms_.some((r) => {
-        const inX = x > r.x - 0.05 && x < r.x + r.w + 0.05, inZ = z > r.z - 0.05 && z < r.z + r.d + 0.05;
-        const dx = Math.min(Math.abs(x - r.x), Math.abs(x - r.x - r.w)), dz = Math.min(Math.abs(z - r.z), Math.abs(z - r.z - r.d));
-        return inX && inZ && Math.min(dx, dz) < 0.35;
-      });
-      if (!nearWall || it.k === 'console') continue;
+      if (!nearWall(x, z) || it.k === 'console') continue;
       const g = new THREE.Group();
       g.position.set(x, 0, z);
       g.rotation.y = a;

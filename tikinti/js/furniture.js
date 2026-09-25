@@ -46,7 +46,7 @@ export function furnitureMaterials() {
 const geoCache = new Map();
 function boxGeo(w, h, d) {
   const k = `${w.toFixed(3)}|${h.toFixed(3)}|${d.toFixed(3)}`;
-  if (!geoCache.has(k)) geoCache.set(k, new THREE.BoxGeometry(w, h, d));
+  if (!geoCache.has(k)) { const g = new THREE.BoxGeometry(w, h, d); g.userData.shared = true; geoCache.set(k, g); }
   return geoCache.get(k);
 }
 
