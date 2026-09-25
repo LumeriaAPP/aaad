@@ -424,7 +424,12 @@ export async function buildTrees(onDone, keepClear = []) {
     const list = buckets[vi];
     for (const ch of v.children) {
       if (!ch.isMesh || !ch.geometry.attributes.position || ch.geometry.attributes.position.count === 0) continue;
-      const im = new THREE.InstancedMesh(ch.geometry, ch.material, list.length);
+      // EZ-Tree yarpaq materialının külək şeyderi instancing-i dəstəkləmir — standart materialla əvəz et
+      const src = ch.material;
+      const mat = src.onBeforeCompile && src.onBeforeCompile.toString().length > 30
+        ? new THREE.MeshStandardMaterial({ map: src.map, color: src.color, alphaTest: src.alphaTest || 0.5, side: src.side, transparent: false, roughness: 0.85 })
+        : src;
+      const im = new THREE.InstancedMesh(ch.geometry, mat, list.length);
       im.castShadow = true;
       im.receiveShadow = true;
       list.forEach(([x, z, r, k], i) => {
