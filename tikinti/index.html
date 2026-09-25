@@ -60,6 +60,14 @@
   <main id="page">
     <!-- HERO: 3D bina fonda, scroll-da mətn bulanıqlaşıb yuxarı qalxır -->
     <section class="hero" id="top" data-ui="dark">
+      <!-- Fon videosu: scroll-da yavaş sürüşür, kiçilib künclər yumrulanır, sonra 3D səhnəyə keçir -->
+      <div class="hero__media" data-p='{"y":[0,240],"scale":[1,0.84],"radius":[0,34],"opacity":[[0,1],[0.5,1],[0.92,0]]}' data-p-range="exit" data-p-ref="section" aria-hidden="true">
+        <video class="hero__video" autoplay muted loop playsinline preload="auto" poster="assets/video/hero-poster.jpg">
+          <source src="assets/video/hero.mp4" type="video/mp4">
+          <source src="assets/video/hero.webm" type="video/webm">
+        </video>
+        <div class="hero__vshade"></div>
+      </div>
       <div class="hero__inner" data-p='{"y":[0,-220],"opacity":[1,0],"blur":[0,8]}' data-p-range="exit">
         <p class="kicker"><span class="line"></span>Nova Tikinti təqdim edir</p>
         <h1 class="hero__title">
@@ -91,15 +99,15 @@
         <h2 class="display" data-split>Gələcəyin <em>yaşayış</em> məkanı — bu gün tikilir</h2>
         <div class="purposes">
           <article class="purpose" data-reveal style="--d:0">
-            <div class="purpose__media"><div class="purpose__img purpose__img--1" data-p='{"scale":[1.3,1]}'></div></div>
+            <div class="purpose__media"><div class="purpose__img purpose__img--1" data-photo="assets/img/yasamaq.webp" data-p='{"scale":[1.3,1]}'></div></div>
             <h3>Yaşamaq üçün</h3><p>Geniş planlar, 3 metr tavan, hər otaqda təbii işıq.</p>
           </article>
           <article class="purpose" data-reveal style="--d:1">
-            <div class="purpose__media"><div class="purpose__img purpose__img--2" data-p='{"scale":[1.3,1]}'></div></div>
+            <div class="purpose__media"><div class="purpose__img purpose__img--2" data-photo="assets/img/istirahet.webp" data-p='{"scale":[1.3,1]}'></div></div>
             <h3>İstirahət üçün</h3><p>Hovuz, yaşıl həyət, fitness və SPA — evdən çıxmadan.</p>
           </article>
           <article class="purpose" data-reveal style="--d:2">
-            <div class="purpose__media"><div class="purpose__img purpose__img--3" data-p='{"scale":[1.3,1]}'></div></div>
+            <div class="purpose__media"><div class="purpose__img purpose__img--3" data-photo="assets/img/investisiya.webp" data-p='{"scale":[1.3,1]}'></div></div>
             <h3>İnvestisiya üçün</h3><p>Hər mərtəbə ilə artan dəyər və hissə-hissə ödəniş.</p>
           </article>
         </div>

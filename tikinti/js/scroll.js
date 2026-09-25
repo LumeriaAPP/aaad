@@ -126,7 +126,8 @@ export function initScroll({ onFrame } = {}) {
   }, { threshold: 0.5 });
   counters.forEach((el) => cio.observe(el));
 
-  const pEls = $$('[data-p]').map((el) => ({ el, keys: readP(el), range: el.dataset.pRange || 'enter', pin: el.closest('.pin') }));
+  // data-p-ref="section": irəliləyiş elementin özünə yox, bölməyə görə ölçülür (öz transformu təsir etməsin)
+  const pEls = $$('[data-p]').map((el) => ({ el, keys: readP(el), range: el.dataset.pRange || 'enter', pin: el.closest('.pin'), ref: el.dataset.pRef === 'section' ? el.closest('section') : null }));
   const pins = $$('.pin').map((el) => ({ el, inner: el.querySelector('.pin__sticky') }));
   const hTracks = $$('[data-htrack]').map((el) => ({ el, pin: el.closest('.pin'), track: el }));
   const themed = $$('[data-ui]');
@@ -168,7 +169,7 @@ export function initScroll({ onFrame } = {}) {
       if (it.range === 'pin' && it.pin) {
         t = pins.find((p) => p.el === it.pin)?.t ?? 0;
       } else {
-        const r = (it.pin || it.el).getBoundingClientRect();
+        const r = (it.pin || it.ref || it.el).getBoundingClientRect();
         if (it.range === 'exit') t = clamp(-r.top / Math.max(1, r.height));
         else if (it.range === 'end') {
           // səhifənin sonundakı elementlər: ekrana girəndən səhifə tam sona çatana qədər

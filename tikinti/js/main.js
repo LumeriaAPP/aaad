@@ -293,6 +293,23 @@ function flyTo(pos, target, dur = 1400, done) {
 }
 
 /* =========================================================
+   Hero videosu: ekrandan çıxanda və 3D rejimdə dayanır;
+   "azaldılmış hərəkət" seçilibsə yalnız ilk kadr göstərilir
+   ========================================================= */
+const heroVideo = document.querySelector('.hero__video');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let heroVisible = true;
+function syncHeroVideo() {
+  if (!heroVideo) return;
+  if (reduceMotion || !heroVisible || document.body.classList.contains('exploring')) heroVideo.pause();
+  else heroVideo.play().catch(() => {});
+}
+if (heroVideo) {
+  if (reduceMotion) heroVideo.removeAttribute('autoplay');
+  new IntersectionObserver(([e]) => { heroVisible = e.isIntersecting; syncHeroVideo(); }).observe(heroVideo);
+}
+
+/* =========================================================
    Landing: scroll ilə hərəkət edən kamera (parallax)
    ========================================================= */
 // Kamera açar kadrları bölmələrə bağlıdır: at = 0 bölmənin əvvəli, 1 — sonu
@@ -579,6 +596,7 @@ function enterExplore(opts = {}) {
   state.mode = 'building';
   clearViewShift();
   document.body.classList.add('exploring');
+  syncHeroVideo();
   explorer.hidden = false;
   $('#exFloors').classList.remove('is-hidden');
   renderFloorList();
@@ -619,6 +637,7 @@ function exitExplore() {
   renderer.toneMappingExposure = 0.9;
   scrollCtl.start();
   scrollCtl.to(savedScroll, true);
+  syncHeroVideo();
 }
 
 function startTour(apt) {
@@ -628,6 +647,7 @@ function startTour(apt) {
     state.mode = 'building';
     clearViewShift();
     document.body.classList.add('exploring');
+    syncHeroVideo();
     explorer.hidden = false;
     renderFloorList();
     controls.enabled = true;
