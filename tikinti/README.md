@@ -7,6 +7,8 @@ Tikinti şirkəti üçün interaktiv 3D sayt (nümunə layihə: "Nova Tikinti" /
 - **3D mənzil seçimi** — binanı fırladın, mərtəbənin üzərinə gəlin və klikləyin. Yuxarı mərtəbələr qalxır və seçilmiş mərtəbənin içi (divarlar, mebel) görünür.
 - **Mənzil paneli** — status (satışda / bron / satılıb), sahə, qiymət, otaqlar və real ölçülü plan.
 - **Virtual tur** — mənzilin içində gəzin: siçanla sürüşdürərək ətrafa baxın, W A S D ilə hərəkət edin, döşəməyə klikləyərək ora gedin. Otaq düymələri və mini xəritə var. Telefonda joystik işləyir.
+- **Foto-render** — işıq izləmə (path tracing) ilə real render: baş planda, 3D seçimdə ("Render") və virtual turda. Şəkli yadda saxlamaq olar.
+- **Günəş simulyasiyası** — Bakı üçün astronomik hesablama, tarix/saat, gündüz/axşam/gecə, mənzillər üçün günəş saatları.
 - **Planlar bölməsi**, plan modalı, müraciət forması, mobil uyğunluq.
 
 ## Məlumatları dəyişmək
@@ -34,8 +36,11 @@ Zəif cihazlar üçün: `?noao` (ambient occlusion-u söndürür), `?nopp` (büt
 | 3D mühərrik | three.js r186 | MIT |
 | Ağaclar | EZ-Tree (Daniel Greenheck) | MIT |
 | Çəmən teksturası | EZ-Tree tətbiqi | MIT |
-| Göy üzü / mühit (flower_road_2k) | Poly Haven (Google Filament vasitəsilə) | CC0 |
+| Göy üzü / mühit (aristea_wreck_puresky_2k) | Poly Haven (gkjohnson/3d-demo-data vasitəsilə) | CC0 |
 | İnteryer işıqlandırması (apartment) | Poly Haven (@pmndrs/assets vasitəsilə) | CC0 |
 | Divan (GlamVelvetSofa), kreslo (SheenChair) | Wayfair / Khronos glTF Sample Assets | CC BY 4.0 |
+| Foto-render (işıq izləmə) | three-gpu-pathtracer, three-mesh-bvh (Garrett Johnson) | MIT |
+| Yumşaq scroll | Lenis | MIT |
+| Su normal xəritəsi | three.js nümunələri | MIT |
 
 Bina, mənzillər, mebel və qalan teksturalar kodla yaradılır.

@@ -977,14 +977,20 @@ body.sun-on .minimap { bottom: 240px; }
 /* ============ Foto-render ============ */
 .tour-render { position: absolute; right: 16px; top: 72px; padding: 10px 16px; font-size: 0.85rem; }
 .render-hud {
-  position: absolute; left: 50%; top: 72px; transform: translateX(-50%);
+  position: fixed; left: 50%; top: 20px; transform: translateX(-50%);
   display: flex; align-items: center; gap: 12px;
   padding: 10px 14px; border-radius: 999px;
   background: rgba(13, 14, 18, 0.85); border: 1px solid var(--line-2);
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-  font-size: 0.82rem; white-space: nowrap; z-index: 6;
+  font-size: 0.82rem; white-space: nowrap; z-index: 70;
 }
 .render-hud__bar { width: 140px; height: 4px; border-radius: 4px; background: var(--line-2); overflow: hidden; }
 .render-hud__bar span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--gold-2), var(--gold)); }
 body.rendering .rooms-bar, body.rendering .minimap, body.rendering .joystick, body.rendering .tour-help, body.rendering .tour-render, body.rendering .sun-panel, body.rendering .ex-top, body.rendering .tour-exit { opacity: 0; pointer-events: none; }
 @media (max-width: 760px) { .tour-render { top: 118px; left: 12px; right: auto; } .render-hud { top: auto; bottom: 16px; flex-wrap: wrap; justify-content: center; border-radius: 18px; } }
+
+.mp-render { position: absolute; right: 16px; top: 138px; }
+@media (min-width: 768px) { .mp-render { right: 40px; } }
+.ex-btn--render + .ex-btn--sun { margin-left: 0; }
+body.rendering .nav, body.rendering .mp-toggle, body.rendering .mp-render, body.rendering .mp-markers, body.rendering .mp-copy, body.rendering .mp-card, body.rendering .scene-shade, body.rendering #page .hero__inner, body.rendering .ex-floors, body.rendering .labels, body.rendering .ex-hint, body.rendering .apt-panel, body.rendering .scroll-progress { opacity: 0 !important; pointer-events: none !important; }
+@media (max-width: 640px) { .ex-btn--render span { display: none; } .ex-btn--render { padding: 0; } }

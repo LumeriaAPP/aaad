@@ -19,6 +19,7 @@ import { Sky } from 'three/addons/objects/Sky.js';
 import { sunPosition, sunDirection, localDate, sunTimes, fmtTime, seasonalSunHours, SEASONS } from './sun.js';
 import { windowMaterial, NEIGHBORS } from './complex.js';
 import { bakuUniforms } from './baku.js';
+import { buildPTScene, skyEquirect } from './ptscene.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -101,7 +102,7 @@ manager.onProgress = (_u, done, total) => { loaderBar.style.width = `${Math.roun
 const pmrem = new THREE.PMREMGenerator(renderer);
 let envExterior = null, envInterior = null;
 
-new HDRLoader(manager).setDataType(THREE.FloatType).load('assets/hdri/flower_road_2k.hdr', (tex) => {
+new HDRLoader(manager).setDataType(THREE.FloatType).load('assets/hdri/aristea_wreck_puresky_2k.hdr', (tex) => {
   tex.mapping = THREE.EquirectangularReflectionMapping;
   lightDir.copy(findSun(tex));
   hdrLightDir.copy(lightDir);
@@ -562,6 +563,7 @@ function enterExplore(opts = {}) {
 function exitExplore() {
   if (state.mode === 'landing') return;
   if (state.mode === 'tour') exitTour(true);
+  stopRender();
   setSunMode(false);
   $$('[data-daytime]').forEach((x) => x.classList.toggle('is-on', x.dataset.daytime === 'day'));
   closeApt(true);
@@ -1208,48 +1210,64 @@ $$('[data-daytime]').forEach((b) => b.addEventListener('click', () => {
    ========================================================= */
 const RENDER_TARGET_SAMPLES = isTouch ? 120 : 400;
 let pt = null, ptScene = null, rendering = false, renderT0 = 0, savedExposure = null;
-async function startRender() {
-  if (!tourData || rendering) return;
+let renderKind = null;
+async function startRender(kind = 'tour') {
+  if (rendering) return;
+  if (kind === 'tour' && !tourData) return;
   rendering = true;
+  renderKind = kind;
   document.body.classList.add('rendering');
   $('#renderHud').hidden = false;
   $('#renderText').textContent = 'Səhnə hazırlanır…';
-  tour.active = false;
+  if (kind === 'tour') tour.active = false;
+  if (state.mode === 'landing') scrollCtl.stop();
+  controls.enabled = false;
+  await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 30)));
   try {
     const { WebGLPathTracer } = await import('../vendor/pathtracer/index.module.js');
-    ptScene = new THREE.Scene();
-    const apt = tourData.group.clone(true);
-    // seçim/örtük obyektləri render-ə düşməsin
-    const drop = [];
-    apt.traverse((o) => {
-      if (o.userData.tourOnly) o.visible = true;
-      if (o.isLineSegments || (o.material && (o.material.visible === false || (o.material.isMeshBasicMaterial && o.material.opacity < 0.5)))) drop.push(o);
-    });
-    drop.forEach((o) => o.parent && o.parent.remove(o));
-    ptScene.add(apt);
-    // döşəmə plitəsi və tavan (qonşu mənzillərdən işıq keçməsin)
-    const b = tourData.bounds;
-    const slabGeo = new THREE.BoxGeometry(b.x1 - b.x0 + 2, 0.3, b.z1 - b.z0 + 2);
-    const slabMat = new THREE.MeshStandardMaterial({ color: 0x999999 });
-    for (const y of [tourData.baseY - 0.15, tourData.baseY + 3.15]) {
-      const m = new THREE.Mesh(slabGeo, slabMat);
-      m.position.set((b.x0 + b.x1) / 2, y, (b.z0 + b.z1) / 2);
-      ptScene.add(m);
-    }
-    // işıqlar
-    const sun = new THREE.DirectionalLight(sunLight.color, sunLight.intensity);
-    sun.position.copy(sunLight.position);
-    sun.target.position.copy(sunLight.target.position);
-    ptScene.add(sun, sun.target);
-    lampPool.forEach((l) => { if (l.intensity > 0) { const c = new THREE.PointLight(l.color, l.intensity, l.distance, l.decay); c.position.copy(l.position); ptScene.add(c); } });
-    if (hdrTex) { ptScene.environment = hdrTex; ptScene.background = hdrTex; }
     const night = windowMaterial().userData.uniforms.uNight.value;
-    ptScene.environmentIntensity = sunSim.on ? Math.max(0.03, 1 - night) : 1.0;
+    const altDeg = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(lightDir.y, -1, 1)));
+    if (kind === 'tour') {
+      ptScene = new THREE.Scene();
+      const apt = tourData.group.clone(true);
+      const drop = [];
+      apt.traverse((o) => {
+        if (o.userData.tourOnly) o.visible = true;
+        if (o.isLineSegments || (o.material && (o.material.visible === false || (o.material.isMeshBasicMaterial && o.material.opacity < 0.5)))) drop.push(o);
+      });
+      drop.forEach((o) => o.parent && o.parent.remove(o));
+      ptScene.add(apt);
+      const b = tourData.bounds;
+      const slabGeo = new THREE.BoxGeometry(b.x1 - b.x0 + 2, 0.3, b.z1 - b.z0 + 2);
+      const slabMat = new THREE.MeshStandardMaterial({ color: 0x999999 });
+      for (const y of [tourData.baseY - 0.15, tourData.baseY + 3.15]) {
+        const m = new THREE.Mesh(slabGeo, slabMat);
+        m.position.set((b.x0 + b.x1) / 2, y, (b.z0 + b.z1) / 2);
+        ptScene.add(m);
+      }
+      lampPool.forEach((l) => { if (l.intensity > 0) { const c = new THREE.PointLight(l.color, l.intensity, l.distance, l.decay); c.position.copy(l.position); ptScene.add(c); } });
+    } else {
+      // xarici görünüş: kamera fokusu ətrafında səhnənin fiziki nüsxəsi
+      const focus = (state.mode === 'landing' ? landingTarget : controls.target).clone();
+      const dist = camera.position.distanceTo(focus);
+      ptScene = buildPTScene(scene, { focus, radius: Math.min(900, 380 + dist * 1.2), night, skip: (o) => o === skyMesh || o === tour.ring });
+    }
+    // günəş
+    if (sunLight.intensity > 0.01) {
+      const sun = new THREE.DirectionalLight(sunLight.color, sunLight.intensity);
+      sun.position.copy(sunLight.position);
+      sun.target.position.copy(sunLight.target.position);
+      ptScene.add(sun, sun.target);
+    }
+    // mühit: gündüz foto-səma, günəş rejimində isə vaxta uyğun səma
+    const env = sunSim.on ? skyEquirect(lightDir.clone(), altDeg) : hdrTex;
+    if (env) { ptScene.environment = env; ptScene.background = env; }
+    ptScene.environmentIntensity = kind === 'tour' ? (sunSim.on ? Math.max(0.03, 1 - night) : 1.0) : 1.0;
     ptScene.backgroundIntensity = ptScene.environmentIntensity;
 
     pt = new WebGLPathTracer(renderer);
-    pt.bounces = 6;
-    pt.transmissiveBounces = 6;
+    pt.bounces = kind === 'tour' ? 6 : 4;
+    pt.transmissiveBounces = 4;
     pt.filterGlossyFactor = 0.5;
     pt.tiles.set(isTouch ? 3 : 2, isTouch ? 3 : 2);
     pt.renderScale = isTouch ? 0.6 : 1;
@@ -1258,7 +1276,7 @@ async function startRender() {
     pt.renderDelay = 0;
     pt.setScene(ptScene, camera);
     savedExposure = renderer.toneMappingExposure;
-    renderer.toneMappingExposure = savedExposure * 1.35;
+    renderer.toneMappingExposure = savedExposure * (kind === 'tour' ? 1.35 : 1.1);
     renderT0 = performance.now();
   } catch (e) {
     console.error('Render xətası', e);
@@ -1275,6 +1293,9 @@ function stopRender() {
   document.body.classList.remove('rendering');
   $('#renderHud').hidden = true;
   if (state.mode === 'tour') tour.active = true;
+  if (state.mode === 'landing') scrollCtl.start();
+  if (state.mode === 'building' || state.mode === 'floor') controls.enabled = true;
+  renderKind = null;
 }
 function renderTick() {
   if (!pt) return false;
@@ -1285,7 +1306,8 @@ function renderTick() {
   $('#renderText').textContent = pt.isCompiling ? 'Şeyderlər hazırlanır…' : k < 1 ? `İşıq hesablanır · ${Math.floor(pt.samples)}/${RENDER_TARGET_SAMPLES} · ${sec} san` : `Hazırdır · ${sec} san`;
   return true;
 }
-$('#renderBtn').addEventListener('click', startRender);
+$('#renderBtn').addEventListener('click', () => startRender('tour'));
+$$('[data-render="ext"]').forEach((b) => b.addEventListener('click', () => startRender('ext')));
 $('#renderClose').addEventListener('click', stopRender);
 $('#renderSave').addEventListener('click', () => {
   if (!pt) return;
@@ -1314,7 +1336,8 @@ function frame(now) {
   bakuUniforms.uTime.value = t;
 
   if (streetTrees) streetTrees.visible = state.mode === 'landing' || state.mode === 'building';
-  if (state.mode === 'landing') { updateLandingCamera(dt, t); updateMasterplan(); }
+  if (rendering) { /* kamera render zamanı sabit qalır */ }
+  else if (state.mode === 'landing') { updateLandingCamera(dt, t); updateMasterplan(); }
   else if (state.mode === 'tour') { if (!camTween) tour.update(Math.min(rawDt, 0.25)); }
   else if (!camTween) controls.update();
 
