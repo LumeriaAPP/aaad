@@ -1,5 +1,7 @@
 // Binanın xarici görünüşü, ətraf ərazi və şəhər konteksti
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { BUILDING, floorBaseY, COMPANY } from './data.js';
 import { paverTexture } from './textures.js';
 import { buildBaku } from './baku.js';
@@ -13,17 +15,25 @@ function rng(seed) {
 }
 
 export function createTowerMaterials() {
+  const white = new THREE.MeshStandardMaterial({ color: 0xf1eee8, roughness: 0.45 });
   return {
-    slab: new THREE.MeshStandardMaterial({ color: 0xd9ccb4, roughness: 0.75 }),
+    slab: white,
+    white,
     glass: windowMaterial(),
     lit: windowMaterial(),
-    mullion: new THREE.MeshStandardMaterial({ color: 0x4a3526, metalness: 0.55, roughness: 0.45 }),
-    fin: new THREE.MeshStandardMaterial({ color: 0xd9ccb4, roughness: 0.75 }),
-    stone: new THREE.MeshStandardMaterial({ color: 0xd9ccb6, roughness: 0.7 }),
-    lobby: Object.assign(new THREE.MeshStandardMaterial({ color: 0x3c3a36, emissive: 0xffd6a0, emissiveIntensity: 0.12, roughness: 0.3, metalness: 0.4 }), { userData: { nightGlow: 0.12 } }),
-    led: new THREE.MeshStandardMaterial({ color: 0xd9ccb4, roughness: 0.75 }),
-    rail: new THREE.MeshStandardMaterial({ color: 0x9ec3d6, metalness: 0.2, roughness: 0.05, transparent: true, opacity: 0.35, depthWrite: false }),
+    mullion: new THREE.MeshStandardMaterial({ color: 0x3a3d41, metalness: 0.6, roughness: 0.35 }),
+    fin: white,
+    led: white,
+    rail: new THREE.MeshStandardMaterial({ color: 0xa9c0cc, metalness: 0.1, roughness: 0.04, transparent: true, opacity: 0.3, depthWrite: false }),
+    railTop: new THREE.MeshStandardMaterial({ color: 0x2f3236, metalness: 0.6, roughness: 0.4 }),
     gold: new THREE.MeshStandardMaterial({ color: 0x4a3526, metalness: 0.55, roughness: 0.45 }),
+    stone: new THREE.MeshStandardMaterial({ color: 0xd9ccb4, roughness: 0.7 }),
+    lobby: Object.assign(new THREE.MeshStandardMaterial({ color: 0x3c3a36, emissive: 0xffd6a0, emissiveIntensity: 0.12, roughness: 0.3, metalness: 0.4 }), { userData: { nightGlow: 0.12 } }),
+    shop: Object.assign(new THREE.MeshStandardMaterial({ color: 0x2c2823, emissive: 0xffcf95, emissiveIntensity: 0.25, roughness: 0.35 }), { userData: { nightGlow: 0.25 } }),
+    shopGlass: new THREE.MeshStandardMaterial({ color: 0x9fb3bf, metalness: 0.2, roughness: 0.04, transparent: true, opacity: 0.25, depthWrite: false }),
+    ledStrip: Object.assign(new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffe0b0, emissiveIntensity: 0.2 }), { userData: { nightGlow: 0.2 } }),
+    planter: new THREE.MeshStandardMaterial({ color: 0x55585c, roughness: 0.8 }),
+    green: new THREE.MeshStandardMaterial({ color: 0x3f6a33, roughness: 0.9, flatShading: true }),
   };
 }
 
@@ -41,8 +51,9 @@ function put(im, x, y, z, ry, sx, sy, sz) {
 }
 
 // Fasadın bir tərəfi üzrə panelləri gəz
+const BAL = 1.9; // eyvan zolağının eni
 function facadeSides() {
-  const off = 0.16;
+  const off = 0.14;
   return [
     { n: 20, len: W, pos: (t) => [-W / 2 + t, -D / 2 - off], ry: Math.PI, side: 'N' },
     { n: 20, len: W, pos: (t) => [W / 2 - t, D / 2 + off], ry: 0, side: 'S' },
@@ -51,74 +62,93 @@ function facadeSides() {
   ];
 }
 
+// Ümumi həndəsələr (bütün mərtəbələr paylaşır)
+let TG = null;
+function towerGeos() {
+  if (TG) return TG;
+  const bw = W + BAL * 2, bd = D + BAL * 2;
+  const slab = new RoundedBoxGeometry(bw, 0.32, bd, 3, 0.9);
+  slab.translate(0, -0.16, 0);
+  // şüşə məhəccər: yumru küncləri olan zolaq (4 düz hissə)
+  const railParts = [], topParts = [];
+  const rh = 1.08, inset = 0.08;
+  const sides = [
+    [bw - 1.8, 0, -bd / 2 + inset, 0], [bw - 1.8, 0, bd / 2 - inset, 0],
+    [bd - 1.8, -bw / 2 + inset, 0, Math.PI / 2], [bd - 1.8, bw / 2 - inset, 0, Math.PI / 2],
+  ];
+  for (const [len, x, z, ry] of sides) {
+    const g = new THREE.BoxGeometry(len, rh, 0.025);
+    g.rotateY(ry);
+    g.translate(x, rh / 2, z);
+    railParts.push(g);
+    const t = new THREE.BoxGeometry(len, 0.05, 0.06);
+    t.rotateY(ry);
+    t.translate(x, rh, z);
+    topParts.push(t);
+  }
+  // küncdə əyri məhəccər
+  for (const [cx, cz, a0] of [[bw / 2 - 0.9, bd / 2 - 0.9, 0], [-bw / 2 + 0.9, bd / 2 - 0.9, Math.PI / 2], [-bw / 2 + 0.9, -bd / 2 + 0.9, Math.PI], [bw / 2 - 0.9, -bd / 2 + 0.9, -Math.PI / 2]]) {
+    const c = new THREE.CylinderGeometry(0.9 - inset, 0.9 - inset, rh, 10, 1, true, a0 + Math.PI / 2, Math.PI / 2);
+    c.translate(cx, rh / 2, cz);
+    railParts.push(c);
+  }
+  // mənzillər arasında eyvan arakəsmələri
+  const divs = [];
+  for (const x of [-4, 4]) { const g = new THREE.BoxGeometry(0.12, FH - 0.32, BAL); g.translate(x, (FH - 0.32) / 2, -D / 2 - BAL / 2); divs.push(g); }
+  for (const x of [-3, 3]) { const g = new THREE.BoxGeometry(0.12, FH - 0.32, BAL); g.translate(x, (FH - 0.32) / 2, D / 2 + BAL / 2); divs.push(g); }
+  TG = {
+    slab,
+    rail: mergeGeometries(railParts.map((g) => g.index ? g.toNonIndexed() : g)),
+    railTop: mergeGeometries(topParts),
+    divs: mergeGeometries(divs),
+    ceiling: (() => { const g = new THREE.PlaneGeometry(bw - 0.4, bd - 0.4).rotateX(Math.PI / 2); g.translate(0, FH - 0.33, 0); return g; })(),
+  };
+  return TG;
+}
+
 function buildFloor(f, mats, rand) {
   const g = new THREE.Group();
   g.position.y = floorBaseY(f);
   g.userData.floor = f;
+  const G = towerGeos();
 
-  const slab = new THREE.Mesh(new THREE.BoxGeometry(W + 0.7, 0.3, D + 0.7), mats.slab);
-  slab.position.y = -0.15;
+  const slab = new THREE.Mesh(G.slab, mats.white);
   slab.castShadow = slab.receiveShadow = true;
   g.add(slab);
-
-  const led = new THREE.Mesh(new THREE.BoxGeometry(W + 0.74, 0.035, D + 0.74), mats.led);
-  led.position.y = -0.27;
-  g.add(led);
+  const rail = new THREE.Mesh(G.rail, mats.rail);
+  rail.renderOrder = 2;
+  g.add(rail);
+  const railTop = new THREE.Mesh(G.railTop, mats.railTop);
+  g.add(railTop);
+  const divs = new THREE.Mesh(G.divs, mats.white);
+  divs.castShadow = divs.receiveShadow = true;
+  g.add(divs);
 
   const facade = new THREE.Group();
   facade.userData.facade = true;
   const plane = new THREE.PlaneGeometry(1, 1);
   const glass = inst(plane, mats.glass, 70);
-  const lit = inst(plane, mats.lit, 70);
-  const mull = inst(new THREE.BoxGeometry(0.07, 1, 0.1), mats.mullion, 80);
-  const fins = inst(new THREE.BoxGeometry(0.16, 1, 0.75), mats.fin, 40);
-  const h = FH - 0.3;
+  const mull = inst(new THREE.BoxGeometry(0.06, 1, 0.1), mats.mullion, 80);
+  glass.receiveShadow = false;
+  const h = FH - 0.32;
   for (const s of facadeSides()) {
     const pw = s.len / s.n;
     for (let i = 0; i < s.n; i++) {
       const [x, z] = s.pos((i + 0.5) * pw);
-      put(rand() < 0.35 ? lit : glass, x, h / 2, z, s.ry, pw, h, 1);
+      put(glass, x, h / 2, z, s.ry, pw, h, 1);
       const [mx, mz] = s.pos(i * pw);
       put(mull, mx, h / 2, mz, s.ry, 1, h, 1);
-      if (i % 2 === 0 && (s.side === 'N' || s.side === 'S')) {
-        const out = 0.36;
-        const [fx, fz] = s.pos(i * pw);
-        const dz = s.side === 'N' ? -out : out;
-        put(fins, fx, h / 2 - 0.15, fz + dz, 0, 1, FH, 1);
-      }
     }
   }
-  for (const m of [glass, lit, mull, fins]) {
+  for (const m of [glass, mull]) {
     m.instanceMatrix.needsUpdate = true;
     facade.add(m);
   }
-  glass.receiveShadow = lit.receiveShadow = false;
   g.add(facade);
-
-  // Eyvanlar (qonaq otaqlarının qarşısında)
-  const balc = new THREE.Group();
-  const spans = [
-    [0.4, 6.4, -1], [23.6, 29.6, -1], [0.4, 5.4, 1], [24.6, 29.6, 1],
-  ];
-  for (const [x0, x1, dir] of spans) {
-    const L = x1 - x0, cx = -W / 2 + (x0 + x1) / 2;
-    const zEdge = dir < 0 ? -D / 2 : D / 2;
-    const s = new THREE.Mesh(new THREE.BoxGeometry(L, 0.22, 1.7), mats.slab);
-    s.position.set(cx, -0.11, zEdge + dir * 0.85);
-    s.castShadow = s.receiveShadow = true;
-    balc.add(s);
-    const r = new THREE.Mesh(new THREE.BoxGeometry(L, 1.05, 0.03), mats.rail);
-    r.position.set(cx, 0.52, zEdge + dir * 1.68);
-    r.renderOrder = 2;
-    balc.add(r);
-    const hr = new THREE.Mesh(new THREE.BoxGeometry(L, 0.05, 0.08), mats.gold);
-    hr.position.set(cx, 1.06, zEdge + dir * 1.68);
-    balc.add(hr);
-  }
-  g.add(balc);
+  void rand;
 
   // Seçmə üçün görünməz həcm
-  const hit = new THREE.Mesh(new THREE.BoxGeometry(W + 1, FH, D + 1), new THREE.MeshBasicMaterial({ visible: false }));
+  const hit = new THREE.Mesh(new THREE.BoxGeometry(W + BAL * 2 + 0.4, FH, D + BAL * 2 + 0.4), new THREE.MeshBasicMaterial({ visible: false }));
   hit.position.y = FH / 2 - 0.3;
   hit.userData.floor = f;
   g.add(hit);
@@ -144,93 +174,105 @@ function signTexture(text) {
   return t;
 }
 
+// Podium: 2 mərtəbəli mağazalar + kənara çıxan ağ dam + terras
+const PW = 50, PD = 40;
 function buildLobby(mats) {
   const g = new THREE.Group();
-  const h = groundHeight - 0.3;
-  const inner = new THREE.Mesh(
-    new THREE.BoxGeometry(W - 2.4, h, D - 2.4),
-    (() => { const m = new THREE.MeshStandardMaterial({ color: 0x6b5a48, emissive: 0xffcf96, emissiveIntensity: 0.22, roughness: 0.8 }); m.userData.nightGlow = 0.22; return m; })()
-  );
-  inner.position.y = h / 2;
+  const H = groundHeight - 0.3; // podiumun daxili hündürlüyü
+  // mağazaların işıqlı interyeri
+  const inner = new THREE.Mesh(new THREE.BoxGeometry(PW - 5, H, PD - 5), mats.shop);
+  inner.position.y = H / 2;
   g.add(inner);
-  const glass = new THREE.Mesh(
-    new THREE.BoxGeometry(W - 2.2, h, D - 2.2),
-    new THREE.MeshStandardMaterial({ color: 0x223040, metalness: 1, roughness: 0.05, transparent: true, opacity: 0.55 })
-  );
-  glass.position.y = h / 2;
+  // şüşə vitrinlər + şaquli profillər
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(PW - 4.6, H, PD - 4.6), mats.shopGlass);
+  glass.position.y = H / 2;
+  glass.renderOrder = 2;
   g.add(glass);
-  const colGeo = new THREE.BoxGeometry(0.6, h, 0.6);
-  for (let i = 0; i <= 5; i++) {
-    for (const z of [-D / 2 + 0.2, D / 2 - 0.2]) {
-      const c = new THREE.Mesh(colGeo, mats.fin);
-      c.position.set(-W / 2 + 0.2 + (i * (W - 0.4)) / 5, h / 2, z);
-      c.castShadow = true;
-      g.add(c);
+  const mull = inst(new THREE.BoxGeometry(0.12, H, 0.18), mats.mullion, 120);
+  for (let x = -(PW - 4.6) / 2; x <= (PW - 4.6) / 2 + 0.01; x += (PW - 4.6) / 15) { put(mull, x, H / 2, (PD - 4.6) / 2, 0, 1, 1, 1); put(mull, x, H / 2, -(PD - 4.6) / 2, 0, 1, 1, 1); }
+  for (let z = -(PD - 4.6) / 2; z <= (PD - 4.6) / 2 + 0.01; z += (PD - 4.6) / 12) { put(mull, (PW - 4.6) / 2, H / 2, z, 0, 1, 1, 1); put(mull, -(PW - 4.6) / 2, H / 2, z, 0, 1, 1, 1); }
+  mull.instanceMatrix.needsUpdate = true;
+  g.add(mull);
+  // ara mərtəbə zolağı
+  const mid = new THREE.Mesh(new RoundedBoxGeometry(PW - 3.6, 0.45, PD - 3.6, 2, 0.4), mats.white);
+  mid.position.y = H * 0.5;
+  mid.castShadow = true;
+  g.add(mid);
+  // kənara çıxan ağ dam
+  const roof = new THREE.Mesh(new RoundedBoxGeometry(PW, 1.1, PD, 3, 0.5), mats.white);
+  roof.position.y = H + 0.55;
+  roof.castShadow = roof.receiveShadow = true;
+  g.add(roof);
+  const under = new THREE.Mesh(new THREE.BoxGeometry(PW - 1.2, 0.04, PD - 1.2), mats.ledStrip);
+  under.position.y = H - 0.01;
+  g.add(under);
+  // terras: şüşə məhəccər, planterlər, kollar
+  const railG = [];
+  for (const [len, x, z, ry] of [[PW - 1, 0, PD / 2 - 0.3, 0], [PW - 1, 0, -PD / 2 + 0.3, 0], [PD - 1, PW / 2 - 0.3, 0, Math.PI / 2], [PD - 1, -PW / 2 + 0.3, 0, Math.PI / 2]]) {
+    const b = new THREE.BoxGeometry(len, 1.1, 0.03);
+    b.rotateY(ry);
+    b.translate(x, H + 1.1 + 0.55, z);
+    railG.push(b);
+  }
+  const rail = new THREE.Mesh(mergeGeometries(railG), mats.rail);
+  rail.renderOrder = 2;
+  g.add(rail);
+  const planters = inst(new THREE.BoxGeometry(3, 0.7, 1), mats.planter, 40);
+  const bushes = inst(new THREE.IcosahedronGeometry(0.6, 1), mats.green, 200);
+  const spots = [];
+  for (let x = -PW / 2 + 3; x <= PW / 2 - 3; x += 5) spots.push([x, PD / 2 - 1.3, 0], [x, -PD / 2 + 1.3, 0]);
+  for (let z = -PD / 2 + 5; z <= PD / 2 - 5; z += 5) spots.push([PW / 2 - 1.3, z, Math.PI / 2], [-PW / 2 + 1.3, z, Math.PI / 2]);
+  let k = 0;
+  for (const [x, z, ry] of spots) {
+    if (Math.abs(x) < W / 2 + BAL + 1 && Math.abs(z) < D / 2 + BAL + 1) continue;
+    put(planters, x, H + 1.1 + 0.35, z, ry, 1, 1, 1);
+    for (let j = -1; j <= 1; j++) {
+      const dx = ry ? 0 : j * 0.9, dz = ry ? j * 0.9 : 0;
+      put(bushes, x + dx, H + 1.1 + 0.9, z + dz, k++, 0.8 + (k % 3) * 0.15, 0.7, 0.8 + (k % 2) * 0.2);
     }
   }
-  const slab = new THREE.Mesh(new THREE.BoxGeometry(W + 0.7, 0.4, D + 0.7), mats.slab);
-  slab.position.y = 0.2 - 0.4;
-  g.add(slab);
-  // giriş kozırkı
-  const canopy = new THREE.Mesh(new THREE.BoxGeometry(12, 0.35, 5), mats.slab);
-  canopy.position.set(0, 4.3, D / 2 + 2.3);
-  canopy.castShadow = true;
-  g.add(canopy);
-  const underside = new THREE.Mesh(new THREE.PlaneGeometry(11.6, 4.6).rotateX(Math.PI / 2), (() => { const m = new THREE.MeshStandardMaterial({ color: 0xd9c7ab, emissive: 0xffe0b0, emissiveIntensity: 0.25 }); m.userData.nightGlow = 0.25; return m; })());
-  underside.position.set(0, 4.12, D / 2 + 2.3);
-  g.add(underside);
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(10, 1.25), new THREE.MeshBasicMaterial({ map: signTexture(COMPANY.project.toUpperCase()), transparent: true, blending: THREE.AdditiveBlending, toneMapped: false }));
-  sign.position.set(0, 4.95, D / 2 + 4.82);
+  planters.instanceMatrix.needsUpdate = bushes.instanceMatrix.needsUpdate = true;
+  g.add(planters, bushes);
+  // giriş lövhəsi
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(12, 1.5), new THREE.MeshBasicMaterial({ map: signTexture(COMPANY.project.toUpperCase()), transparent: true, blending: THREE.AdditiveBlending, toneMapped: false }));
+  sign.position.set(0, H + 0.55, PD / 2 + 0.02);
   g.add(sign);
-  const signBack = new THREE.Mesh(new THREE.BoxGeometry(10.4, 1.0, 0.1), new THREE.MeshStandardMaterial({ color: 0x14161a, roughness: 0.5 }));
-  signBack.position.set(0, 4.95, D / 2 + 4.76);
-  g.add(signBack);
+  // plintus
+  const plinth = new THREE.Mesh(new THREE.BoxGeometry(PW + 0.4, 0.4, PD + 0.4), new THREE.MeshStandardMaterial({ color: 0x9c9a95, roughness: 0.8 }));
+  plinth.position.y = -0.2;
+  plinth.receiveShadow = true;
+  g.add(plinth);
   return g;
 }
 
 function buildRoof(mats) {
   const g = new THREE.Group();
   g.position.y = floorBaseY(lastFloor + 1);
-  const slab = new THREE.Mesh(new THREE.BoxGeometry(W + 0.7, 0.4, D + 0.7), mats.slab);
-  slab.position.y = -0.2;
+  const G = towerGeos();
+  const slab = new THREE.Mesh(G.slab, mats.white);
   slab.castShadow = slab.receiveShadow = true;
   g.add(slab);
-  const led = new THREE.Mesh(new THREE.BoxGeometry(W + 0.74, 0.035, D + 0.74), mats.led);
-  led.position.y = -0.37;
-  g.add(led);
-  // şüşə parapet
-  const para = new THREE.Mesh(new THREE.BoxGeometry(W, 1.2, D), mats.rail);
-  para.position.y = 0.6;
-  g.add(para);
-  // tac: fasad lamelləri yuxarı davam edir
-  const crownH = 7;
-  const fins = inst(new THREE.BoxGeometry(0.16, crownH, 0.75), mats.fin, 60);
-  for (let i = 0; i <= 20; i += 2) {
-    put(fins, -W / 2 + i * 1.5, crownH / 2, -D / 2 - 0.52, 0, 1, 1, 1);
-    put(fins, -W / 2 + i * 1.5, crownH / 2, D / 2 + 0.52, 0, 1, 1, 1);
-  }
-  fins.instanceMatrix.needsUpdate = true;
-  g.add(fins);
-  const ringGeo = new THREE.BoxGeometry(W + 1.4, 0.5, 0.9);
-  for (const z of [-D / 2 - 0.52, D / 2 + 0.52]) {
-    const r = new THREE.Mesh(ringGeo, mats.fin);
-    r.position.set(0, crownH - 0.25, z);
-    g.add(r);
-    const l = new THREE.Mesh(new THREE.BoxGeometry(W + 1.4, 0.06, 0.92), mats.led);
-    l.position.set(0, crownH - 0.52, z);
-    g.add(l);
-  }
-  const mech = new THREE.Mesh(new THREE.BoxGeometry(10, 4, 7), new THREE.MeshStandardMaterial({ color: 0x2a2f36, roughness: 0.6, metalness: 0.3 }));
-  mech.position.set(0, 2, -2);
+  const rail = new THREE.Mesh(G.rail, mats.rail);
+  rail.renderOrder = 2;
+  g.add(rail);
+  g.add(new THREE.Mesh(G.railTop, mats.railTop));
+  // dam: texniki blok (ağ lamellərlə örtülü) + nazik tac
+  const mech = new THREE.Mesh(new RoundedBoxGeometry(W * 0.55, 4.2, D * 0.6, 2, 0.3), mats.white);
+  mech.position.set(0, 2.1, 0);
   mech.castShadow = true;
   g.add(mech);
-  // dam bağı
-  const grass = new THREE.Mesh(new THREE.BoxGeometry(8, 0.3, 5), new THREE.MeshStandardMaterial({ color: 0x4d6b3a, roughness: 1 }));
-  grass.position.set(-9, 0.15, 5);
-  g.add(grass);
-  const grass2 = grass.clone();
-  grass2.position.x = 9;
-  g.add(grass2);
+  const louv = inst(new THREE.BoxGeometry(0.08, 3.6, 0.3), mats.mullion, 120);
+  for (let x = -W * 0.26; x <= W * 0.26; x += 0.5) { put(louv, x, 2.1, D * 0.3 + 0.05, 0, 1, 1, 1); put(louv, x, 2.1, -D * 0.3 - 0.05, 0, 1, 1, 1); }
+  louv.instanceMatrix.needsUpdate = true;
+  g.add(louv);
+  const cap = new THREE.Mesh(new RoundedBoxGeometry(W + BAL * 2 + 0.4, 0.6, D + BAL * 2 + 0.4, 3, 0.95), mats.white);
+  cap.position.y = FH + 0.2;
+  cap.castShadow = true;
+  // nazik sütunlar tacı daşıyır
+  const cols = inst(new THREE.CylinderGeometry(0.12, 0.12, FH, 8), mats.white, 20);
+  for (const [x, z] of [[-W / 2 - BAL + 0.6, -D / 2 - BAL + 0.6], [W / 2 + BAL - 0.6, -D / 2 - BAL + 0.6], [-W / 2 - BAL + 0.6, D / 2 + BAL - 0.6], [W / 2 + BAL - 0.6, D / 2 + BAL - 0.6], [0, D / 2 + BAL - 0.4], [0, -D / 2 - BAL + 0.4]]) put(cols, x, FH / 2, z, 0, 1, 1, 1);
+  cols.instanceMatrix.needsUpdate = true;
+  g.add(cap, cols);
   return g;
 }
 
@@ -250,7 +292,7 @@ export function buildTower() {
   root.add(roof);
 
   // Seçilmiş mərtəbənin işıqlanması
-  const hlGeo = new THREE.BoxGeometry(W + 1.2, FH, D + 1.2);
+  const hlGeo = new THREE.BoxGeometry(W + BAL * 2 + 0.8, FH, D + BAL * 2 + 0.8);
   const highlight = new THREE.Group();
   const hlMesh = new THREE.Mesh(hlGeo, new THREE.MeshBasicMaterial({ color: 0xd8b26e, transparent: true, opacity: 0.22, depthWrite: false }));
   const hlEdges = new THREE.LineSegments(new THREE.EdgesGeometry(hlGeo), new THREE.LineBasicMaterial({ color: 0xffe2a8 }));
@@ -406,7 +448,7 @@ export async function buildTrees(onDone, keepClear = []) {
   const avoid = (x, z) =>
     keepClear.some(([cx, cz]) => Math.hypot(x - cx, z - cz) < 22) ||
     NEIGHBORS.some((n) => Math.hypot(x - n.x, z - n.z) < Math.max(n.w, n.d) * 0.72) ||
-    (Math.abs(x) < 20 && Math.abs(z - 46) < 12) || (Math.abs(x) < 24 && Math.abs(z) < 20);
+    (Math.abs(x) < 20 && Math.abs(z - 46) < 12) || (Math.abs(x) < 28 && Math.abs(z) < 23);
   for (const sp of spots.splice(0)) if (!avoid(sp[0], sp[1])) spots.push(sp);
   // kompleksin kənarlarında təsadüfi ağaclar
   for (let i = 0; i < 400 && spots.length < 110; i++) {
@@ -415,7 +457,7 @@ export async function buildTrees(onDone, keepClear = []) {
   }
   // küçə ağacları
   const lowEnd = matchMedia('(hover: none)').matches;
-  streetTreeSpots().forEach((sp, i) => { if (!lowEnd || i % 3 === 0) spots.push(sp); });
+  streetTreeSpots().forEach((sp, i) => { if ((!lowEnd || i % 3 === 0) && !keepClear.some(([cx, cz]) => Math.hypot(sp[0] - cx, sp[1] - cz) < 26)) spots.push(sp); });
 
   let triCount = 0;
   // hər variant üçün InstancedMesh (az draw call)

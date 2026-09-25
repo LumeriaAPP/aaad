@@ -961,6 +961,7 @@ skyMesh.scale.setScalar(3600);
 skyMesh.visible = false;
 scene.add(skyMesh);
 const skyNight = { value: 0 };
+const skyDusk = { value: 0 };
 const skyEnvScene = new THREE.Scene();
 const skyEnv = new Sky();
 skyEnv.scale.setScalar(50);
@@ -968,10 +969,12 @@ skyEnvScene.add(skyEnv);
 for (const sk of [skyMesh, skyEnv]) {
   // Sky şeyderi çox parlaqdır — səhnənin ekspozisiyasına uyğunlaşdır
   sk.material.uniforms.uNightSky = skyNight;
+  sk.material.uniforms.uDusk = skyDusk;
   sk.material.onBeforeCompile = (sh) => {
     sh.uniforms.uNightSky = skyNight;
+    sh.uniforms.uDusk = skyDusk;
     sh.fragmentShader = sh.fragmentShader
-      .replace('void main() {', `uniform float uNightSky;
+      .replace('void main() {', `uniform float uNightSky; uniform float uDusk;
         float starHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
         void main() {`)
       .replace('gl_FragColor = vec4( texColor, 1.0 );', `vec3 dirN = normalize(vWorldPosition - cameraPosition);
@@ -979,7 +982,8 @@ for (const sk of [skyMesh, skyEnv]) {
         vec3 nightCol = mix(vec3(0.07, 0.09, 0.16), vec3(0.012, 0.02, 0.05), pow(up, 0.45));
         vec3 q = floor(dirN * 420.0);
         float star = step(0.9965, starHash(q)) * smoothstep(0.03, 0.25, up) * (0.4 + 0.6 * starHash(q + 3.1));
-        gl_FragColor = vec4(texColor * 0.2 + (nightCol + vec3(star) * 0.9) * uNightSky, 1.0);`);
+        vec3 duskCol = mix(vec3(1.0, 0.62, 0.45), vec3(0.34, 0.4, 0.66), pow(up, 0.33));
+        gl_FragColor = vec4(texColor * 0.2 + (nightCol + vec3(star) * 0.9 * (1.0 - uDusk)) * uNightSky + duskCol * uDusk * 0.55, 1.0);`);
   };
   const u = sk.material.uniforms;
   u.turbidity.value = 2.0; u.rayleigh.value = 2.6; u.mieCoefficient.value = 0.004; u.mieDirectionalG.value = 0.85;
@@ -1020,10 +1024,14 @@ function applySun() {
     sunLight.intensity = 0.55 * night;
     sunLight.color.set(0x9fb2e0);
   }
-  hemi.intensity = 0.25 + 0.12 * smooth(-10, 20, altDeg) + night * 0.35;
-  hemi.color.set(night > 0.5 ? 0x5d7098 : 0xcfe0f5);
+  const duskK = Math.exp(-Math.pow((altDeg + 2.5) / 3.2, 2));
+  hemi.intensity = 0.25 + 0.12 * smooth(-10, 20, altDeg) + night * 0.35 + duskK * 0.35;
+  bloom.threshold = 1.6 - night * 0.95;
+  bloom.strength = 0.12 + night * 0.28;
+  hemi.color.set(duskK > 0.4 ? 0x9a93c0 : night > 0.5 ? 0x5d7098 : 0xcfe0f5);
   windowMaterial().userData.uniforms.uNight.value = night;
   skyNight.value = night;
+  skyDusk.value = Math.exp(-Math.pow((altDeg + 2.5) / 3.2, 2));
   bakuUniforms.uNight.value = night;
   const envK = 0.4 + 0.6 * smooth(-6, 15, altDeg);
   scene.environmentIntensity = state.mode === 'tour' ? 0.3 * envK : envK;
@@ -1105,8 +1113,11 @@ function setSunMode(on) {
     sunLight.color.set(0xfff1dc);
     hemi.intensity = 0.25;
     hemi.color.set(0xcfe0f5);
+    bloom.threshold = 1.6;
+    bloom.strength = 0.12;
     windowMaterial().userData.uniforms.uNight.value = 0;
     skyNight.value = 0;
+    skyDusk.value = 0;
     bakuUniforms.uNight.value = 0;
     scene.fog.density = 0.00045;
     for (const m of glowMats()) {
@@ -1180,10 +1191,10 @@ function updateMasterplan() {
   }
 }
 $$('[data-daytime]').forEach((b) => b.addEventListener('click', () => {
-  const night = b.dataset.daytime === 'night';
+  const mode = b.dataset.daytime;
   $$('[data-daytime]').forEach((x) => x.classList.toggle('is-on', x === b));
-  if (night) {
-    sunSim.m = 6; sunSim.d = 21; sunSim.min = 20 * 60 + 58;
+  if (mode !== 'day') {
+    sunSim.m = 6; sunSim.d = 21; sunSim.min = mode === 'dusk' ? 20 * 60 + 31 : 20 * 60 + 58;
     setSunMode(true);
     setSunDay(6, 21);
   } else {

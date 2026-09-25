@@ -211,15 +211,19 @@ function cityTextures() {
   e.width = 256; e.height = 256;
   const ge = e.getContext('2d');
   const r = rng(91);
-  g.fillStyle = '#cbbd9f';
+  g.fillStyle = '#ece6dc';
   g.fillRect(0, 0, 256, 256);
   ge.fillStyle = '#000';
   ge.fillRect(0, 0, 256, 256);
   const cols = 8, rows = 16, cw = 256 / cols, rh = 256 / rows;
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
-      g.fillStyle = '#3b3a3a';
-      g.fillRect(x * cw + 8, y * rh + 4, cw - 16, rh - 7);
+      g.fillStyle = '#6b6e72';
+      g.fillRect(x * cw + 7, y * rh + 3, cw - 14, rh - 5);
+      g.fillStyle = '#2f3236';
+      g.fillRect(x * cw + 9, y * rh + 5, cw - 18, rh - 9);
+      g.fillStyle = 'rgba(160,185,200,0.35)';
+      g.fillRect(x * cw + 9, y * rh + 5, (cw - 18) / 2, rh - 9);
       if (r() < 0.45) {
         const k = 0.5 + r() * 0.5;
         ge.fillStyle = `rgb(${255 * k},${185 * k},${110 * k})`;
@@ -241,6 +245,7 @@ function cityBoxGeo() {
   return g;
 }
 
+export const CITY_COLORS = [0xd9c9ad, 0xb98a6c, 0xc8c3ba, 0xa8795f, 0xe2dccf, 0x9c8f80, 0xcdb89a].map((c) => new THREE.Color(c));
 let _cityMat = null;
 export function cityMaterial() {
   if (_cityMat) return _cityMat;
@@ -304,6 +309,7 @@ export function buildBaku(GY = -0.4) {
     if (city.count >= 2600) return;
     const y = hillHeight(x, z);
     q.setFromEuler(e.set(0, ry, 0));
+    city.setColorAt(city.count, CITY_COLORS[Math.floor(rand() * CITY_COLORS.length)]);
     city.setMatrixAt(city.count++, m4.compose(p.set(x, GY + y - 1, z), q, s.set(w, h, d)));
   };
   for (let i = 0; i < 6000 && city.count < 2600; i++) {
@@ -317,6 +323,7 @@ export function buildBaku(GY = -0.4) {
     place(x, z, w, d, h, (rand() - 0.5) * 0.3);
   }
   city.instanceMatrix.needsUpdate = true;
+  if (city.instanceColor) city.instanceColor.needsUpdate = true;
   city.receiveShadow = true;
   root.add(city);
 

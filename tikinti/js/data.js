@@ -13,7 +13,7 @@ export const COMPANY = {
 export const BUILDING = {
   width: 30, // x oxu
   depth: 20, // z oxu
-  groundHeight: 5.2, // 1-ci mərtəbə (lobbi, kommersiya)
+  groundHeight: 9.0, // 1–2-ci mərtəbə: podium (mağazalar, lobbi)
   floorHeight: 3.3, // yaşayış mərtəbəsi
   slab: 0.3,
   firstFloor: 2, // ilk yaşayış mərtəbəsi

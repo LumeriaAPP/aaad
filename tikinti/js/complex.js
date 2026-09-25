@@ -1,7 +1,7 @@
 // Yaşayış kompleksi: realistik şüşə (pəncərə arxasında otaq), qonşu binalar və həyət
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { cityMaterial } from './baku.js';
+import { cityMaterial, CITY_COLORS } from './baku.js';
 
 function rng(seed) {
   let s = seed >>> 0;
@@ -91,11 +91,11 @@ export function windowMaterial() {
           float lit = mix(0.13, 0.32, s3);
           if (s2 < 0.12) lit = 0.035; // boş/qaranlıq otaq
           // axşam: otaqların təxminən yarısında işıq yanır, çalarlar fərqlidir
-          float on = step(0.58, rh(vRoomSeed + 9.7));
-          lit = mix(lit, mix(0.008, lit * (0.45 + 0.5 * s1), on), uNight);
+          float on = step(0.27, rh(vRoomSeed + 9.7));
+          lit = mix(lit, mix(0.01, lit * (0.8 + 0.9 * s1), on), uNight);
           vec3 warm = mix(vec3(1.3, 0.92, 0.6), vec3(1.15, 1.0, 0.85), step(0.7, s0));
           vec3 lampTint = mix(vec3(1.0), warm, uNight);
-          return col * light * lit * lampTint * (1.0 + uNight * 1.6);
+          return col * light * lit * lampTint * (1.0 + uNight * 2.4);
         }`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         {
@@ -106,7 +106,7 @@ export function windowMaterial() {
           totalEmissiveRadiance += roomColor() * (1.0 - F);
         }`);
   };
-  m.customProgramCacheKey = () => 'room-glass-v5';
+  m.customProgramCacheKey = () => 'room-glass-v6';
   windowMat = m;
   return m;
 }
@@ -133,9 +133,10 @@ let FM = null;
 export function facadeMats() {
   if (FM) return FM;
   FM = {
-    stone: new THREE.MeshStandardMaterial({ color: 0xd9ccb4, roughness: 0.78 }),
-    stoneDark: new THREE.MeshStandardMaterial({ color: 0xbfae93, roughness: 0.8 }),
-    bronze: new THREE.MeshStandardMaterial({ color: 0x4a3526, roughness: 0.45, metalness: 0.55 }),
+    stone: new THREE.MeshStandardMaterial({ color: 0xdcd6cb, roughness: 0.75 }),
+    stoneDark: new THREE.MeshStandardMaterial({ color: 0x5a5d62, roughness: 0.7 }),
+    bronze: new THREE.MeshStandardMaterial({ color: 0x40444a, roughness: 0.6, metalness: 0.2 }),
+    green: new THREE.MeshStandardMaterial({ color: 0x46703a, roughness: 0.9, flatShading: true }),
     rail: new THREE.MeshStandardMaterial({ color: 0x9fb2bd, roughness: 0.05, metalness: 0.3, transparent: true, opacity: 0.35, depthWrite: false }),
     roof: new THREE.MeshStandardMaterial({ color: 0x6f6d69, roughness: 0.9 }),
     wood: new THREE.MeshStandardMaterial({ color: 0x7a5a40, roughness: 0.7 }),
@@ -190,6 +191,7 @@ export function buildNeighbor(opt) {
   for (const s of sides) bays += Math.max(2, Math.round(s.len / 3));
   const glass = inst(new THREE.PlaneGeometry(1, 1), windowMaterial(), bays * floors);
   glass.receiveShadow = false;
+  const greens = inst(new THREE.IcosahedronGeometry(1, 1), M.green, bays * floors);
 
   // podium (1–2 mərtəbə mağazalar)
   box(stoneDark, w + 0.4, 0.5, d + 0.4, 0, baseTop - 0.25, 0);
@@ -214,12 +216,22 @@ export function buildNeighbor(opt) {
         const t = -s.len / 2 + (i + 0.5) * bw;
         const px = s.o[0] + s.t[0] * t + s.nrm[0] * 0.02, pz = s.o[1] + s.t[1] * t + s.nrm[1] * 0.02;
         const gh = fh - 0.42;
-        put(glass, px, y0 + 0.42 + gh / 2, pz, s.ry, bw - 0.55, gh, 1);
-        // bəzi pəncərələrin altında tunc panel (fransız eyvanı)
-        if ((i + f) % 3 === 0) {
-          box(bronze, bw - 0.55, 0.95, 0.06, px + s.nrm[0] * 0.12, y0 + 0.42 + 0.48, pz + s.nrm[1] * 0.12, s.ry);
-        } else if ((i + f * 2) % 5 === 0) {
-          box(rails, bw - 0.55, 1.0, 0.03, px + s.nrm[0] * 0.3, y0 + 0.42 + 0.5, pz + s.nrm[1] * 0.3, s.ry);
+        put(glass, px, y0 + 0.42 + gh / 2, pz, s.ry, bw - 0.9, gh, 1);
+        // tünd boz qutu eyvanlar (şaquli sütunlar şəklində) + yaşıllıq
+        if (i % 3 === 1 && s.n !== 'none') {
+          const out = 1.35, ew = bw - 0.35;
+          const cx = px + s.nrm[0] * (out / 2 + 0.1), cz = pz + s.nrm[1] * (out / 2 + 0.1);
+          box(bronze, ew, 0.24, out, cx, y0 + 0.12, cz, s.ry);
+          const fx = px + s.nrm[0] * (out + 0.06), fz = pz + s.nrm[1] * (out + 0.06);
+          box(bronze, ew, 1.0, 0.12, fx, y0 + 0.24 + 0.5, fz, s.ry);
+          for (const sd of [-1, 1]) {
+            const ox = s.t[0] * sd * ew / 2, oz = s.t[1] * sd * ew / 2;
+            box(bronze, 0.12, fh - 0.24, out, cx + ox, y0 + 0.24 + (fh - 0.24) / 2, cz + oz, s.ry);
+          }
+          if ((f + i) % 2 === 0) {
+            put(greens, fx - s.t[0] * ew * 0.25, y0 + 1.35, fz - s.t[1] * ew * 0.25, f * 1.3, 0.55, 0.42, 0.55);
+            put(greens, fx + s.t[0] * ew * 0.2, y0 + 1.3, fz + s.t[1] * ew * 0.2, f * 2.1, 0.45, 0.35, 0.45);
+          }
         }
       }
     }
@@ -259,7 +271,8 @@ export function buildNeighbor(opt) {
   add(wood, M.wood);
   add(shop, M.shop);
   glass.instanceMatrix.needsUpdate = true;
-  g.add(glass);
+  greens.instanceMatrix.needsUpdate = true;
+  g.add(glass, greens);
 
   // fasad işıqlandırması (gecə): pilyastrların dibindən yuxarı
   const up = new THREE.MeshBasicMaterial({ map: uplightTexture(), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
@@ -636,17 +649,21 @@ export function buildCity(GY = -0.4) {
       for (let x = x0; x < x1 - 8; ) {
         const bw = 14 + rand() * 22, bd = 12 + rand() * 14, bh = 9 + rand() * 30 * (rand() < 0.2 ? 2 : 1);
         if (x + bw > x1) break;
+        mass.setColorAt(mass.count, CITY_COLORS[Math.floor(rand() * CITY_COLORS.length)]);
         put(mass, x + bw / 2, GY, z0 + bd / 2, 0, bw, bh, bd);
-        if (z1 - z0 > 50) put(mass, x + bw / 2, GY, z1 - bd / 2, 0, bw, 9 + rand() * 30, bd);
+        if (z1 - z0 > 50) { mass.setColorAt(mass.count, CITY_COLORS[Math.floor(rand() * CITY_COLORS.length)]); put(mass, x + bw / 2, GY, z1 - bd / 2, 0, bw, 9 + rand() * 30, bd); }
         x += bw + 4 + rand() * 8;
       }
       if (x1 - x0 > 60 && z1 - z0 > 70) {
+        mass.setColorAt(mass.count, CITY_COLORS[Math.floor(rand() * CITY_COLORS.length)]);
         put(mass, x0 + 9, GY, cz, 0, 16, 12 + rand() * 20, z1 - z0 - 60);
+        mass.setColorAt(mass.count, CITY_COLORS[Math.floor(rand() * CITY_COLORS.length)]);
         put(mass, x1 - 9, GY, cz, 0, 16, 12 + rand() * 20, z1 - z0 - 60);
       }
     }
   }
   mass.instanceMatrix.needsUpdate = true;
+  if (mass.instanceColor) mass.instanceColor.needsUpdate = true;
   g.add(mass);
   if (pavs.length) {
     const pv = new THREE.Mesh(mergeGeometries(pavs), new THREE.MeshStandardMaterial({ color: 0xb9b4aa, roughness: 0.9 }));
