@@ -1151,15 +1151,15 @@ body.rendering .dz-panel, body.rendering .dz-bar { opacity: 0 !important; pointe
   --glass-depth: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 1px rgba(255, 255, 255, 0.1), inset 0 0 24px rgba(255, 255, 255, 0.05), 0 14px 34px -16px rgba(0, 0, 0, 0.6);
   --glass-ring: linear-gradient(140deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.14) 30%, rgba(255, 255, 255, 0.03) 55%, rgba(255, 255, 255, 0.3) 82%, rgba(255, 255, 255, 0.55));
 }
-.btn, .ex-btn, .hero__stats > div { position: relative; isolation: isolate; }
-.btn::after, .ex-btn::after, .hero__stats > div::after {
+.btn, .ex-btn { position: relative; isolation: isolate; }
+.btn::after, .ex-btn::after {
   content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
   background: var(--glass-ring);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
 }
-.btn::before, .ex-btn::before, .hero__stats > div::before {
+.btn::before, .ex-btn::before {
   content: ""; position: absolute; inset: 1px; border-radius: inherit; pointer-events: none; z-index: -1;
   background: radial-gradient(120% 80% at 28% -18%, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0) 58%);
   transition: opacity 0.3s;
@@ -1210,7 +1210,7 @@ body.rendering .dz-panel, body.rendering .dz-bar { opacity: 0 !important; pointe
 .ex-btn:hover { border-color: transparent; transform: translateY(-1px); filter: brightness(1.15); }
 .ex-btn--sun[aria-pressed="true"] { color: #fff; background: linear-gradient(150deg, rgba(var(--gold-rgb), 0.75), rgba(var(--gold-rgb), 0.4)); border-color: transparent; }
 
-/* hero rəqəmləri: 4 ayrı şüşə kart */
+/* hero rəqəmləri: arxa fon yoxdur — yalnız yazı, video üstündə */
 .hero__stats {
   gap: 10px;
   max-width: 680px;
@@ -1221,18 +1221,12 @@ body.rendering .dz-panel, body.rendering .dz-bar { opacity: 0 !important; pointe
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
-.hero__stats > div {
-  padding: 17px 20px 16px;
-  border-radius: 22px;
-  background: var(--glass-fill);
-  -webkit-backdrop-filter: blur(22px) saturate(170%);
-  backdrop-filter: blur(22px) saturate(170%);
-  box-shadow: var(--glass-depth);
-}
-.hero__stats strong { font-size: 2.15rem; line-height: 1; letter-spacing: -0.01em; color: #fff; }
+.hero__stats > div { padding: 6px 0; background: none; border: 0; box-shadow: none; }
+.hero__stats strong { font-size: 2.15rem; line-height: 1; letter-spacing: -0.01em; color: #fff; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55); }
+.hero__stats span { text-shadow: 0 1px 10px rgba(0, 0, 0, 0.6); }
 .hero__stats span { display: block; margin-top: 8px; color: rgba(244, 240, 232, 0.75); font-size: 0.78rem; letter-spacing: 0.04em; }
 .hero__stats span::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 7px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 10px rgba(var(--gold-rgb), 0.8); vertical-align: 1px; }
 @media (max-width: 639px) {
-  .hero__stats > div { padding: 14px 16px; border-radius: 18px; }
+  .hero__stats { gap: 14px 18px; }
   .hero__stats strong { font-size: 1.75rem; }
 }
