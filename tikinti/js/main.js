@@ -4,6 +4,7 @@ import { playIntro } from './intro.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -147,7 +148,19 @@ function horizonColor(tex) {
 new EXRLoader(manager).load('assets/hdri/apartment.exr', (tex) => {
   envInterior = pmrem.fromEquirectangular(tex).texture;
   tex.dispose();
-});
+}, undefined, (err) => console.warn('İnteryer işıq xəritəsi (apartment.exr) yüklənmədi — neytral otaq işığı istifadə olunacaq', err));
+// İnteryer işığı: EXR yoxdursa neytral otaq mühiti (heç vaxt parlaq çöl göy üzü yox —
+// o, yuxarıya baxan səthləri, döşəmə və çarpayını ağardırdı)
+let envRoomFallback = null;
+function interiorEnv() {
+  if (envInterior) return envInterior;
+  if (!envRoomFallback) envRoomFallback = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  return envRoomFallback;
+}
+const TOUR_ENV = 0.3; // turda ətraf işığın gücü
+// Ekspozisiya (divan modelinin artıq işıqları silindikdən sonra yenidən tənzimlənib)
+const TOUR_EXP = 0.95;
+const FLOOR_EXP = 0.78;
 let envReady;
 const envPromise = new Promise((r) => (envReady = r));
 manager.onLoad = () => {
@@ -163,6 +176,11 @@ const gltf = new GLTFLoader();
 function loadModel(name, url, width, turn = 0) {
   gltf.load(url, (g) => {
     const root = g.scene;
+    // GLB faylında studiya işığı ("Key_Light") var — hər divan nüsxəsi səhnəyə əlavə bir günəş
+    // qoşurdu (kölgəsiz, tavandan keçir) və döşəmələr ağarırdı. Modeldən bütün işıq və kameraları sil.
+    const extras = [];
+    root.traverse((o) => { if (o.isLight || o.isCamera) extras.push(o); });
+    extras.forEach((o) => o.removeFromParent());
     root.rotation.y = turn;
     root.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(root);
@@ -773,7 +791,7 @@ function selectFloor(f, done) {
   setCrumbs();
   const baseY = floorBaseY(f);
   aimSun(new THREE.Vector3(0, baseY, 0), 26);
-  renderer.toneMappingExposure = 0.62;
+  renderer.toneMappingExposure = FLOOR_EXP;
   const small = isSmall();
   controls.minDistance = 8;
   controls.maxDistance = 90;
@@ -957,8 +975,9 @@ function startTourFor(ad) {
       l.intensity = p ? 5 : 0;
       if (p) l.position.copy(p);
     });
-    if (envInterior) { scene.environment = envInterior; scene.environmentIntensity = 0.3; }
-    renderer.toneMappingExposure = 0.72;
+    scene.environment = interiorEnv();
+    scene.environmentIntensity = TOUR_ENV;
+    renderer.toneMappingExposure = TOUR_EXP;
     setBloom(99, 0); // gündüz turda parıltı yoxdur — pəncərə kənarlarını ağ dumanla örtürdü
     aimSun(new THREE.Vector3((ad.bounds.x0 + ad.bounds.x1) / 2, ad.baseY, (ad.bounds.z0 + ad.bounds.z1) / 2), 14);
     tourHud.hidden = false;
@@ -1008,7 +1027,7 @@ function exitTour(silent) {
   lampPool.forEach((l) => (l.intensity = 0));
   scene.environment = sunSim.on && skyEnvRT ? skyEnvRT.texture : envExterior;
   scene.environmentIntensity = 1.0;
-  renderer.toneMappingExposure = 0.62;
+  renderer.toneMappingExposure = FLOOR_EXP;
   setBloom(99, 0);
   if (sunSim.on) applySun();
   camera.fov = baseFov();
@@ -1175,7 +1194,7 @@ function applySun() {
   skyDusk.value = Math.exp(-Math.pow((altDeg + 2.5) / 3.2, 2));
   bakuUniforms.uNight.value = night;
   const envK = 0.4 + 0.6 * smooth(-6, 15, altDeg);
-  scene.environmentIntensity = state.mode === 'tour' ? 0.3 * envK : envK;
+  scene.environmentIntensity = state.mode === 'tour' ? TOUR_ENV * envK : envK;
   scene.fog.density = 0.00035 + night * 0.0003;
   // axşam: fənərlər, lobbi, lövhə yanır
   for (const m of glowMats()) {
@@ -1184,7 +1203,7 @@ function applySun() {
   }
   // turda: otaq lampaları qaranlıqlaşdıqca yanır
   if (state.mode === 'tour' && tourData) lampPool.forEach((l, i) => (l.intensity = tourData.lamps[i] ? 0.3 + 3.2 * night : 0));
-  renderer.toneMappingExposure = (state.mode === 'tour' ? 0.72 : state.mode === 'floor' ? 0.6 : 0.8) * (1 + night * 0.9);
+  renderer.toneMappingExposure = (state.mode === 'tour' ? TOUR_EXP : state.mode === 'floor' ? FLOOR_EXP : 0.8) * (1 + night * 0.9);
   const dusk = 1 - smooth(4, 20, Math.abs(altDeg));
   scene.fog.color.copy(FOG_DAY).lerp(FOG_DUSK, dusk * day).lerp(FOG_NIGHT, night);
   aimSun(lastAim.center, lastAim.size);
@@ -1247,8 +1266,10 @@ function setSunMode(on) {
     $('#sunPlay').classList.remove('is-on');
     skyMesh.visible = false;
     if (hdrTex) scene.background = hdrTex;
+    // turda ətraf işığı 0.3 qalmalıdır — əvvəl 1.0 olurdu və otaq 3 dəfə parlaqlaşıb ağarırdı
     if (state.mode !== 'tour') scene.environment = envExterior;
-    scene.environmentIntensity = 1.0;
+    else scene.environment = interiorEnv();
+    scene.environmentIntensity = state.mode === 'tour' ? TOUR_ENV : 1.0;
     lightDir.copy(hdrLightDir);
     sunLight.intensity = 3.4;
     sunLight.color.set(0xfff1dc);
@@ -1264,7 +1285,7 @@ function setSunMode(on) {
       if (m.userData.nightGlow != null) m.emissiveIntensity = m.userData.nightGlow;
       if (m.userData.nightOpacity != null) m.opacity = 0;
     }
-    renderer.toneMappingExposure = state.mode === 'tour' ? 0.72 : state.mode === 'floor' ? 0.62 : 0.9;
+    renderer.toneMappingExposure = state.mode === 'tour' ? TOUR_EXP : state.mode === 'floor' ? FLOOR_EXP : 0.9;
     if (state.mode === 'tour' && tourData) lampPool.forEach((l, i) => (l.intensity = tourData.lamps[i] ? 5 : 0));
     if (hdrTex) scene.fog.color.copy(horizonColor(hdrTex));
     aimSun(lastAim.center, lastAim.size);

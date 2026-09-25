@@ -274,6 +274,9 @@ export function buildApartment(apt, baseY, design = null, opts = {}) {
   ceil.translate(plan.w / 2, WALL_H, plan.d / 2);
   const ceilMesh = new THREE.Mesh(ceil, mats.ceiling);
   ceilMesh.receiveShadow = true;
+  // tavan günəşi kəsməlidir: turda yuxarı mərtəbələr gizlidir və günəş yuxarıdan birbaşa
+  // döşəməyə, çarpayıya düşüb onları ağardırdı — işıq yalnız pəncərələrdən girsin
+  ceilMesh.castShadow = true;
   tourOnly.add(ceilMesh);
   tourOnly.visible = false;
   group.add(tourOnly);
