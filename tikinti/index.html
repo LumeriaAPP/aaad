@@ -60,13 +60,16 @@
   <main id="page">
     <!-- HERO: 3D bina fonda, scroll-da mətn bulanıqlaşıb yuxarı qalxır -->
     <section class="hero" id="top" data-ui="dark">
-      <!-- Fon videosu: scroll-da yavaş sürüşür, kiçilib künclər yumrulanır, sonra 3D səhnəyə keçir -->
-      <div class="hero__media" data-p='{"y":[0,240],"scale":[1,0.84],"radius":[0,34],"opacity":[[0,1],[0.5,1],[0.92,0]]}' data-p-range="exit" data-p-ref="section" aria-hidden="true">
-        <video class="hero__video" autoplay muted loop playsinline preload="auto" poster="assets/video/hero-poster.jpg">
-          <source src="assets/video/hero.mp4" type="video/mp4">
-          <source src="assets/video/hero.webm" type="video/webm">
-        </video>
-        <div class="hero__vshade"></div>
+      <!-- Fon videosu: bölmənin içində qalır — kiçilmir, kənarlarda boşluq və şəffaflıq yoxdur;
+           scroll-da yalnız yavaş sürüşür (parallaks) və azca yaxınlaşır -->
+      <div class="hero__media" aria-hidden="true">
+        <div class="hero__media-in" data-p='{"y":[0,220],"scale":[1.02,1.12]}' data-p-range="exit" data-p-ref="section">
+          <video class="hero__video" autoplay muted loop playsinline preload="auto" poster="assets/video/hero-poster.jpg">
+            <source src="assets/video/hero.mp4" type="video/mp4">
+            <source src="assets/video/hero.webm" type="video/webm">
+          </video>
+          <div class="hero__vshade"></div>
+        </div>
       </div>
       <div class="hero__inner" data-p='{"y":[0,-220],"opacity":[1,0],"blur":[0,8]}' data-p-range="exit">
         <p class="kicker"><span class="line"></span>Nova Tikinti təqdim edir</p>

@@ -70,7 +70,8 @@ function applyKeys(el, keys, t) {
       val = lerp(v[0], v[1], t);
     }
     if (k === 'opacity') el.style.opacity = val.toFixed(3);
-    else if (k === 'blur') filter = `blur(${val.toFixed(2)}px)`;
+    // blur(0) də "filter" sayılır və içindəki şüşə düymələrin backdrop-filter-ini söndürür — ona görə sıfırda heç nə yazma
+    else if (k === 'blur') filter = val > 0.02 ? `blur(${val.toFixed(2)}px)` : '';
     else if (k === 'y') tr += ` translate3d(0, ${val.toFixed(1)}${v.unit || (el.dataset.pUnit || 'px')}, 0)`;
     else if (k === 'x') tr += ` translate3d(${val.toFixed(1)}px, 0, 0)`;
     else if (k === 'scale') tr += ` scale(${val.toFixed(4)})`;

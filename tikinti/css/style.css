@@ -15,6 +15,7 @@
   --gold-rgb: 124, 195, 182;
   --gold-ink: #0b1f1c;
   --gold-dark: #2d7a6f;
+  --gold-dark-rgb: 45, 122, 111;
   --gold-soft: rgba(var(--gold-rgb), 0.14);
   --ok: #3ecf8e;
   --warn: #f5b544;
@@ -26,9 +27,9 @@
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   color-scheme: dark;
 }
-:root[data-accent="copper"] { --gold: #d99a78; --gold-2: #b0684a; --gold-hi: #f0c0a2; --gold-rgb: 217, 154, 120; --gold-ink: #24140c; --gold-dark: #a5593a; }
-:root[data-accent="sage"] { --gold: #a9bf96; --gold-2: #6f8a5e; --gold-hi: #cbdcb8; --gold-rgb: 169, 191, 150; --gold-ink: #141c10; --gold-dark: #5d7a4c; }
-:root[data-accent="gold"] { --gold: #d6b47a; --gold-2: #b48d4f; --gold-hi: #e7c992; --gold-rgb: 214, 180, 122; --gold-ink: #1b150c; --gold-dark: #a57c3c; }
+:root[data-accent="copper"] { --gold: #d99a78; --gold-2: #b0684a; --gold-hi: #f0c0a2; --gold-rgb: 217, 154, 120; --gold-ink: #24140c; --gold-dark: #a5593a; --gold-dark-rgb: 165, 89, 58; }
+:root[data-accent="sage"] { --gold: #a9bf96; --gold-2: #6f8a5e; --gold-hi: #cbdcb8; --gold-rgb: 169, 191, 150; --gold-ink: #141c10; --gold-dark: #5d7a4c; --gold-dark-rgb: 93, 122, 76; }
+:root[data-accent="gold"] { --gold: #d6b47a; --gold-2: #b48d4f; --gold-hi: #e7c992; --gold-rgb: 214, 180, 122; --gold-ink: #1b150c; --gold-dark: #a57c3c; --gold-dark-rgb: 165, 124, 60; }
 
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -228,11 +229,10 @@ body.exploring { overflow: hidden; }
 @media (min-width: 768px) { .hero { padding: 120px 40px 90px; } }
 .hero__inner { max-width: 760px; will-change: transform; position: relative; z-index: 1; }
 /* hero fon videosu */
-.hero__media {
-  position: absolute; inset: 0; z-index: 0;
-  overflow: hidden;
-  border-radius: var(--radius, 0);
-  transform-origin: 50% 40%;
+.hero__media { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
+.hero__media-in {
+  position: absolute; inset: 0;
+  transform-origin: 50% 50%;
   will-change: transform, opacity;
   background: #0b0c10 url("../assets/video/hero-poster.jpg") center / cover no-repeat;
 }
@@ -819,7 +819,8 @@ body.exploring .scroll-progress { opacity: 0; }
 .section--light .contacts a:hover { color: var(--gold); }
 
 /* hero */
-.hero__inner, .hero__stats { will-change: transform, opacity, filter; }
+/* yalnız transform: filter/opacity "backdrop root" yaradıb içindəki şüşə effektini söndürür */
+.hero__inner, .hero__stats { will-change: transform; }
 
 /* manifest */
 .manifest { position: relative; padding: clamp(110px, 16vw, 200px) 0 clamp(90px, 12vw, 160px); }
@@ -1139,4 +1140,99 @@ body.rendering .dz-panel, body.rendering .dz-bar { opacity: 0 !important; pointe
   .dz-rooms { grid-template-columns: 1fr 1fr 1fr; }
   .dz-actions { padding: 10px 12px 12px; }
   .dz-room-label { font-size: 0.66rem; padding: 4px 8px; }
+}
+
+
+/* ============ Liquid glass (düymələr, rəqəmlər) ============
+   Şüşə: arxa fon bulanıqlaşır və doyur, kənarda işıq halqası, yuxarıda parlaq əks. */
+:root {
+  --glass-fill: linear-gradient(150deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.05) 48%, rgba(255, 255, 255, 0.09) 100%);
+  --glass-fx: blur(20px) saturate(180%) brightness(1.05);
+  --glass-depth: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 1px rgba(255, 255, 255, 0.1), inset 0 0 24px rgba(255, 255, 255, 0.05), 0 14px 34px -16px rgba(0, 0, 0, 0.6);
+  --glass-ring: linear-gradient(140deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.14) 30%, rgba(255, 255, 255, 0.03) 55%, rgba(255, 255, 255, 0.3) 82%, rgba(255, 255, 255, 0.55));
+}
+.btn, .ex-btn, .hero__stats > div { position: relative; isolation: isolate; }
+.btn::after, .ex-btn::after, .hero__stats > div::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+  background: var(--glass-ring);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+.btn::before, .ex-btn::before, .hero__stats > div::before {
+  content: ""; position: absolute; inset: 1px; border-radius: inherit; pointer-events: none; z-index: -1;
+  background: radial-gradient(120% 80% at 28% -18%, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0) 58%);
+  transition: opacity 0.3s;
+}
+
+/* düymələr */
+.btn { border: 0; transition: transform 0.35s var(--ease), box-shadow 0.35s, filter 0.3s, background 0.3s; }
+.btn:hover { transform: translateY(-2px); filter: brightness(1.08); }
+.btn:active { transform: translateY(0) scale(0.98); }
+.btn--gold {
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  background: linear-gradient(150deg, rgba(var(--gold-rgb), 0.9) 0%, rgba(var(--gold-rgb), 0.52) 55%, rgba(var(--gold-rgb), 0.72) 100%);
+  -webkit-backdrop-filter: var(--glass-fx);
+  backdrop-filter: var(--glass-fx);
+  box-shadow: var(--glass-depth), 0 16px 36px -14px rgba(var(--gold-rgb), 0.75);
+}
+.btn--gold:hover { box-shadow: var(--glass-depth), 0 20px 42px -14px rgba(var(--gold-rgb), 0.95); }
+.btn--ghost, .btn--glass {
+  color: var(--text);
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: var(--glass-fx);
+  backdrop-filter: var(--glass-fx);
+  box-shadow: var(--glass-depth);
+}
+.btn--ghost:hover { border-color: transparent; }
+
+/* açıq (krem) bölmələrdə şüşə tündləşir ki, oxunsun */
+.section--light .btn--gold, .manifest .btn--gold, .pin--h .btn--gold, .nav[data-ui="light"] .btn--gold {
+  background: linear-gradient(150deg, rgba(var(--gold-dark-rgb), 0.96), rgba(var(--gold-dark-rgb), 0.78));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 14px 30px -14px rgba(var(--gold-dark-rgb), 0.8);
+}
+.section--light .btn--ghost, .manifest .btn--ghost, .pin--h .btn--ghost {
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(28, 25, 21, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 10px 24px -16px rgba(28, 25, 21, 0.4);
+}
+.section--light .btn::after, .manifest .btn::after, .pin--h .btn::after { opacity: 0.5; }
+
+/* 3D rejimin yuxarı düymələri */
+.ex-btn {
+  border-color: transparent;
+  background: linear-gradient(150deg, rgba(40, 44, 54, 0.62), rgba(14, 16, 21, 0.5));
+  -webkit-backdrop-filter: var(--glass-fx);
+  backdrop-filter: var(--glass-fx);
+  box-shadow: var(--glass-depth);
+  transition: transform 0.3s var(--ease), filter 0.3s;
+}
+.ex-btn:hover { border-color: transparent; transform: translateY(-1px); filter: brightness(1.15); }
+.ex-btn--sun[aria-pressed="true"] { color: #fff; background: linear-gradient(150deg, rgba(var(--gold-rgb), 0.75), rgba(var(--gold-rgb), 0.4)); border-color: transparent; }
+
+/* hero rəqəmləri: 4 ayrı şüşə kart */
+.hero__stats {
+  gap: 10px;
+  max-width: 680px;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.hero__stats > div {
+  padding: 17px 20px 16px;
+  border-radius: 22px;
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: blur(22px) saturate(170%);
+  backdrop-filter: blur(22px) saturate(170%);
+  box-shadow: var(--glass-depth);
+}
+.hero__stats strong { font-size: 2.15rem; line-height: 1; letter-spacing: -0.01em; color: #fff; }
+.hero__stats span { display: block; margin-top: 8px; color: rgba(244, 240, 232, 0.75); font-size: 0.78rem; letter-spacing: 0.04em; }
+.hero__stats span::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 7px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 10px rgba(var(--gold-rgb), 0.8); vertical-align: 1px; }
+@media (max-width: 639px) {
+  .hero__stats > div { padding: 14px 16px; border-radius: 18px; }
+  .hero__stats strong { font-size: 1.75rem; }
 }
