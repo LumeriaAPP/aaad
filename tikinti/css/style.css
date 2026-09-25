@@ -872,3 +872,60 @@ body.exploring .scroll-progress { opacity: 0; }
   .scene-shade { background: linear-gradient(180deg, rgba(8, 9, 12, 0.35) 0%, rgba(8, 9, 12, 0.55) 45%, rgba(8, 9, 12, 0.75) 100%); }
   .window-sec__inner { text-shadow: 0 2px 24px rgba(0, 0, 0, 0.9); }
 }
+
+/* ============ Günəş simulyasiyası ============ */
+.ex-btn--sun + .ex-btn--text { margin-left: 0; }
+.ex-btn--sun[aria-pressed="true"] { background: var(--gold); color: #1b150c; border-color: var(--gold); }
+.sun-panel {
+  position: absolute;
+  left: 50%; bottom: 16px;
+  transform: translateX(-50%);
+  width: min(620px, calc(100vw - 32px));
+  display: grid; gap: 14px;
+  padding: 16px 18px 14px;
+  border-radius: 20px;
+  background: rgba(13, 14, 18, 0.88);
+  border: 1px solid var(--line-2);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  z-index: 4;
+}
+.sun-panel__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.sun-panel__head b { font-family: var(--serif); font-weight: 500; font-size: 1.2rem; display: block; }
+.sun-panel__head small { color: var(--muted); font-size: 0.75rem; }
+.sun-panel .apt-close { position: static; flex: none; }
+.sun-days { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sun-days input[type="date"] { font: inherit; font-size: 0.78rem; color: var(--text); background: transparent; border: 1px solid var(--line-2); border-radius: 999px; padding: 5px 10px; }
+.sun-slider { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+.sun-play { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--gold); color: #1b150c; }
+.sun-play .i-pause, .sun-play.is-on .i-play { display: none; }
+.sun-play.is-on .i-pause { display: block; }
+.sun-range { display: grid; gap: 4px; }
+.sun-range input { -webkit-appearance: none; appearance: none; width: 100%; height: 10px; border-radius: 999px; background: var(--sun-track, #333); outline: none; }
+.sun-range input::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: #ffd27a; border: 3px solid #fff; box-shadow: 0 0 0 4px rgba(255, 210, 122, 0.3), 0 4px 12px rgba(0, 0, 0, 0.5); cursor: grab; }
+.sun-range input::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #ffd27a; border: 3px solid #fff; cursor: grab; }
+.sun-range input:focus-visible { box-shadow: 0 0 0 2px var(--gold); }
+.sun-ticks { display: flex; justify-content: space-between; font-size: 0.68rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sun-clock { font-family: var(--serif); font-size: 1.6rem; min-width: 76px; text-align: right; font-variant-numeric: tabular-nums; }
+.sun-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.8rem; color: #cfc8bd; font-variant-numeric: tabular-nums; }
+.sun-meta b { color: var(--text); font-weight: 600; }
+body.sun-on .ex-hint { opacity: 0; }
+@media (max-width: 760px) {
+  .sun-panel { bottom: 0; border-radius: 20px 20px 0 0; width: 100vw; padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+  .ex-btn--sun span { display: none; }
+  .ex-btn--sun { padding: 0; }
+}
+
+/* mənzil panelində günəş saatları */
+.sun-hours { margin: 0 16px 16px; padding: 14px; border-radius: 14px; background: rgba(255, 210, 122, 0.06); border: 1px solid rgba(255, 210, 122, 0.18); }
+.sun-hours__head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+.sun-hours__head b { font-size: 0.85rem; }
+.sun-hours__head small { color: var(--muted); font-size: 0.72rem; }
+.sun-bars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; align-items: end; height: 96px; }
+.sun-bar { display: grid; grid-template-rows: auto 1fr auto; justify-items: center; gap: 4px; height: 100%; font-size: 0.7rem; color: var(--muted); }
+.sun-bar i { width: 100%; max-width: 38px; align-self: end; border-radius: 6px 6px 2px 2px; background: linear-gradient(180deg, #ffd27a, #d6953d); height: var(--h); min-height: 3px; }
+.sun-bar b { color: var(--text); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+.sun-hours .btn { margin-top: 12px; width: 100%; padding: 10px; font-size: 0.82rem; }
+body.sun-on .tour-help { display: none; }
+body.sun-on .minimap { bottom: 240px; }
+@media (max-width: 760px) { body.sun-on .joystick { bottom: 250px; } body.sun-on .minimap { bottom: auto; top: 118px; } }

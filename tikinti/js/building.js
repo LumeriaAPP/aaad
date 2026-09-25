@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { BUILDING, floorBaseY, COMPANY } from './data.js';
 import { paverTexture } from './textures.js';
+import { windowMaterial, buildNeighbor, buildCourtyard, NEIGHBORS } from './complex.js';
 
 const { width: W, depth: D, floorHeight: FH, firstFloor, lastFloor, groundHeight } = BUILDING;
 
@@ -12,11 +13,13 @@ function rng(seed) {
 
 export function createTowerMaterials() {
   return {
-    slab: new THREE.MeshStandardMaterial({ color: 0xebe6de, roughness: 0.65 }),
-    glass: new THREE.MeshStandardMaterial({ color: 0xa9bccb, metalness: 0.92, roughness: 0.035, envMapIntensity: 1.0 }),
-    lit: new THREE.MeshStandardMaterial({ color: 0x8699a8, metalness: 0.9, roughness: 0.05, envMapIntensity: 0.9 }),
+    slab: new THREE.MeshStandardMaterial({ color: 0xe4dccd, roughness: 0.65 }),
+    glass: windowMaterial(),
+    lit: windowMaterial(),
     mullion: new THREE.MeshStandardMaterial({ color: 0x6d6a66, metalness: 0.8, roughness: 0.35 }),
-    fin: new THREE.MeshStandardMaterial({ color: 0xf1ede6, roughness: 0.55 }),
+    fin: new THREE.MeshStandardMaterial({ color: 0xd8cbb4, roughness: 0.62 }),
+    stone: new THREE.MeshStandardMaterial({ color: 0xd9ccb6, roughness: 0.7 }),
+    lobby: Object.assign(new THREE.MeshStandardMaterial({ color: 0x3c3a36, emissive: 0xffd6a0, emissiveIntensity: 0.12, roughness: 0.3, metalness: 0.4 }), { userData: { nightGlow: 0.12 } }),
     led: new THREE.MeshStandardMaterial({ color: 0x9a968f, metalness: 0.8, roughness: 0.3 }),
     rail: new THREE.MeshStandardMaterial({ color: 0x9ec3d6, metalness: 0.2, roughness: 0.05, transparent: true, opacity: 0.35, depthWrite: false }),
     gold: new THREE.MeshStandardMaterial({ color: 0xc9a466, metalness: 1, roughness: 0.3 }),
@@ -88,6 +91,7 @@ function buildFloor(f, mats, rand) {
     m.instanceMatrix.needsUpdate = true;
     facade.add(m);
   }
+  glass.receiveShadow = lit.receiveShadow = false;
   g.add(facade);
 
   // Eyvanlar (qonaq otaqlarının qarşısında)
@@ -144,7 +148,7 @@ function buildLobby(mats) {
   const h = groundHeight - 0.3;
   const inner = new THREE.Mesh(
     new THREE.BoxGeometry(W - 2.4, h, D - 2.4),
-    new THREE.MeshStandardMaterial({ color: 0x6b5a48, emissive: 0xffcf96, emissiveIntensity: 0.22, roughness: 0.8 })
+    (() => { const m = new THREE.MeshStandardMaterial({ color: 0x6b5a48, emissive: 0xffcf96, emissiveIntensity: 0.22, roughness: 0.8 }); m.userData.nightGlow = 0.22; return m; })()
   );
   inner.position.y = h / 2;
   g.add(inner);
@@ -171,7 +175,7 @@ function buildLobby(mats) {
   canopy.position.set(0, 4.3, D / 2 + 2.3);
   canopy.castShadow = true;
   g.add(canopy);
-  const underside = new THREE.Mesh(new THREE.PlaneGeometry(11.6, 4.6).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xd9c7ab, emissive: 0xffe0b0, emissiveIntensity: 0.25 }));
+  const underside = new THREE.Mesh(new THREE.PlaneGeometry(11.6, 4.6).rotateX(Math.PI / 2), (() => { const m = new THREE.MeshStandardMaterial({ color: 0xd9c7ab, emissive: 0xffe0b0, emissiveIntensity: 0.25 }); m.userData.nightGlow = 0.25; return m; })());
   underside.position.set(0, 4.12, D / 2 + 2.3);
   g.add(underside);
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(10, 1.25), new THREE.MeshBasicMaterial({ map: signTexture(COMPANY.project.toUpperCase()), transparent: true, blending: THREE.AdditiveBlending, toneMapped: false }));
@@ -317,12 +321,12 @@ export function buildSurroundings() {
 
   // Səki daşı meydan (kənarları yumşaq)
   const pav = paverTexture();
-  pav.repeat.set(96 / 4, 76 / 4);
+  pav.repeat.set(190 / 4, 190 / 4);
   const plaza = new THREE.Mesh(
-    new THREE.PlaneGeometry(96, 76).rotateX(-Math.PI / 2),
+    new THREE.PlaneGeometry(190, 190).rotateX(-Math.PI / 2),
     new THREE.MeshStandardMaterial({ map: pav, alphaMap: edgeFade(256, 0.72), transparent: true, roughness: 0.85, depthWrite: false })
   );
-  plaza.position.set(0, GY + 0.02, 6);
+  plaza.position.set(0, GY + 0.02, 28);
   plaza.receiveShadow = true;
   plaza.renderOrder = -0.5;
   g.add(plaza);
@@ -336,31 +340,10 @@ export function buildSurroundings() {
   stone.receiveShadow = true;
   g.add(stone);
 
-  // Hovuz
-  const poolEdge = new THREE.Mesh(new THREE.BoxGeometry(19, 0.3, 6.4), new THREE.MeshStandardMaterial({ color: 0xece6db, roughness: 0.55 }));
-  poolEdge.position.set(0, GY + 0.15, 25);
-  poolEdge.receiveShadow = true;
-  g.add(poolEdge);
-  const water = new THREE.Mesh(
-    new THREE.PlaneGeometry(18, 5.4).rotateX(-Math.PI / 2),
-    new THREE.MeshPhysicalMaterial({ color: 0x3aa6c4, roughness: 0.02, metalness: 0, transmission: 0, clearcoat: 1, envMapIntensity: 1.4 })
-  );
-  water.position.set(0, GY + 0.31, 25);
-  g.add(water);
-  // şezlonqlar
-  const lounger = new THREE.MeshStandardMaterial({ color: 0xf4f1ea, roughness: 0.6 });
-  for (let i = -3; i <= 3; i++) {
-    if (i === 0) continue;
-    const l = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.3, 1.9), lounger);
-    l.position.set(i * 2.6, GY + 0.27, 30.2);
-    l.rotation.x = -0.08;
-    l.castShadow = l.receiveShadow = true;
-    g.add(l);
-  }
-
   // Fənərlər
   const poleMat = new THREE.MeshStandardMaterial({ color: 0x1f2226, metalness: 0.7, roughness: 0.35 });
-  const lampMat = new THREE.MeshStandardMaterial({ color: 0xf5f2ea, emissive: 0xfff0d0, emissiveIntensity: 0.4 });
+  const lampMat = new THREE.MeshStandardMaterial({ color: 0xf5f2ea, emissive: 0xffd9a0, emissiveIntensity: 0.4 });
+  lampMat.userData.nightGlow = 0.4;
   const poles = inst(new THREE.CylinderGeometry(0.05, 0.07, 4.2, 10), poleMat, 30);
   const heads = inst(new THREE.BoxGeometry(0.22, 0.5, 0.22), lampMat, 30);
   const lampSpots = [];
@@ -379,6 +362,11 @@ export function buildSurroundings() {
   for (const [x, z] of [[-30, 36], [-15, 36], [15, 36], [30, 36], [-30, -26], [30, -26]]) put(benches, x, GY + 0.22, z, 0, 1, 1, 1);
   benches.instanceMatrix.needsUpdate = true;
   g.add(benches);
+
+  // Kompleksin digər binaları və həyəti
+  const tmats = createTowerMaterials();
+  for (const n of NEIGHBORS) g.add(buildNeighbor(n, tmats));
+  g.add(buildCourtyard(GY));
 
   return g;
 }
@@ -405,12 +393,19 @@ export async function buildTrees(onDone, keepClear = []) {
   const group = new THREE.Group();
   const spots = [];
   // meydanın kənarları boyunca xiyaban
-  for (let x = -42; x <= 42; x += 12) spots.push([x, 44], [x + 6, -34]);
-  for (let z = -22; z <= 36; z += 14) spots.push([-50, z], [50, z]);
+  for (let x = -54; x <= 54; x += 12) spots.push([x, 72], [x + 6, -30]);
+  for (let z = -10; z <= 60; z += 12) spots.push([-22, z], [22, z]);
+  for (const [x, z] of [[-14, 36], [14, 36], [-14, 56], [14, 56], [-38, 60], [38, 60]]) spots.push([x, z]);
   // ətraf çəmənlikdə təsadüfi ağaclar
-  const avoid = (x, z) => keepClear.some(([cx, cz]) => Math.hypot(x - cx, z - cz) < 28);
-  for (let i = 0; i < 60 && spots.length < 70; i++) {
-    const a = rand() * Math.PI * 2, r = 70 + rand() * 110;
+  const avoid = (x, z) =>
+    keepClear.some(([cx, cz]) => Math.hypot(x - cx, z - cz) < 28) ||
+    NEIGHBORS.some((n) => Math.hypot(x - n.x, z - n.z) < Math.max(n.w, n.d) * 0.75) ||
+    (Math.abs(x) < 20 && Math.abs(z - 46) < 12) || (Math.abs(x) < 18 && Math.abs(z) < 14);
+  const base = spots.length;
+  for (const sp of spots.splice(0)) if (!avoid(sp[0], sp[1])) spots.push(sp);
+  void base;
+  for (let i = 0; i < 90 && spots.length < 90; i++) {
+    const a = rand() * Math.PI * 2, r = 95 + rand() * 120;
     const x = Math.cos(a) * r, z = Math.sin(a) * r + 6;
     if (!avoid(x, z)) spots.push([x, z]);
   }

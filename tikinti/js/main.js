@@ -15,6 +15,9 @@ import { buildApartment, buildCommonAreas } from './interior.js';
 import { planSVG } from './plan-svg.js';
 import { Tour } from './tour.js';
 import { initScroll } from './scroll.js';
+import { Sky } from 'three/addons/objects/Sky.js';
+import { sunPosition, sunDirection, localDate, sunTimes, fmtTime, seasonalSunHours, SEASONS } from './sun.js';
+import { windowMaterial } from './complex.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -43,12 +46,16 @@ camera.position.set(90, 10, 110);
 // Günəş (istiqaməti HDRI panoramadan hesablanır)
 const sunLight = new THREE.DirectionalLight(0xfff1dc, 3.4);
 const lightDir = new THREE.Vector3(-0.55, 0.62, 0.56).normalize();
+const hdrLightDir = lightDir.clone();
+let hdrTex = null;
 sunLight.castShadow = true;
 sunLight.shadow.mapSize.set(isTouch ? 2048 : 4096, isTouch ? 2048 : 4096);
 sunLight.shadow.bias = -0.0003;
 sunLight.shadow.normalBias = 0.03;
 scene.add(sunLight, sunLight.target);
+let lastAim = { center: new THREE.Vector3(0, 20, 20), size: 105 };
 function aimSun(center, size) {
+  lastAim = { center: center.clone(), size };
   sunLight.target.position.copy(center);
   sunLight.position.copy(center).addScaledVector(lightDir, 160);
   const c = sunLight.shadow.camera;
@@ -56,7 +63,7 @@ function aimSun(center, size) {
   c.near = 10; c.far = 400;
   c.updateProjectionMatrix();
 }
-aimSun(new THREE.Vector3(0, 20, 0), 60);
+aimSun(new THREE.Vector3(0, 20, 20), 105);
 
 // HDRI-da ən parlaq nöqtəni (günəşi) tap
 function findSun(tex) {
@@ -96,11 +103,13 @@ let envExterior = null, envInterior = null;
 new HDRLoader(manager).setDataType(THREE.FloatType).load('assets/hdri/flower_road_2k.hdr', (tex) => {
   tex.mapping = THREE.EquirectangularReflectionMapping;
   lightDir.copy(findSun(tex));
+  hdrLightDir.copy(lightDir);
+  hdrTex = tex;
   // günəş diskinin həddən artıq parlaq dəyərlərini məhdudlaşdır (effektlərdə "sonsuzluq" yaranmasın)
   const d = tex.image.data;
   for (let i = 0; i < d.length; i++) if (d[i] > 60) d[i] = 60;
   tex.needsUpdate = true;
-  aimSun(new THREE.Vector3(0, 20, 0), 60);
+  aimSun(new THREE.Vector3(0, 20, 20), 105);
   envExterior = pmrem.fromEquirectangular(tex).texture;
   scene.environment = envExterior;
   scene.environmentIntensity = 1.0;
@@ -549,6 +558,7 @@ function enterExplore(opts = {}) {
 function exitExplore() {
   if (state.mode === 'landing') return;
   if (state.mode === 'tour') exitTour(true);
+  setSunMode(false);
   closeApt(true);
   restoreFloors();
   disposeFloor();
@@ -559,7 +569,7 @@ function exitExplore() {
   document.body.classList.remove('exploring');
   explorer.hidden = true;
   tip.classList.remove('is-on');
-  aimSun(new THREE.Vector3(0, 20, 0), 60);
+  aimSun(new THREE.Vector3(0, 20, 20), 105);
   renderer.toneMappingExposure = 0.9;
   scrollCtl.start();
   scrollCtl.to(savedScroll, true);
@@ -675,7 +685,7 @@ function backToBuilding() {
   state.floor = null;
   renderFloorList();
   setCrumbs();
-  aimSun(new THREE.Vector3(0, 20, 0), 60);
+  aimSun(new THREE.Vector3(0, 20, 20), 105);
   renderer.toneMappingExposure = 0.9;
   controls.minDistance = 12;
   controls.maxDistance = 260;
@@ -721,6 +731,7 @@ function openApt(apt, andTour = false) {
         <div class="price"><dt>Qiymət</dt><dd>${apt.status === 'sold' ? '—' : fmtPrice(apt.price)}</dd></div>
         <div><dt>1 m²</dt><dd>${apt.status === 'sold' ? '—' : fmtPrice(perM2)}</dd></div>
       </dl>
+      ${sunHoursBlock(apt)}
       ${roomList(plan)}
     </div>
     <div class="apt-actions">
@@ -758,6 +769,7 @@ function closeApt(silent) {
 }
 
 aptPanel.addEventListener('click', (e) => {
+  if (e.target.closest('[data-apt-sun]')) setSunMode(true);
   if (e.target.closest('[data-apt-close]')) closeApt();
   if (e.target.closest('[data-apt-plan]')) openPlanModal(state.apt.type, state.apt);
   if (e.target.closest('[data-apt-tour]')) {
@@ -807,6 +819,7 @@ function startTourFor(ad) {
     aimSun(new THREE.Vector3((ad.bounds.x0 + ad.bounds.x1) / 2, ad.baseY, (ad.bounds.z0 + ad.bounds.z1) / 2), 14);
     tourHud.hidden = false;
     setupTourHud(ad);
+    if (sunSim.on) applySun();
   });
   setCrumbs();
 }
@@ -848,7 +861,7 @@ function exitTour(silent) {
   ad.border.visible = true;
   floorState.labels.forEach((l) => (l.style.display = ''));
   lampPool.forEach((l) => (l.intensity = 0));
-  scene.environment = envExterior;
+  scene.environment = sunSim.on && skyEnvRT ? skyEnvRT.texture : envExterior;
   scene.environmentIntensity = 1.0;
   renderer.toneMappingExposure = 0.62;
   camera.fov = 42;
@@ -935,15 +948,180 @@ canvas.addEventListener('pointerup', (e) => {
 });
 
 /* =========================================================
+   Günəş simulyasiyası (tarix + saat → günəşin real mövqeyi)
+   ========================================================= */
+const sunSim = { on: false, playing: false, y: new Date().getFullYear(), m: 6, d: 21, min: 12 * 60 };
+const skyMesh = new Sky();
+skyMesh.scale.setScalar(3600);
+skyMesh.visible = false;
+scene.add(skyMesh);
+const skyNight = { value: 0 };
+const skyEnvScene = new THREE.Scene();
+const skyEnv = new Sky();
+skyEnv.scale.setScalar(50);
+skyEnvScene.add(skyEnv);
+for (const sk of [skyMesh, skyEnv]) {
+  // Sky şeyderi çox parlaqdır — səhnənin ekspozisiyasına uyğunlaşdır
+  sk.material.uniforms.uNightSky = skyNight;
+  sk.material.onBeforeCompile = (sh) => {
+    sh.uniforms.uNightSky = skyNight;
+    sh.fragmentShader = sh.fragmentShader
+      .replace('void main() {', `uniform float uNightSky;
+        float starHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+        void main() {`)
+      .replace('gl_FragColor = vec4( texColor, 1.0 );', `vec3 dirN = normalize(vWorldPosition - cameraPosition);
+        float up = clamp(dirN.y, 0.0, 1.0);
+        vec3 nightCol = mix(vec3(0.030, 0.045, 0.085), vec3(0.004, 0.008, 0.022), pow(up, 0.5));
+        vec3 q = floor(dirN * 420.0);
+        float star = step(0.9965, starHash(q)) * smoothstep(0.03, 0.25, up) * (0.4 + 0.6 * starHash(q + 3.1));
+        gl_FragColor = vec4(texColor * 0.2 + (nightCol + vec3(star) * 0.9) * uNightSky, 1.0);`);
+  };
+  const u = sk.material.uniforms;
+  u.turbidity.value = 2.0; u.rayleigh.value = 2.6; u.mieCoefficient.value = 0.004; u.mieDirectionalG.value = 0.85;
+}
+let skyEnvRT = null, envTimer = 0;
+const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const SUN_WARM = new THREE.Color(0xff9a52), SUN_DAY = new THREE.Color(0xfff3e2);
+const FOG_DAY = new THREE.Color(0xc4d2de), FOG_DUSK = new THREE.Color(0xd9a383), FOG_NIGHT = new THREE.Color(0x0d1320);
+
+let _glow = null;
+function glowMats() {
+  if (_glow) return _glow;
+  const set = new Set();
+  scene.traverse((o) => { if (o.material && o.material.userData && o.material.userData.nightGlow != null) set.add(o.material); });
+  return (_glow = [...set]);
+}
+function rebuildSkyEnv() {
+  const rt = pmrem.fromScene(skyEnvScene, 0, 0.1, 100);
+  if (skyEnvRT) skyEnvRT.dispose();
+  skyEnvRT = rt;
+  if (sunSim.on && state.mode !== 'tour') scene.environment = rt.texture;
+}
+
+function applySun() {
+  const date = localDate(sunSim.y, sunSim.m, sunSim.d, sunSim.min);
+  const { altitude, azimuth } = sunPosition(date);
+  sunDirection(altitude, azimuth, lightDir);
+  const altDeg = THREE.MathUtils.radToDeg(altitude);
+  for (const sk of [skyMesh, skyEnv]) sk.material.uniforms.sunPosition.value.copy(lightDir);
+  const day = smooth(-1, 6, altDeg);
+  sunLight.intensity = 3.6 * day * (0.55 + 0.45 * smooth(0, 30, altDeg));
+  sunLight.color.lerpColors(SUN_WARM, SUN_DAY, smooth(2, 28, altDeg));
+  hemi.intensity = 0.06 + 0.3 * smooth(-10, 20, altDeg);
+  const night = 1 - smooth(-7, 3, altDeg);
+  windowMaterial().userData.uniforms.uNight.value = night;
+  skyNight.value = night;
+  const envK = 0.1 + 0.9 * smooth(-6, 15, altDeg);
+  scene.environmentIntensity = state.mode === 'tour' ? 0.5 * envK : envK;
+  scene.fog.density = 0.0007 + night * 0.0008;
+  // axşam: fənərlər, lobbi, lövhə yanır
+  for (const m of glowMats()) m.emissiveIntensity = m.userData.nightGlow * (1 + night * 9);
+  // turda: otaq lampaları qaranlıqlaşdıqca yanır
+  if (state.mode === 'tour' && tourData) lampPool.forEach((l, i) => (l.intensity = tourData.lamps[i] ? 0.3 + 3.2 * night : 0));
+  renderer.toneMappingExposure = (state.mode === 'tour' ? 0.8 : state.mode === 'floor' ? 0.6 : 0.8) * (1 + night * 0.35);
+  const dusk = 1 - smooth(4, 20, Math.abs(altDeg));
+  scene.fog.color.copy(FOG_DAY).lerp(FOG_DUSK, dusk * day).lerp(FOG_NIGHT, night);
+  if (altitude > 0) aimSun(lastAim.center, lastAim.size);
+  // mühit işığını tez-tez yox, 150 ms-dən bir yenilə
+  clearTimeout(envTimer);
+  envTimer = setTimeout(rebuildSkyEnv, sunSim.playing ? 0 : 120);
+  updateSunUI(altDeg, THREE.MathUtils.radToDeg(azimuth));
+}
+
+const sunPanel = $('#sunPanel');
+const sunTimeInput = $('#sunTime');
+const COMPASS = ['Şm', 'ŞmŞ', 'Ş', 'CŞ', 'C', 'CQ', 'Q', 'ŞmQ'];
+function updateSunUI(altDeg, azDeg) {
+  $('#sunClock').textContent = fmtTime(sunSim.min);
+  sunTimeInput.value = Math.round(sunSim.min);
+  const t = sunSim.times;
+  $('#sunMeta').innerHTML = `
+    <span>Gün çıxır <b>${fmtTime(t.rise)}</b></span>
+    <span>Batır <b>${fmtTime(t.set)}</b></span>
+    <span>Hündürlük <b>${altDeg.toFixed(1)}°</b></span>
+    <span>Azimut <b>${azDeg.toFixed(0)}° ${COMPASS[Math.round(azDeg / 45) % 8]}</b></span>
+    <span>Gün uzunluğu <b>${t.rise != null && t.set != null ? fmtTime(t.set - t.rise) : '—'}</b></span>`;
+}
+function setSunDay(m, d) {
+  sunSim.m = m; sunSim.d = d;
+  sunSim.times = sunTimes(sunSim.y, m, d);
+  const { rise, set } = sunSim.times;
+  const a = ((rise ?? 0) / 1440) * 100, b = ((set ?? 1440) / 1440) * 100;
+  sunTimeInput.style.setProperty('--sun-track', `linear-gradient(90deg, #1b2336 0%, #1b2336 ${a - 2}%, #e98a4a ${a}%, #ffe2a0 ${(a + b) / 2}%, #e98a4a ${b}%, #1b2336 ${b + 2}%, #1b2336 100%)`);
+  sunTimeInput.style.background = sunTimeInput.style.getPropertyValue('--sun-track');
+  $$('#sunDays .chip').forEach((c) => c.classList.toggle('is-on', +c.dataset.m === m && +c.dataset.d === d));
+  $('#sunDate').value = `${sunSim.y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  applySun();
+}
+$('#sunDays').innerHTML = SEASONS.map((s) => `<button class="chip" data-m="${s.m}" data-d="${s.d}">${s.label}</button>`).join('') +
+  `<input type="date" id="sunDate" aria-label="Tarix">`;
+$('#sunDays').addEventListener('click', (e) => { const c = e.target.closest('[data-m]'); if (c) setSunDay(+c.dataset.m, +c.dataset.d); });
+$('#sunDate').addEventListener('change', (e) => { const [, mm, dd] = e.target.value.split('-').map(Number); if (mm && dd) setSunDay(mm, dd); });
+sunTimeInput.addEventListener('input', () => { sunSim.min = +sunTimeInput.value; sunSim.playing = false; $('#sunPlay').classList.remove('is-on'); applySun(); });
+$('#sunPlay').addEventListener('click', () => {
+  sunSim.playing = !sunSim.playing;
+  $('#sunPlay').classList.toggle('is-on', sunSim.playing);
+  if (sunSim.playing && (sunSim.min > (sunSim.times.set ?? 1440) || sunSim.min < (sunSim.times.rise ?? 0) - 60)) sunSim.min = (sunSim.times.rise ?? 360) - 30;
+});
+$('#sunClose').addEventListener('click', () => setSunMode(false));
+$('#sunBtn').addEventListener('click', () => setSunMode(!sunSim.on));
+
+function setSunMode(on) {
+  if (on === sunSim.on) return;
+  sunSim.on = on;
+  sunPanel.hidden = !on;
+  document.body.classList.toggle('sun-on', on);
+  $('#sunBtn').setAttribute('aria-pressed', String(on));
+  if (on) {
+    scene.background = null;
+    skyMesh.visible = true;
+    if (!sunSim.times) setSunDay(sunSim.m, sunSim.d); else applySun();
+  } else {
+    sunSim.playing = false;
+    $('#sunPlay').classList.remove('is-on');
+    skyMesh.visible = false;
+    if (hdrTex) scene.background = hdrTex;
+    if (state.mode !== 'tour') scene.environment = envExterior;
+    scene.environmentIntensity = 1.0;
+    lightDir.copy(hdrLightDir);
+    sunLight.intensity = 3.4;
+    sunLight.color.set(0xfff1dc);
+    hemi.intensity = 0.25;
+    windowMaterial().userData.uniforms.uNight.value = 0;
+    skyNight.value = 0;
+    scene.fog.density = 0.0011;
+    for (const m of glowMats()) m.emissiveIntensity = m.userData.nightGlow;
+    renderer.toneMappingExposure = state.mode === 'tour' ? 1.0 : state.mode === 'floor' ? 0.62 : 0.9;
+    if (state.mode === 'tour' && tourData) lampPool.forEach((l, i) => (l.intensity = tourData.lamps[i] ? 5 : 0));
+    if (hdrTex) scene.fog.color.copy(horizonColor(hdrTex));
+    aimSun(lastAim.center, lastAim.size);
+  }
+}
+
+function sunHoursBlock(apt) {
+  const data = seasonalSunHours(apt);
+  const max = 14;
+  return `<div class="sun-hours">
+    <div class="sun-hours__head"><b>☀ Birbaşa günəş işığı</b><small>saat / gün · kölgələr nəzərə alınıb</small></div>
+    <div class="sun-bars">${data.map((s) => `<div class="sun-bar"><b>${s.hours.toFixed(1)}</b><i style="--h:${Math.max(3, (s.hours / max) * 100)}%"></i><span>${s.label.split(' ')[0]} ${s.label.split(' ')[1].slice(0, 3)}</span></div>`).join('')}</div>
+    <button class="btn btn--ghost" data-apt-sun>Günəşi saatlara görə göstər</button>
+  </div>`;
+}
+
+/* =========================================================
    Əsas dövr
    ========================================================= */
 const timer = new THREE.Timer();
+let waterTex = null;
 const tmp = new THREE.Vector3();
 function frame(now) {
   timer.update(now);
   const dt = Math.min(timer.getDelta(), 0.05);
   const t = timer.getElapsed();
   runTweens(performance.now());
+  if (sunSim.on && sunSim.playing) { sunSim.min = (sunSim.min + dt * 50) % 1440; applySun(); }
+  if (!waterTex) scene.traverse((o) => { if (o.userData.water) waterTex = o.userData.water; });
+  if (waterTex) { waterTex.offset.x = t * 0.012; waterTex.offset.y = t * 0.008; }
 
   if (state.mode === 'landing') updateLandingCamera(dt, t);
   else if (state.mode === 'tour') { if (!camTween) tour.update(dt); }
@@ -1039,4 +1217,4 @@ setTimeout(() => {
 }, 1200);
 
 // Test və sazlama üçün
-window.__nova = { scrollCtl, state, enterExplore, selectFloor, openApt, startTour, exitTour, backToBuilding, exitExplore, tour, camera, APARTMENTS };
+window.__nova = { setSunMode, setSunDay, sunSim, applySun, controls, scene, renderer, scrollCtl, state, enterExplore, selectFloor, openApt, startTour, exitTour, backToBuilding, exitExplore, tour, camera, APARTMENTS };
