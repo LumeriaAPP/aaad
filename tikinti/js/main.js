@@ -36,8 +36,14 @@ const isSmall = () => innerWidth < 760;
    Renderer, səhnə, işıq
    ========================================================= */
 const canvas = $('#scene');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, isTouch ? 1.5 : 1.75));
+// Telefon/planşet üçün yüngül rejim: MSAA, parıltı yoxdur, kölgə xəritəsi kiçik, piksel sıxlığı aşağı
+const LITE = isTouch || Q.has('lite');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !LITE, powerPreference: 'high-performance' });
+// piksel sıxlığı kadr sürətinə görə avtomatik tənzimlənir (aşağıda adaptiveQuality)
+const PR_MAX = Math.min(devicePixelRatio, LITE ? 1.25 : 1.75);
+const PR_MIN = LITE ? 0.7 : 1;
+let pixelRatio = PR_MAX;
+renderer.setPixelRatio(pixelRatio);
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -56,7 +62,7 @@ const lightDir = new THREE.Vector3(-0.55, 0.62, 0.56).normalize();
 const hdrLightDir = lightDir.clone();
 let hdrTex = null;
 sunLight.castShadow = true;
-sunLight.shadow.mapSize.set(isTouch ? 2048 : 4096, isTouch ? 2048 : 4096);
+sunLight.shadow.mapSize.set(LITE ? 1024 : 4096, LITE ? 1024 : 4096);
 sunLight.shadow.bias = -0.0003;
 sunLight.shadow.normalBias = 0.03;
 scene.add(sunLight, sunLight.target);
@@ -147,6 +153,7 @@ const envPromise = new Promise((r) => (envReady = r));
 manager.onLoad = () => {
   envReady();
   $('#loaderText').textContent = 'Hazırdır';
+  warmUntil = performance.now() + 2500;
   setTimeout(() => { $('#loader').classList.add('is-done'); setTimeout(playIntro, 450); }, 350);
 };
 
@@ -214,7 +221,7 @@ const treesReady = buildTrees((trees) => { scene.add(trees); trees.traverse((o) 
 /* =========================================================
    Sonrakı emal: AO (künc kölgələri), yumşaq parıltı
    ========================================================= */
-const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(innerWidth, innerHeight, { type: THREE.HalfFloatType, samples: Q.has('nomsaa') ? 0 : 4 }));
+const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(innerWidth, innerHeight, { type: THREE.HalfFloatType, samples: Q.has('nomsaa') || LITE ? 0 : 4 }));
 composer.setPixelRatio(renderer.getPixelRatio());
 composer.addPass(new RenderPass(scene, camera));
 let gtao = null;
@@ -231,8 +238,17 @@ if (!isTouch && !Q.has('noao')) {
   gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 16 });
   composer.addPass(gtao);
 }
-const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.12, 0.4, 1.6);
-if (!Q.has('nobloom')) composer.addPass(bloom);
+// Parıltı (bloom) yalnız axşam/gecə işıqları və lampalar üçündür. Gündüz tam sönür:
+// aşağı hədd ağ divarları və döşəmələri də parladıb bütün kadrı ağ dumanla örtürdü.
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.1, 0.4, 99);
+const BLOOM_OK = !Q.has('nobloom') && !LITE;
+if (BLOOM_OK) composer.addPass(bloom);
+function setBloom(threshold, strength) {
+  bloom.threshold = threshold;
+  bloom.strength = strength;
+  bloom.enabled = BLOOM_OK && threshold < 5;
+}
+setBloom(99, 0);
 composer.addPass(new OutputPass());
 
 /* =========================================================
@@ -943,6 +959,7 @@ function startTourFor(ad) {
     });
     if (envInterior) { scene.environment = envInterior; scene.environmentIntensity = 0.3; }
     renderer.toneMappingExposure = 0.72;
+    setBloom(3.2, 0.08);
     aimSun(new THREE.Vector3((ad.bounds.x0 + ad.bounds.x1) / 2, ad.baseY, (ad.bounds.z0 + ad.bounds.z1) / 2), 14);
     tourHud.hidden = false;
     setupTourHud(ad);
@@ -992,6 +1009,8 @@ function exitTour(silent) {
   scene.environment = sunSim.on && skyEnvRT ? skyEnvRT.texture : envExterior;
   scene.environmentIntensity = 1.0;
   renderer.toneMappingExposure = 0.62;
+  setBloom(99, 0);
+  if (sunSim.on) applySun();
   camera.fov = baseFov();
   camera.updateProjectionMatrix();
   aimSun(new THREE.Vector3(0, floorState.baseY, 0), 26);
@@ -1149,8 +1168,8 @@ function applySun() {
   }
   const duskK = Math.exp(-Math.pow((altDeg + 2.5) / 3.2, 2));
   hemi.intensity = 0.25 + 0.12 * smooth(-10, 20, altDeg) + night * 0.35 + duskK * 0.35;
-  bloom.threshold = 1.6 - night * 0.7;
-  bloom.strength = 0.12 + night * 0.16;
+  if (state.mode === 'tour' && night < 0.3) setBloom(3.2, 0.08);
+  else setBloom(THREE.MathUtils.lerp(6, 0.95, night), 0.08 + night * 0.2);
   hemi.color.set(duskK > 0.4 ? 0x9a93c0 : night > 0.5 ? 0x5d7098 : 0xcfe0f5);
   windowMaterial().userData.uniforms.uNight.value = night;
   skyNight.value = night;
@@ -1236,8 +1255,7 @@ function setSunMode(on) {
     sunLight.color.set(0xfff1dc);
     hemi.intensity = 0.25;
     hemi.color.set(0xcfe0f5);
-    bloom.threshold = 1.6;
-    bloom.strength = 0.12;
+    setBloom(state.mode === 'tour' ? 3.2 : 99, 0.08);
     windowMaterial().userData.uniforms.uNight.value = 0;
     skyNight.value = 0;
     skyDusk.value = 0;
@@ -1465,6 +1483,53 @@ function updateGuard(dt, now) {
 }
 
 /* =========================================================
+   Performans: görünməyəndə render etmə, zəif cihazda piksel sıxlığını azalt
+   ========================================================= */
+// Arxası dolu (şəffaf olmayan) bölmələr: hero (video), krem və tünd bölmələr, footer
+const COVERS = $$('.hero, .manifest, .section--light, .section--solid, .pin--h, .footer');
+// yükləmədən sonra ilk ~2.5 saniyə həmişə render et (şeyderlər əvvəlcədən hazırlansın)
+let warmUntil = Infinity;
+function sceneHidden() {
+  if (performance.now() < warmUntil) return false;
+  if (state.mode !== 'landing' || document.body.classList.contains('exploring')) return false;
+  const H = innerHeight;
+  const spans = [];
+  for (const el of COVERS) {
+    const r = el.getBoundingClientRect();
+    if (r.bottom <= 0 || r.top >= H) continue;
+    spans.push([Math.max(0, r.top), Math.min(H, r.bottom)]);
+  }
+  spans.sort((a, b) => a[0] - b[0]);
+  let y = 0;
+  for (const [a, b] of spans) {
+    if (a > y + 1) return false;
+    y = Math.max(y, b);
+    if (y >= H - 1) return true;
+  }
+  return false;
+}
+const perf = { t: 0, n: 0, fast: 0 };
+function applyPixelRatio() {
+  renderer.setPixelRatio(pixelRatio);
+  composer.setPixelRatio(pixelRatio);
+}
+function adaptiveQuality(dt, drawn) {
+  if (!drawn || rendering || dt > 0.5 || Q.has('fixedpr')) { perf.t = perf.n = 0; return; }
+  perf.t += dt;
+  perf.n++;
+  if (perf.t < 1.5) return;
+  const fps = perf.n / perf.t;
+  perf.t = perf.n = 0;
+  if (fps < 40 && pixelRatio > PR_MIN + 0.01) {
+    pixelRatio = Math.max(PR_MIN, pixelRatio - 0.15);
+    perf.fast = 0;
+    applyPixelRatio();
+  } else if (fps > 56 && pixelRatio < PR_MAX - 0.01) {
+    if (++perf.fast >= 3) { pixelRatio = Math.min(PR_MAX, pixelRatio + 0.1); perf.fast = 0; applyPixelRatio(); }
+  } else perf.fast = 0;
+}
+
+/* =========================================================
    Əsas dövr
    ========================================================= */
 const timer = new THREE.Timer();
@@ -1504,9 +1569,12 @@ function frame(now) {
     if (ad) ad.overlay.material.opacity = 0.22 + Math.sin(t * 3) * 0.1;
   }
 
+  let drawn = true;
   if (rendering) { if (!renderTick()) renderer.render(scene, camera); }
+  else if (sceneHidden()) drawn = false; // 3D ekranda görünmür (video və ya dolu bölmə üstündədir) — GPU-nu yorma
   else if (Q.has('nopp')) renderer.render(scene, camera);
   else composer.render(dt);
+  adaptiveQuality(rawDt, drawn);
   requestAnimationFrame(frame);
 }
 
@@ -1604,4 +1672,4 @@ setTimeout(() => {
 }, 1200);
 
 // Test və sazlama üçün
-window.__nova = { studio, guard, PATH, posCurve, tgtCurve, BUILDING_VIEW, get camTween() { return camTween; }, get rendering() { return rendering; }, startRender, stopRender, setSunMode, setSunDay, sunSim, applySun, controls, scene, renderer, scrollCtl, state, enterExplore, selectFloor, openApt, startTour, exitTour, backToBuilding, exitExplore, tour, camera, APARTMENTS };
+window.__nova = { get pixelRatio() { return pixelRatio; }, sceneHidden, studio, guard, PATH, posCurve, tgtCurve, BUILDING_VIEW, get camTween() { return camTween; }, get rendering() { return rendering; }, startRender, stopRender, setSunMode, setSunDay, sunSim, applySun, controls, scene, renderer, scrollCtl, state, enterExplore, selectFloor, openApt, startTour, exitTour, backToBuilding, exitExplore, tour, camera, APARTMENTS };
