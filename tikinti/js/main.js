@@ -959,7 +959,7 @@ function startTourFor(ad) {
     });
     if (envInterior) { scene.environment = envInterior; scene.environmentIntensity = 0.3; }
     renderer.toneMappingExposure = 0.72;
-    setBloom(3.2, 0.08);
+    setBloom(99, 0); // gündüz turda parıltı yoxdur — pəncərə kənarlarını ağ dumanla örtürdü
     aimSun(new THREE.Vector3((ad.bounds.x0 + ad.bounds.x1) / 2, ad.baseY, (ad.bounds.z0 + ad.bounds.z1) / 2), 14);
     tourHud.hidden = false;
     setupTourHud(ad);
@@ -1168,8 +1168,7 @@ function applySun() {
   }
   const duskK = Math.exp(-Math.pow((altDeg + 2.5) / 3.2, 2));
   hemi.intensity = 0.25 + 0.12 * smooth(-10, 20, altDeg) + night * 0.35 + duskK * 0.35;
-  if (state.mode === 'tour' && night < 0.3) setBloom(3.2, 0.08);
-  else setBloom(THREE.MathUtils.lerp(6, 0.95, night), 0.08 + night * 0.2);
+  setBloom(THREE.MathUtils.lerp(6, 0.95, night), 0.08 + night * 0.2);
   hemi.color.set(duskK > 0.4 ? 0x9a93c0 : night > 0.5 ? 0x5d7098 : 0xcfe0f5);
   windowMaterial().userData.uniforms.uNight.value = night;
   skyNight.value = night;
@@ -1255,7 +1254,7 @@ function setSunMode(on) {
     sunLight.color.set(0xfff1dc);
     hemi.intensity = 0.25;
     hemi.color.set(0xcfe0f5);
-    setBloom(state.mode === 'tour' ? 3.2 : 99, 0.08);
+    setBloom(99, 0);
     windowMaterial().userData.uniforms.uNight.value = 0;
     skyNight.value = 0;
     skyDusk.value = 0;
