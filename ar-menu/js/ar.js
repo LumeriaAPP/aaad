@@ -168,8 +168,60 @@ export async function startAR(dishes, startIndex, ui) {
     for (let y = 0; y < sh; y++) out.data.set(pix.subarray((sh - 1 - y) * row, (sh - y) * row), y * row);
     return out;
   }
+  /* ---------- əl okklüziyası: barmaq 3D menyunun QARŞISINDA görünsün ----------
+     Əlin 21 nöqtəsindən ekranda görünməz siluet qurulur (rəng yazmır, yalnız dərinlik) və kameradan
+     18 sm məsafədə çəkilir — arxasındakı menyu və yemək həmin yerdə çəkilmir, real barmaq görünür. */
+  const BONES = [[0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8], [9, 10], [10, 11], [11, 12], [13, 14], [14, 15], [15, 16], [0, 17], [17, 18], [18, 19], [19, 20], [5, 9], [9, 13], [13, 17]];
+  const PALM = [0, 1, 5, 9, 13, 17];
+  const maskGeo = new THREE.BufferGeometry();
+  maskGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * 3000), 3));
+  const handMask = new THREE.Mesh(maskGeo, new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: true, side: THREE.DoubleSide }));
+  handMask.renderOrder = -10;
+  handMask.frustumCulled = false;
+  handMask.visible = false;
+  scene.add(handMask);
+  let lastHand = null, lastHandAt = 0;
+  const _p = new THREE.Vector3(), _cp = new THREE.Vector3();
+  function buildMask(cam) {
+    const h = lastHand;
+    if (!h || performance.now() - lastHandAt > 350) { handMask.visible = false; return; }
+    const arr = maskGeo.attributes.position.array;
+    let n = 0;
+    _cp.setFromMatrixPosition(cam.matrixWorld);
+    const toWorld = (sx, sy) => { // ekran (0..1) → kameradan 18 sm-lik müstəvidə dünya nöqtəsi
+      _p.set(sx * 2 - 1, -(sy * 2 - 1), 0.5).unproject(cam).sub(_cp).normalize().multiplyScalar(0.18).add(_cp);
+      return [_p.x, _p.y, _p.z];
+    };
+    const tri = (a, b, c) => { if (n + 9 > arr.length) return; arr.set(a, n); arr.set(b, n + 3); arr.set(c, n + 6); n += 9; };
+    const asp = innerWidth / innerHeight;
+    const r = h.handSize * 0.19; // barmaq qalınlığının yarısı (ekran hündürlüyünə nisbətən)
+    const lm = h.lm;
+    for (const [i, j] of BONES) {
+      const a = lm[i], b = lm[j];
+      let dx = (b.x - a.x) * asp, dy = b.y - a.y;
+      const L = Math.hypot(dx, dy) || 1e-4; dx /= L; dy /= L;
+      const nx = (-dy * r) / asp, ny = dx * r; // perpendikulyar (ekran vahidlərində)
+      const w = j === 4 || j === 8 || j === 12 || j === 16 || j === 20 ? 0.85 : 1;
+      const A1 = toWorld(a.x + nx, a.y + ny), A2 = toWorld(a.x - nx, a.y - ny), B1 = toWorld(b.x + nx * w, b.y + ny * w), B2 = toWorld(b.x - nx * w, b.y - ny * w);
+      tri(A1, A2, B1); tri(A2, B2, B1);
+    }
+    // oynaqlar və barmaq ucları: dairələr
+    for (let k = 0; k < 21; k++) {
+      const c = lm[k], C = toWorld(c.x, c.y), rr = [4, 8, 12, 16, 20].includes(k) ? r * 0.95 : r;
+      let prev = toWorld(c.x + rr / asp, c.y);
+      for (let s2 = 1; s2 <= 10; s2++) { const t = (s2 / 10) * Math.PI * 2, P = toWorld(c.x + (Math.cos(t) * rr) / asp, c.y + Math.sin(t) * rr); tri(C, prev, P); prev = P; }
+    }
+    // ovuc
+    const P0 = toWorld(lm[PALM[0]].x, lm[PALM[0]].y);
+    for (let k = 1; k < PALM.length - 1; k++) tri(P0, toWorld(lm[PALM[k]].x, lm[PALM[k]].y), toWorld(lm[PALM[k + 1]].x, lm[PALM[k + 1]].y));
+    maskGeo.setDrawRange(0, n / 3);
+    maskGeo.attributes.position.needsUpdate = true;
+    handMask.visible = true;
+  }
+
   const ndc = new THREE.Vector2();
   function onHand(res, xrCam) {
+    if (res) { lastHand = res; lastHandAt = performance.now(); }
     const now = performance.now();
     const cur = finger.cursor;
     if (!res) {
@@ -296,10 +348,12 @@ export async function startAR(dishes, startIndex, ui) {
     // yeni yemək yumşaq "peyda olur"
     menu.update(renderer.xr.getCamera(), holder, dishSize, t / 1000);
     if (popT < 1) { popT = Math.min(1, popT + 1 / 18); const k = 1 - Math.pow(1 - popT, 3); dishSlot.scale.setScalar(0.6 + 0.4 * k); dishSlot.position.y = (1 - k) * 0.04; }
+    const xc = renderer.xr.getCamera();
+    buildMask(xc.cameras && xc.cameras[0] ? xc.cameras[0] : xc);
     renderer.render(scene, camera);
     // kadr çəkildikdən sonra (kadrı pozmasın)
-    // barmaq: hər 4-cü kadrda kamera görüntüsünü götür, əl tanımanı kadrdan kənarda işlət
-    if (finger.ready && menu.group.visible && !finger.busy && ++finger.frame % 4 === 0) {
+    // barmaq: hər 2-ci kadrda kamera görüntüsünü götür, əl tanımanı kadrdan kənarda işlət
+    if (finger.ready && menu.group.visible && !finger.busy && ++finger.frame % 2 === 0) {
       const vp = frame.getViewerPose(ref);
       const img = vp && vp.views[0] ? grabCamera(vp.views[0]) : null;
       if (img) {

@@ -32,5 +32,5 @@ export function detectHand(image) {
   // əlin ölçüsünə nisbətən məsafə (yaxın/uzaq əl üçün eyni hiss olsun)
   const handSize = Math.hypot((mid.x - wrist.x) * aspect, mid.y - wrist.y) || 0.1;
   const pinch = Math.hypot((tip.x - thumb.x) * aspect, tip.y - thumb.y) / handSize < 0.32;
-  return { x: tip.x, y: tip.y, pinch };
+  return { x: tip.x, y: tip.y, pinch, lm, handSize, aspect };
 }
