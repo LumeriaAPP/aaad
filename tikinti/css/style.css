@@ -1307,3 +1307,5 @@ html.js-intro .hero__stats > div { opacity: 0; transform: translateY(18px); }
   .hero__stats > div { -webkit-backdrop-filter: none; backdrop-filter: none; }
   html.js-intro .hero__title .ch, html.js-intro .hero__lead .w { filter: none; }
 }
+.mp-marker--new { background: #3b8c80; }
+.mp-note { font-size: 0.82rem; color: var(--muted); margin: -2px 0 8px; line-height: 1.45; }

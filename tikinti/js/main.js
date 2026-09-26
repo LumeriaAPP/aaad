@@ -24,6 +24,7 @@ import { windowMaterial, NEIGHBORS } from './complex.js';
 import { bakuUniforms } from './baku.js';
 import { buildPTScene, skyEquirect } from './ptscene.js';
 import { CamGuard } from './camguard.js';
+import { listBuildings, buildCustom, heightOf } from './custom.js';
 import { loadDesign, isCustom, DEFAULT_FABRIC } from './design.js';
 import { initStudio } from './studio.js';
 
@@ -278,6 +279,8 @@ scene.add(buildSurroundings());
 // kamera binaların içinə girməsin; 3D seçimdə önü kəsən qonşu binalar enir
 const guard = new CamGuard();
 guard.collect(scene);
+let traffic = null;
+scene.traverse((o) => { if (o.userData.traffic) traffic = o.userData.traffic; });
 let streetTrees = null;
 const treesReady = buildTrees((trees) => { scene.add(trees); trees.traverse((o) => { if (o.userData.streetTrees) streetTrees = o; }); }, [[40, 150], [30, 120], [-62, 74], [-78, -40], [96, -30], [34, 58], [22, 44], [34, 110], [30, 82]]).catch((e) => console.warn('Ağaclar yüklənmədi', e));
 
@@ -1357,20 +1360,21 @@ const MP = [
 const mpSection = $('#masterplan');
 const mpMarkers = $('#mpMarkers');
 const mpCard = $('#mpCard');
-MP.forEach((b) => {
+function addMarker(b) {
   const el = document.createElement('button');
-  el.className = 'mp-marker' + (b.main ? ' mp-marker--main' : '');
+  el.className = 'mp-marker' + (b.main ? ' mp-marker--main' : '') + (b.custom ? ' mp-marker--new' : '');
   el.textContent = b.id;
-  el.setAttribute('aria-label', `Korpus ${b.id}`);
+  el.setAttribute('aria-label', b.name || `Korpus ${b.id}`);
   el.addEventListener('click', (e) => { e.stopPropagation(); openMpCard(b); });
   mpMarkers.appendChild(el);
   b.el = el;
-});
+}
+MP.forEach(addMarker);
 let mpOpen = null;
 function openMpCard(b) {
   mpOpen = b;
   MP.forEach((x) => x.el.classList.toggle('is-on', x === b));
-  mpCard.innerHTML = `<h4>Korpus ${b.id}${b.main ? ' · Nova Residence' : ''}</h4>
+  mpCard.innerHTML = `<h4>${b.name ? b.name : `Korpus ${b.id}`}${b.main ? ' · Nova Residence' : ''}</h4>${b.note ? `<p class="mp-note">${b.note}</p>` : ''}
     <dl><dt>Mərtəbə</dt><dd>${b.floors}</dd><dt>Mənzil</dt><dd>${b.apts}</dd><dt>Vəziyyət</dt><dd>${b.status}</dd></dl>
     ${b.main ? '<button class="btn btn--gold" data-action="explore">3D-də mənzil seç</button>' : '<button class="btn btn--ghost" data-mp-close>Bağla</button>'}`;
   mpCard.hidden = false;
@@ -1610,6 +1614,8 @@ function frame(now) {
   if (!waterTex) { waterTex = []; scene.traverse((o) => { if (o.userData.water) waterTex.push(o.userData.water); }); if (!waterTex.length) waterTex = null; }
   if (waterTex) for (const w of waterTex) { w.offset.x = t * 0.012; w.offset.y = t * 0.008; }
   bakuUniforms.uTime.value = t;
+  // yollarda maşınlar (turda və foto-renderdə dayanır — görünmür/lazım deyil)
+  if (traffic && !rendering && state.mode !== 'tour' && !Q.has('notraffic')) traffic.update(Math.min(rawDt, 0.1));
 
   if (streetTrees) streetTrees.visible = state.mode === 'landing' || state.mode === 'building';
   if (rendering) { /* kamera render zamanı sabit qalır */ }
@@ -1730,6 +1736,23 @@ if (!Q.has('nosnap')) {
   });
 }
 
+// Admin panelindən əlavə olunan binalar (bu brauzerdə saxlanılır)
+const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const customReady = listBuildings().then(async (list) => {
+  let n = MP.length;
+  for (const rec of list) {
+    try {
+      const g = await buildCustom(rec);
+      scene.add(g);
+      const r = THREE.MathUtils.degToRad(rec.rot || 0);
+      guard.city.push({ x: rec.x, z: rec.z, rot: r, hw: rec.w / 2 + 1.5, hd: rec.d / 2 + 1.5, h: heightOf(rec) + 4, kind: 'city' });
+      const b = { id: ++n, name: esc(rec.name), note: esc(rec.note), custom: true, pos: new THREE.Vector3(rec.x, heightOf(rec) + 6, rec.z), floors: rec.floors + 2, apts: rec.apts || rec.floors * 6, status: esc(rec.status) };
+      MP.push(b);
+      addMarker(b);
+    } catch (e) { console.warn('Əlavə bina qurulmadı', rec.name, e); }
+  }
+});
+
 // Mebel modelləri, video, şriftlər — hamısı yükləmə ekranı arxasında
 const mp = [0, 0];
 const modelsReady = Promise.all([
@@ -1751,7 +1774,7 @@ const videoReady = new Promise((res) => {
 });
 const mediaReady = Promise.all([videoReady, photosReady]).then(() => T_MEDIA.done());
 // Hamısı gəldikdən sonra şeyderləri əvvəlcədən hazırla (ilk kadrda donma olmasın)
-Promise.all([envPromise, treesReady, modelsReady, mediaReady, fontsReady]).then(async () => {
+Promise.all([envPromise, treesReady, modelsReady, mediaReady, fontsReady, customReady]).then(async () => {
   T_WARM.progress(0.3);
   try { if (renderer.compileAsync) await renderer.compileAsync(scene, camera); } catch (e) { /* köhnə brauzer */ }
   T_WARM.progress(0.8);

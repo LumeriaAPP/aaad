@@ -567,9 +567,11 @@ export function buildCity(GY = -0.4) {
   const palette = [0xf2f2f2, 0x1b1d20, 0x8c9096, 0x2d4a6b, 0x6e1f22, 0xc7c9cc, 0x3b3f44, 0xe0d8c8];
   const col = new THREE.Color();
   const _o = new THREE.Object3D();
-  const addCar = (px, pz, ry) => {
+  const cars = []; // hərəkət üçün: yol oxu, zolaq, yer, istiqamət, sürət
+  const addCar = (px, pz, ry, info) => {
     if (body.count >= N) return;
     const idx = body.count;
+    if (info) cars.push({ ...info, idx });
     _o.position.set(px, GY + 0.25, pz);
     _o.rotation.set(0, ry, 0);
     _o.updateMatrix();
@@ -593,19 +595,53 @@ export function buildCity(GY = -0.4) {
     for (let z = -E + 10; z < E - 10; z += 9 + rand() * 30) {
       if (isNear(z, zs)) continue;
       const lane = rand() < 0.5 ? -1 : 1;
-      addCar(x + lane * 3.4, z, lane > 0 ? 0 : Math.PI);
+      addCar(x + lane * 3.4, z, lane > 0 ? 0 : Math.PI, { along: 'z', c: x + lane * 3.4, p: z, dir: lane, road: x, lane });
     }
   }
   for (const z of zs) {
     for (let x = -E + 10; x < E - 10; x += 9 + rand() * 30) {
       if (isNear(x, xs)) continue;
       const lane = rand() < 0.5 ? -1 : 1;
-      addCar(x, z + lane * 3.4, lane > 0 ? -Math.PI / 2 : Math.PI / 2);
+      addCar(x, z + lane * 3.4, lane > 0 ? -Math.PI / 2 : Math.PI / 2, { along: 'x', c: z + lane * 3.4, p: x, dir: -lane, road: z, lane });
     }
   }
   for (const m of [body, cab, wheels, heads, tails]) m.instanceMatrix.needsUpdate = true;
   body.instanceColor.needsUpdate = true;
   g.add(body, cab, wheels, heads, tails);
+
+  // Trafik: hər zolaqda maşınlar eyni sürətlə gedir (bir-birini keçmir), yolun sonunda o biri başa keçir.
+  // Kəsişmələrin yaxınında bir az yavaşlayırlar.
+  const laneSpeed = new Map();
+  for (const c of cars) {
+    const k = c.along + c.road + ':' + c.lane;
+    if (!laneSpeed.has(k)) laneSpeed.set(k, 8 + rand() * 5); // 30–47 km/saat
+    c.speed = laneSpeed.get(k);
+  }
+  const cross = (c) => (c.along === 'z' ? zs : xs);
+  const wm = new THREE.Matrix4(), part = new THREE.Matrix4();
+  const carOff = { wf: new THREE.Matrix4().makeTranslation(0, 0.34, 1.35), wb: new THREE.Matrix4().makeTranslation(0, 0.34, -1.35), h: new THREE.Matrix4().makeTranslation(0, 0.72, 2.21), t: new THREE.Matrix4().makeTranslation(0, 0.8, -2.21) };
+  const lo = -E + 10, span = E * 2 - 20;
+  g.userData.traffic = {
+    update(dt) {
+      for (const c of cars) {
+        let v = c.speed;
+        for (const q of cross(c)) { const d = Math.abs(c.p - q); if (d < 22) v *= 0.55 + 0.45 * (d / 22); }
+        c.p += c.dir * v * dt;
+        if (c.p > lo + span) c.p -= span; else if (c.p < lo) c.p += span;
+        if (c.along === 'z') { _o.position.set(c.c, GY + 0.25, c.p); _o.rotation.set(0, c.dir > 0 ? 0 : Math.PI, 0); }
+        else { _o.position.set(c.p, GY + 0.25, c.c); _o.rotation.set(0, c.dir > 0 ? Math.PI / 2 : -Math.PI / 2, 0); }
+        _o.updateMatrix();
+        wm.copy(_o.matrix);
+        body.setMatrixAt(c.idx, wm);
+        cab.setMatrixAt(c.idx, wm);
+        wheels.setMatrixAt(c.idx * 2, part.multiplyMatrices(wm, carOff.wb));
+        wheels.setMatrixAt(c.idx * 2 + 1, part.multiplyMatrices(wm, carOff.wf));
+        heads.setMatrixAt(c.idx, part.multiplyMatrices(wm, carOff.h));
+        tails.setMatrixAt(c.idx, part.multiplyMatrices(wm, carOff.t));
+      }
+      for (const m of [body, cab, wheels, heads, tails]) m.instanceMatrix.needsUpdate = true;
+    },
+  };
 
   // küçə fənərləri + yerə düşən işıq ləkəsi
   const poleMat = new THREE.MeshStandardMaterial({ color: 0x2a2c30, metalness: 0.6, roughness: 0.4 });

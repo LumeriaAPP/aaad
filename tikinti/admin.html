@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Admin panel — Nova Tikinti</title>
+  <meta name="theme-color" content="#0b0c10">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%230b0c10%22/%3E%3Ctext x=%2216%22 y=%2223%22 font-size=%2220%22 text-anchor=%22middle%22 fill=%22%237cc3b6%22 font-family=%22Georgia%22%3EN%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/fonts.css">
+  <link rel="stylesheet" href="css/admin.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/three.module.js",
+        "three/addons/": "./vendor/three/addons/",
+        "three/examples/jsm/": "./vendor/three/addons/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- Giriş -->
+  <section class="login" id="login">
+    <form class="login__card" id="loginForm" autocomplete="on">
+      <div class="login__mark">N</div>
+      <h1>Admin panel</h1>
+      <p>Nova Tikinti · layihələrin idarə edilməsi</p>
+      <label>İstifadəçi adı<input name="user" autocomplete="username" required></label>
+      <label>Şifrə<input name="pass" type="password" autocomplete="current-password" required></label>
+      <button class="a-btn a-btn--primary" type="submit">Daxil ol</button>
+      <p class="login__err" id="loginErr" hidden>İstifadəçi adı və ya şifrə yanlışdır</p>
+    </form>
+  </section>
+
+  <!-- Panel -->
+  <div class="app" id="app" hidden>
+    <header class="top">
+      <div class="top__brand"><span class="mark">N</span><b>Nova</b><em>Admin</em></div>
+      <div class="top__actions">
+        <a class="a-btn" href="./" target="_blank" rel="noopener">Sayta bax ↗</a>
+        <button class="a-btn" id="logout">Çıxış</button>
+      </div>
+    </header>
+
+    <aside class="side">
+      <div class="side__head">
+        <h2>Binalar</h2>
+        <button class="a-btn a-btn--primary" id="addBtn">+ Yeni bina</button>
+      </div>
+      <ul class="blist" id="blist"></ul>
+
+      <form class="editor" id="editor" hidden>
+        <h3 id="edTitle">Yeni bina</h3>
+        <label>Adı<input name="name" required maxlength="60" placeholder="məs. Korpus 9 — Sea View"></label>
+        <div class="row">
+          <label>Vəziyyət<select name="status"></select></label>
+          <label>Mənzil sayı<input name="apts" type="number" min="0" max="2000" value="60"></label>
+        </div>
+        <fieldset class="kind">
+          <legend>Bina növü</legend>
+          <label><input type="radio" name="kind" value="block" checked> Avtomatik fasad (blok)</label>
+          <label><input type="radio" name="kind" value="model"> Öz 3D modelim (.glb)</label>
+        </fieldset>
+        <label class="file" data-for="model">3D model (.glb / .gltf tək fayl)
+          <input name="modelFile" type="file" accept=".glb,.gltf,model/gltf-binary">
+          <small id="modelInfo">Blender, 3ds Max, SketchUp-dan GLB kimi eksport edin</small>
+        </label>
+        <label class="check" data-for="model"><input type="checkbox" name="fitHeight"> Modeli mərtəbə sayına görə hündürlüyə uyğunlaşdır</label>
+        <label class="file">Çertyoj / baş plan şəkli (istəyə görə)
+          <input name="planFile" type="file" accept="image/png,image/jpeg,image/webp">
+          <small id="planInfo">Binanın altında yerə sərilir</small>
+          <img id="planPreview" alt="" hidden>
+        </label>
+        <div class="row row--3">
+          <label>Mərtəbə<input name="floors" type="number" min="1" max="60" value="12"></label>
+          <label>En (m)<input name="w" type="number" min="8" max="120" step="any" value="26"></label>
+          <label>Dərinlik (m)<input name="d" type="number" min="8" max="120" step="any" value="20"></label>
+        </div>
+        <label>Fırlanma: <b id="rotVal">0°</b><input name="rot" type="range" min="-180" max="180" step="5" value="0"></label>
+        <div class="row">
+          <label>X (m)<input name="x" type="number" step="any" value="0"></label>
+          <label>Z (m)<input name="z" type="number" step="any" value="0"></label>
+        </div>
+        <p class="hint" id="placeHint">Xəritədə yerə klikləyin — bina ora qoyulur. Binanı siçanla sürüşdürə bilərsiniz.</p>
+        <p class="warn" id="clashWarn" hidden>⚠ Bu yer başqa binanın üstünə düşür</p>
+        <label>Qeyd (saytda kartda görünür)<textarea name="note" rows="2" maxlength="200" placeholder="məs. 2028 təhvil, dənizə baxan mənzillər"></textarea></label>
+        <div class="editor__actions">
+          <button class="a-btn a-btn--primary" type="submit">Yadda saxla</button>
+          <button class="a-btn" type="button" id="cancelBtn">Ləğv et</button>
+          <button class="a-btn a-btn--danger" type="button" id="delBtn" hidden>Sil</button>
+        </div>
+      </form>
+      <p class="side__note">Test rejimi: məlumatlar bu brauzerdə saxlanılır və saytı eyni brauzerdə açanda görünür.</p>
+    </aside>
+
+    <main class="stage">
+      <canvas id="view"></canvas>
+      <div class="stage__tools">
+        <button class="a-btn is-on" data-view="top">Yuxarıdan</button>
+        <button class="a-btn" data-view="persp">Perspektiv</button>
+      </div>
+      <div class="stage__legend"><i class="l1"></i>Nova Residence <i class="l2"></i>Mövcud binalar <i class="l3"></i>Əlavə etdikləriniz</div>
+      <div class="stage__loading" id="stageLoading">3D xəritə yüklənir…</div>
+      <div class="toast" id="toast" hidden></div>
+    </main>
+  </div>
+
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>
