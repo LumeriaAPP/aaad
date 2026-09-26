@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>3D yemək generatoru</title>
-  <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js", "three/addons/": "./lib/three/addons/" } }</script>
+  <script type="importmap">{ "imports": { "three": "../vendor/three/three.module.js", "three/addons/": "../vendor/three/addons/" } }</script>
   <style>body{margin:0;background:#111;color:#eee;font:14px system-ui} canvas{display:block}</style>
 </head>
 <body>
@@ -13,11 +13,12 @@
     // Nəticə window.__out-da: { ad: { glb: base64, poster: dataURL } } — tools/README.md-ə baxın.
     import * as THREE from 'three';
     import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+    import { USDZExporter } from 'three/addons/exporters/USDZExporter.js';
     import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
     import { DISHES } from './dishes.js';
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true });
-    renderer.setSize(640, 640);
+    renderer.setSize(800, 800);
     renderer.setPixelRatio(1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
@@ -26,13 +27,17 @@
     const pmrem = new THREE.PMREMGenerator(renderer);
     const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     const out = {};
+    function toB64(buf) { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); }
     const exporter = new GLTFExporter();
     for (const [name, make] of Object.entries(DISHES)) {
       const dish = make();
       dish.name = name;
       // GLB
-      const glb = await exporter.parseAsync(dish, { binary: true, maxTextureSize: 512 });
-      const b64 = btoa(Array.from(new Uint8Array(glb), (c) => String.fromCharCode(c)).join(''));
+      const glb = await exporter.parseAsync(dish, { binary: true, maxTextureSize: 1024 });
+      const b64 = toB64(glb);
+      // iPhone (Quick Look) üçün USDZ
+      const usdz = await new USDZExporter().parseAsync(dish, { quickLookCompatible: true, maxTextureSize: 1024 });
+      const u64 = toB64(usdz);
       // poster
       const scene = new THREE.Scene();
       scene.environment = env;
@@ -54,7 +59,7 @@
       cam.lookAt(c);
       renderer.setClearColor(0x000000, 0);
       renderer.render(scene, cam);
-      out[name] = { glb: b64, poster: renderer.domElement.toDataURL('image/webp', 0.86), size: [box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z] };
+      out[name] = { glb: b64, usdz: u64, poster: renderer.domElement.toDataURL('image/webp', 0.86), size: [box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z] };
       document.getElementById('s').textContent = 'Hazır: ' + Object.keys(out).join(', ');
     }
     window.__out = out;

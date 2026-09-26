@@ -3,8 +3,10 @@
 Restoran üçün veb menyu: müştəri masadakı QR kodu skan edir, yeməyə toxunur və **“Masada gör”** ilə
 telefonun kamerasında yeməyi **real ölçüdə masanın üstündə** görür (artırılmış reallıq). Tətbiq yükləmək lazım deyil.
 
-- **Android:** Google Scene Viewer / WebXR (ARCore dəstəkli telefonlar)
-- **iPhone:** Apple Quick Look (iOS 12+). USDZ faylı avtomatik yaradılır.
+- **Android (Chrome, ARCore):** öz kamera rejimimiz (WebXR) — yemək **yalnız masanın üstünə** qoyulur
+  (döşəmədən 40–125 sm hündürlükdəki səthlər), aşağıdakı menyunu sağa-sola sürüşdürdükcə masadakı yemək dəyişir,
+  barmaqla fırlanır, real işıq (light estimation) və kölgə.
+- **iPhone:** Apple Quick Look (`models/*.usdz`), banner düyməsi ilə növbəti yeməyə keçid.
 - **Kompüter:** 3D model fırladılır, telefonla açmaq üçün QR kod göstərilir.
 
 ## Fayllar
@@ -12,7 +14,8 @@ telefonun kamerasında yeməyi **real ölçüdə masanın üstündə** görür (
 - `js/menu.js` — **restoranın adı, kateqoriyalar, yeməklər, qiymətlər** (buranı dəyişin)
 - `models/<id>.glb` — yeməyin 3D modeli (metr ilə real ölçüdə), `img/<id>.webp` — menyu şəkli
 - `qr.html` — masalar üçün çap olunan QR kartları (`?masa=N`)
-- `tools/` — nümunə yeməklərin generatoru (`tools/build.html`), yalnız inkişaf üçün
+- `js/ar.js` — kamera rejimi (WebXR, masa aşkarlanması)
+- `tools/` — nümunə yeməklərin generatoru (`tools/build.html` → GLB + USDZ + şəkil), yalnız inkişaf üçün
 
 ## Real yeməklər
 Nümunə modellər kodla qurulub. Real restoran üçün hər yeməyin 3D skanı lazımdır:
