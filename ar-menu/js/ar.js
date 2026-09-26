@@ -42,13 +42,17 @@ export async function startAR(dishes, startIndex, ui) {
   sun.shadow.radius = 4;
   scene.add(sun, sun.target);
   const xrLight = new XREstimatedLight(renderer);
+  let estimated = false;
   xrLight.addEventListener('estimationstart', () => {
+    if (estimated) return;
+    estimated = true;
     scene.add(xrLight);
     scene.remove(hemi);
     if (xrLight.environment) scene.environment = xrLight.environment;
     sun.intensity = 0.8; // kölgə üçün saxlanılır, əsas işıq real işıqdır
   });
-  xrLight.addEventListener('estimationend', () => { scene.remove(xrLight); scene.add(hemi); scene.environment = null; sun.intensity = 1.6; });
+  // qeyd: 'estimationend' ilə işığı geri dəyişmirik — bəzi telefonlarda bu hadisə tez-tez gəlir
+  // və işığın/mühitin dəyişməsi hər şeyin yanıb-sönməsinə səbəb olur
 
   // yeməyin altında yumşaq kölgə (masaya "oturur")
   const holder = new THREE.Group();
@@ -111,7 +115,7 @@ export async function startAR(dishes, startIndex, ui) {
   // sessiya
   const session = await navigator.xr.requestSession('immersive-ar', {
     requiredFeatures: ['hit-test'],
-    optionalFeatures: ['dom-overlay', 'light-estimation', 'local-floor', 'camera-access'],
+    optionalFeatures: ['dom-overlay', 'light-estimation', 'local-floor', ...(new URLSearchParams(location.search).has('nofinger') ? [] : ['camera-access'])],
     domOverlay: { root: overlay },
   });
   let refType = 'local-floor';
@@ -122,7 +126,8 @@ export async function startAR(dishes, startIndex, ui) {
   /* ---------- barmaqla seçim (kamera görüntüsü + əl tanıma) ---------- */
   const gl = renderer.getContext();
   let glBinding = null;
-  try { if (window.XRWebGLBinding && (!session.enabledFeatures || session.enabledFeatures.includes('camera-access'))) glBinding = new XRWebGLBinding(session, gl); } catch (e) { glBinding = null; }
+  const noFinger = new URLSearchParams(location.search).has('nofinger');
+  try { if (!noFinger && window.XRWebGLBinding && (!session.enabledFeatures || session.enabledFeatures.includes('camera-access'))) glBinding = new XRWebGLBinding(session, gl); } catch (e) { glBinding = null; }
   const finger = { ready: false, busy: false, frame: 0, hover: -1, since: 0, cool: 0, wasPinch: false, cursor: ui.cursor, lost: 0 };
   if (glBinding) loadHandTracker().then(() => { finger.ready = true; ui.onFinger && ui.onFinger('ready'); }).catch((e) => { console.warn('Əl tanıma yüklənmədi', e); ui.onFinger && ui.onFinger('off'); });
   else ui.onFinger && ui.onFinger('off');
@@ -134,6 +139,8 @@ export async function startAR(dishes, startIndex, ui) {
     const tex = glBinding.getCameraImage(cam);
     if (!tex) return null;
     const w = cam.width, h = cam.height, sh = Math.round((SW * h) / w);
+    // three.js-in bağlamalarını pozmamaq üçün əvvəlki vəziyyəti yadda saxla və geri qaytar (resetState yox)
+    const prevRead = gl.getParameter(gl.READ_FRAMEBUFFER_BINDING), prevDraw = gl.getParameter(gl.DRAW_FRAMEBUFFER_BINDING), prevRb = gl.getParameter(gl.RENDERBUFFER_BINDING);
     if (!fbSrc) { fbSrc = gl.createFramebuffer(); fbDst = gl.createFramebuffer(); }
     if (dstH !== sh) {
       if (rb) gl.deleteRenderbuffer(rb);
@@ -153,7 +160,9 @@ export async function startAR(dishes, startIndex, ui) {
     gl.readPixels(0, 0, SW, sh, gl.RGBA, gl.UNSIGNED_BYTE, pix);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fbSrc);
     gl.framebufferTexture2D(gl.READ_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
-    renderer.resetState();
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, prevRead);
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, prevDraw);
+    gl.bindRenderbuffer(gl.RENDERBUFFER, prevRb);
     // WebGL sətirləri aşağıdan yuxarıdır — çevir
     const out = new ImageData(SW, sh), row = SW * 4;
     for (let y = 0; y < sh; y++) out.data.set(pix.subarray((sh - 1 - y) * row, (sh - y) * row), y * row);

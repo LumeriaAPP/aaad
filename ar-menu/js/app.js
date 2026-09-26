@@ -104,6 +104,7 @@ async function openAR(i) {
 async function startWebXR(i) {
   const ov = $('#arOverlay');
   const arRail = $('#arRail');
+  delete arRail.dataset.synced;
   arRail.innerHTML = list.map((d, k) => `<button class="ar-card" data-k="${k}"><img src="img/${d.id}.webp" alt=""><span>${esc(d.name)}</span></button>`).join('');
   ov.hidden = false;
   const HINT = {
@@ -130,7 +131,8 @@ async function startWebXR(i) {
       },
       onChange(k, state) {
         if (state !== lastState) { $('#arHint').textContent = HINT[state] || ''; lastState = state; }
-        if (k !== arIndex || state === 'ready') {
+        if (k !== arIndex || (state === 'ready' && !arRail.dataset.synced)) {
+          arRail.dataset.synced = '1';
           arIndex = k;
           const d = list[k];
           $('#arName').textContent = d.name;
@@ -148,17 +150,21 @@ async function startWebXR(i) {
     toast('Kamera açılmadı — icazə verin və yenidən cəhd edin');
     return;
   }
-  // aşağıdakı menyu: sürüşdürəndə ortadakı yemək masada göstərilir
-  let t = 0;
+  // aşağıdakı menyu: yalnız İSTİFADƏÇİ sürüşdürəndə ortadakı yemək seçilir
+  // (proqramın özü siyahını sürüşdürəndə seçim etmir — əks halda dövr yaranır və yemək dayanmadan dəyişir)
+  let t = 0, userScroll = false;
+  arRail.ontouchstart = () => { userScroll = true; };
+  arRail.onpointerdown = () => { userScroll = true; };
   arRail.onscroll = () => {
-    if (syncing) return;
+    if (syncing || !userScroll) return;
     clearTimeout(t);
     t = setTimeout(() => {
+      userScroll = false;
       const mid = arRail.scrollLeft + arRail.clientWidth / 2;
       let best = 0, bd = Infinity;
-      [...arRail.children].forEach((c, n) => { const d = Math.abs(c.offsetLeft + c.clientWidth / 2 - mid); if (d < bd) { bd = d; best = n; } });
+      [...arRail.children].forEach((c, n) => { const d = Math.abs(c.offsetLeft - arRail.offsetLeft + c.clientWidth / 2 - mid); if (d < bd) { bd = d; best = n; } });
       if (best !== arIndex && arApi) arApi.go(best);
-    }, 140);
+    }, 180);
   };
   arRail.onclick = (e) => { const c = e.target.closest('[data-k]'); if (c && arApi) arApi.go(+c.dataset.k); };
 }
