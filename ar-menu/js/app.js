@@ -144,6 +144,14 @@ async function startWebXR(i) {
       },
       onExit(k) { ov.hidden = true; arApi = null; hideStart(); goSlide(k); },
     });
+    // 5 saniyə masa tapılmasa — "Burada göstər"
+    const fb = $('#arHere');
+    fb.hidden = true;
+    const tick = setInterval(() => {
+      if (!arApi) { clearInterval(tick); fb.hidden = true; return; }
+      fb.hidden = !(arApi.searchingFor > 5000);
+    }, 500);
+    fb.onclick = () => { if (arApi) { arApi.placeHere(); fb.hidden = true; } };
   } catch (err) {
     ov.hidden = true;
     console.warn(err);

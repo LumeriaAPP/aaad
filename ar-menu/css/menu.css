@@ -185,3 +185,6 @@ img { display: block; max-width: 100%; }
   box-shadow: 0 0 18px rgba(232, 163, 61, 0.6); }
 .finger::after { content: ""; position: absolute; left: -5px; top: -5px; width: 10px; height: 10px; border-radius: 50%; background: #fff; box-shadow: 0 0 8px #e8a33d; }
 .finger-hint { position: absolute; left: 14px; right: 14px; top: calc(max(14px, env(safe-area-inset-top)) + 58px); padding: 10px 14px; border-radius: 12px; background: rgba(232, 163, 61, 0.92); color: #1d1206; font-weight: 600; font-size: 0.85rem; text-align: center; }
+.ar-here { position: absolute; left: 50%; bottom: calc(190px + env(safe-area-inset-bottom)); transform: translateX(-50%); padding: 13px 20px; border-radius: 999px; background: var(--acc); color: var(--acc-ink); font-weight: 700; font-size: 0.95rem; white-space: nowrap; box-shadow: 0 8px 26px rgba(0, 0, 0, 0.45); animation: arHereIn 0.35s ease-out; }
+.ar-here[hidden] { display: none; }
+@keyframes arHereIn { from { opacity: 0; transform: translate(-50%, 10px); } }

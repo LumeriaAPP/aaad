@@ -256,10 +256,32 @@ export async function startAR(dishes, startIndex, ui) {
       if (cur) cur.style.setProperty('--p', 0);
     }
   }
-  const hitSource = await session.requestHitTestSource({ space: viewerSpace });
+  // həm düz səthlər (plane), həm də ayrı nöqtələr (point) — hamar/naxışsız masalarda da tapılsın
+  let hitSource;
+  try { hitSource = await session.requestHitTestSource({ space: viewerSpace, entityTypes: ['plane', 'point'] }); }
+  catch (e) { hitSource = await session.requestHitTestSource({ space: viewerSpace }); }
+  const startedAt = performance.now();
   let lowest = Infinity; // döşəmə təxmini (local-floor olmayanda)
 
   let placed = false, onTable = false, lastHit = null;
+  const lastViewer = new THREE.Matrix4();
+  // masa tapılmasa: yeməyi telefonun 50 sm önünə, 40 sm aşağıya qoy
+  function placeHere() {
+    const p = new THREE.Vector3().setFromMatrixPosition(lastViewer);
+    const f = new THREE.Vector3(0, 0, -1).transformDirection(lastViewer);
+    f.y = 0;
+    if (f.lengthSq() < 1e-4) f.set(0, 0, -1);
+    f.normalize();
+    hitPos.copy(p).addScaledVector(f, 0.5);
+    hitPos.y = p.y - 0.4;
+    holder.position.copy(hitPos);
+    holder.rotation.set(0, Math.atan2(p.x - hitPos.x, p.z - hitPos.z), 0);
+    holder.visible = true;
+    sun.target.position.copy(hitPos);
+    sun.position.copy(hitPos).add(new THREE.Vector3(0.4, 1.2, 0.3));
+    if (!placed) { placed = true; popT = 0; }
+    ui.onChange(index, 'placed');
+  }
   const seen = { at: -1e9, table: false, pose: null, state: '', pending: null, pendingAt: 0 };
   const hitMat = new THREE.Matrix4(), hitPos = new THREE.Vector3(), hitQ = new THREE.Quaternion(), hitS = new THREE.Vector3();
 
@@ -318,18 +340,17 @@ export async function startAR(dishes, startIndex, ui) {
       if (pose) {
         hitMat.fromArray(pose.transform.matrix);
         hitMat.decompose(hitPos, hitQ, hitS);
-        const up = new THREE.Vector3(0, 1, 0).applyQuaternion(hitQ);
-        if (up.y > 0.9) { // yalnız üfüqi səthlər
+        {
+          // bütün tapılan səth/nöqtələr qəbul olunur; masa olub-olmadığı hündürlüyə görə təyin edilir
           lastHit = pose;
-          let h = null;
-          if (refType === 'local-floor') h = hitPos.y;
-          else {
-            // döşəmə bilinmir: ən aşağı görülən səth bu səthdən 35 sm-dən çox aşağıdadırsa, o döşəmədir
-            lowest = Math.min(lowest, hitPos.y);
-            if (hitPos.y - lowest > 0.35) h = hitPos.y - lowest;
-          }
-          // döşəmə hələ görünməyibsə: telefonun başlanğıc hündürlüyündən 15–95 sm aşağıdakı səth masadır
-          onTable = h != null ? h > TABLE_MIN && h < TABLE_MAX : hitPos.y < -0.15 && hitPos.y > -0.95;
+          // masa = telefondan 5–105 sm aşağıdakı səth (döşəmə adətən 110–160 sm aşağıdadır)
+          const vp = frame.getViewerPose(ref);
+          const camY = vp ? vp.transform.position.y : hitPos.y + 0.5;
+          const dh = camY - hitPos.y;
+          onTable = dh > 0.05 && dh < 1.05;
+          // yatay istiqamət: nöqtədə normal təsadüfi olur — halqa həmişə üfüqi dursun
+          hitQ.identity();
+          hitMat.compose(hitPos, hitQ, hitS.set(1, 1, 1));
           reticle.matrix.copy(hitMat);
           reticle.material.color.set(onTable ? 0x7ee0a1 : 0xff6b5b);
         }
@@ -350,6 +371,8 @@ export async function startAR(dishes, startIndex, ui) {
     if (popT < 1) { popT = Math.min(1, popT + 1 / 18); const k = 1 - Math.pow(1 - popT, 3); dishSlot.scale.setScalar(0.6 + 0.4 * k); dishSlot.position.y = (1 - k) * 0.04; }
     const xc = renderer.xr.getCamera();
     buildMask(xc.cameras && xc.cameras[0] ? xc.cameras[0] : xc);
+    const vpose = frame.getViewerPose(ref);
+    if (vpose) lastViewer.fromArray(vpose.transform.matrix);
     renderer.render(scene, camera);
     // kadr çəkildikdən sonra (kadrı pozmasın)
     // barmaq: hər 2-ci kadrda kamera görüntüsünü götür, əl tanımanı kadrdan kənarda işlət
@@ -380,6 +403,8 @@ export async function startAR(dishes, startIndex, ui) {
     next: () => show(index + 1),
     prev: () => show(index - 1),
     go: (i) => show(i),
+    placeHere,
+    get searchingFor() { return holder.visible ? 0 : performance.now() - startedAt; },
     end: () => session.end(),
   };
 }
