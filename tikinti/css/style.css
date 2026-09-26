@@ -104,7 +104,11 @@ body.exploring { overflow: hidden; }
 .loader__title { font-family: var(--serif); font-size: 1.69rem; letter-spacing: 0.08em; margin-top: 18px; }
 .loader__bar { width: 220px; height: 2px; background: var(--line); overflow: hidden; border-radius: 2px; }
 .loader__bar span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--gold-2), var(--gold)); transition: width 0.3s; }
-.loader__text { color: var(--muted); font-size: 0.85rem; }
+.loader__text { color: var(--muted); font-size: 0.85rem; min-height: 1.3em; }
+.loader__pct { font-family: var(--serif); font-size: 2rem; line-height: 1; color: var(--text); font-variant-numeric: lining-nums tabular-nums; margin-top: 4px; }
+.loader__bar { width: min(280px, 70vw); }
+.loader__mark { animation: loaderPulse 2.4s ease-in-out infinite; }
+@keyframes loaderPulse { 50% { box-shadow: 0 0 0 10px rgba(var(--gold-rgb), 0.08), 0 0 30px rgba(var(--gold-rgb), 0.25); } }
 
 /* ============ Düymələr ============ */
 .btn {

@@ -108,13 +108,49 @@ for (let i = 0; i < 4; i++) {
 /* =========================================================
    Yükləmə
    ========================================================= */
+// Yükləmə ekranı hər şey hazır olana qədər qalır: göy üzü, interyer işığı, ağaclar, 3D mebel,
+// video, şriftlər, şəkillər və şeyderlərin hazırlanması. Hər mərhələnin öz payı var.
 const manager = new THREE.LoadingManager();
 const loaderBar = $('#loaderBar');
-manager.onProgress = (_u, done, total) => { loaderBar.style.width = `${Math.round((done / total) * 100)}%`; };
+const loaderText = $('#loaderText');
+const loaderPct = $('#loaderPct');
+const LOAD = { tasks: [], shown: 0, done: false };
+function loadTask(label, weight) {
+  const t = { label, weight, p: 0, ok: false };
+  LOAD.tasks.push(t);
+  return {
+    progress(v) { t.p = Math.max(t.p, Math.min(1, v)); },
+    done() { t.p = 1; t.ok = true; },
+  };
+}
+function loadProgress() {
+  const tot = LOAD.tasks.reduce((a, t) => a + t.weight, 0) || 1;
+  return LOAD.tasks.reduce((a, t) => a + t.weight * t.p, 0) / tot;
+}
+(function loaderTick() {
+  if (LOAD.done) return;
+  const target = loadProgress();
+  LOAD.shown += (target - LOAD.shown) * 0.12;
+  if (target - LOAD.shown < 0.002) LOAD.shown = target;
+  loaderBar.style.width = `${(LOAD.shown * 100).toFixed(1)}%`;
+  if (loaderPct) loaderPct.textContent = `${Math.floor(LOAD.shown * 100)}%`;
+  const next = LOAD.tasks.find((t) => !t.ok);
+  if (next && loaderText) loaderText.textContent = next.label;
+  requestAnimationFrame(loaderTick);
+})();
+const T_SKY = loadTask('Göy üzü və işıq yüklənir…', 5);
+const T_INT = loadTask('İnteryer işığı hazırlanır…', 1);
+const T_TREES = loadTask('Ağaclar və həyət qurulur…', 2);
+const T_MODELS = loadTask('Mebel modelləri yüklənir…', 3);
+const T_MEDIA = loadTask('Video və şəkillər yüklənir…', 3);
+const T_FONTS = loadTask('Şriftlər yüklənir…', 0.5);
+const T_WARM = loadTask('3D səhnə hazırlanır…', 2);
+const bytes = (task) => (e) => { if (e && e.lengthComputable) task.progress(0.95 * e.loaded / e.total); };
 const pmrem = new THREE.PMREMGenerator(renderer);
 let envExterior = null, envInterior = null;
 
 new HDRLoader(manager).setDataType(THREE.FloatType).load('assets/hdri/aristea_wreck_puresky_2k.hdr', (tex) => {
+  T_SKY.done();
   tex.mapping = THREE.EquirectangularReflectionMapping;
   lightDir.copy(findSun(tex));
   hdrLightDir.copy(lightDir);
@@ -132,7 +168,7 @@ new HDRLoader(manager).setDataType(THREE.FloatType).load('assets/hdri/aristea_wr
   scene.backgroundIntensity = 1.0;
   // duman rəngini üfüqün rənginə uyğunlaşdır
   scene.fog.color.copy(horizonColor(tex));
-});
+}, bytes(T_SKY), () => T_SKY.done());
 function horizonColor(tex) {
   const { data, width, height } = tex.image;
   const row = Math.floor(height * 0.495);
@@ -148,7 +184,8 @@ function horizonColor(tex) {
 new EXRLoader(manager).load('assets/hdri/apartment.exr', (tex) => {
   envInterior = pmrem.fromEquirectangular(tex).texture;
   tex.dispose();
-}, undefined, (err) => console.warn('İnteryer işıq xəritəsi (apartment.exr) yüklənmədi — neytral otaq işığı istifadə olunacaq', err));
+  T_INT.done();
+}, bytes(T_INT), (err) => T_INT.done() || console.warn('İnteryer işıq xəritəsi (apartment.exr) yüklənmədi — neytral otaq işığı istifadə olunacaq', err));
 // İnteryer işığı: EXR yoxdursa neytral otaq mühiti (heç vaxt parlaq çöl göy üzü yox —
 // o, yuxarıya baxan səthləri, döşəmə və çarpayını ağardırdı)
 let envRoomFallback = null;
@@ -163,18 +200,25 @@ const TOUR_EXP = 0.95;
 const FLOOR_EXP = 0.78;
 let envReady;
 const envPromise = new Promise((r) => (envReady = r));
-manager.onLoad = () => {
-  envReady();
-  $('#loaderText').textContent = 'Hazırdır';
+manager.onLoad = () => envReady();
+function finishLoading() {
+  if (LOAD.done) return;
+  LOAD.tasks.forEach((t) => (t.p = 1));
+  loaderBar.style.width = '100%';
+  if (loaderPct) loaderPct.textContent = '100%';
+  if (loaderText) loaderText.textContent = 'Hazırdır';
+  LOAD.done = true;
   warmUntil = performance.now() + 2500;
   setTimeout(() => { $('#loader').classList.add('is-done'); setTimeout(playIntro, 450); }, 350);
-};
+}
+// ehtiyat: nəsə ilişib qalsa, 40 saniyədən sonra sayt yenə açılsın
+setTimeout(() => { if (!LOAD.done) { console.warn('Yükləmə gecikdi — sayt açılır', LOAD.tasks.filter((t) => !t.ok).map((t) => t.label)); finishLoading(); } }, 40000);
 
 // Modellər (divan, kreslo) — arxa planda yüklənir
 const models = {};
 const gltf = new GLTFLoader();
-function loadModel(name, url, width, turn = 0) {
-  gltf.load(url, (g) => {
+function loadModel(name, url, width, turn = 0, onProgress) {
+  return new Promise((resolve) => gltf.load(url, (g) => {
     const root = g.scene;
     // GLB faylında studiya işığı ("Key_Light") var — hər divan nüsxəsi səhnəyə əlavə bir günəş
     // qoşurdu (kölgəsiz, tavandan keçir) və döşəmələr ağarırdı. Modeldən bütün işıq və kameraları sil.
@@ -195,7 +239,8 @@ function loadModel(name, url, width, turn = 0) {
     wrap.add(root);
     models[name] = wrap;
     if (floorState) floorState.apts.forEach(applyModels);
-  });
+    resolve();
+  }, onProgress, (e) => { console.warn('Model yüklənmədi', url, e); resolve(); }));
 }
 // Dizayn studiyasında seçilmiş parça rəngi — yalnız məxmər (sheen) materiallar boyanır
 const tintCache = new Map();
@@ -1685,11 +1730,33 @@ if (!Q.has('nosnap')) {
   });
 }
 
-// Modelləri səhnə açıldıqdan sonra yüklə
-setTimeout(() => {
-  loadModel('sofa', 'assets/models/GlamVelvetSofa.glb', 2.2);
-  loadModel('armchair', 'assets/models/SheenChair.glb', 0.8);
-}, 1200);
+// Mebel modelləri, video, şriftlər — hamısı yükləmə ekranı arxasında
+const mp = [0, 0];
+const modelsReady = Promise.all([
+  loadModel('sofa', 'assets/models/GlamVelvetSofa.glb', 2.2, 0, (e) => { if (e.lengthComputable) { mp[0] = e.loaded / e.total; T_MODELS.progress(0.95 * (mp[0] * 0.8 + mp[1] * 0.2)); } }),
+  loadModel('armchair', 'assets/models/SheenChair.glb', 0.8, 0, (e) => { if (e.lengthComputable) { mp[1] = e.loaded / e.total; T_MODELS.progress(0.95 * (mp[0] * 0.8 + mp[1] * 0.2)); } }),
+]).then(() => T_MODELS.done());
+treesReady.then(() => T_TREES.done());
+const fontsReady = (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => T_FONTS.done());
+const videoReady = new Promise((res) => {
+  const v = heroVideo;
+  if (!v || v.readyState >= 3) return res();
+  const ok = () => res();
+  v.addEventListener('canplaythrough', ok, { once: true });
+  v.addEventListener('loadeddata', () => setTimeout(ok, 1500), { once: true });
+  v.addEventListener('error', ok, { once: true });
+  setTimeout(ok, 15000); // yavaş internetdə videonu gözləmə
+  const tick = () => { if (v.buffered.length && v.duration) T_MEDIA.progress(0.6 * v.buffered.end(0) / v.duration); if (v.readyState < 3) setTimeout(tick, 250); };
+  tick();
+});
+const mediaReady = Promise.all([videoReady, photosReady]).then(() => T_MEDIA.done());
+// Hamısı gəldikdən sonra şeyderləri əvvəlcədən hazırla (ilk kadrda donma olmasın)
+Promise.all([envPromise, treesReady, modelsReady, mediaReady, fontsReady]).then(async () => {
+  T_WARM.progress(0.3);
+  try { if (renderer.compileAsync) await renderer.compileAsync(scene, camera); } catch (e) { /* köhnə brauzer */ }
+  T_WARM.progress(0.8);
+  requestAnimationFrame(() => requestAnimationFrame(() => { T_WARM.done(); finishLoading(); }));
+});
 
 // Test və sazlama üçün
 window.__nova = { get pixelRatio() { return pixelRatio; }, sceneHidden, studio, guard, PATH, posCurve, tgtCurve, BUILDING_VIEW, get camTween() { return camTween; }, get rendering() { return rendering; }, startRender, stopRender, setSunMode, setSunDay, sunSim, applySun, controls, scene, renderer, scrollCtl, state, enterExplore, selectFloor, openApt, startTour, exitTour, backToBuilding, exitExplore, tour, camera, APARTMENTS };
