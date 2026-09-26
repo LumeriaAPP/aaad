@@ -176,3 +176,12 @@ img { display: block; max-width: 100%; }
 .start__note { font-size: 0.8rem; color: #f0b250; }
 .cam-fab { position: fixed; right: 16px; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 64px); z-index: 7; display: inline-flex; align-items: center; gap: 8px; padding: 13px 18px; border-radius: 999px; background: linear-gradient(150deg, var(--acc), var(--acc-2)); color: var(--acc-ink); font-weight: 700; box-shadow: 0 14px 30px -12px rgba(232, 163, 61, 0.8); }
 @media (prefers-reduced-motion: reduce) { .start__glow, .start__ring { animation: none; } }
+
+/* barmaq kursoru (kamerada şəhadət barmağının ucu) */
+.finger { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; z-index: 3; --p: 0; }
+.finger i { position: absolute; left: -22px; top: -22px; width: 44px; height: 44px; border-radius: 50%;
+  background: conic-gradient(#e8a33d calc(var(--p) * 360deg), rgba(255, 255, 255, 0.25) 0);
+  -webkit-mask: radial-gradient(circle, transparent 14px, #000 15px); mask: radial-gradient(circle, transparent 14px, #000 15px);
+  box-shadow: 0 0 18px rgba(232, 163, 61, 0.6); }
+.finger::after { content: ""; position: absolute; left: -5px; top: -5px; width: 10px; height: 10px; border-radius: 50%; background: #fff; box-shadow: 0 0 8px #e8a33d; }
+.finger-hint { position: absolute; left: 14px; right: 14px; top: calc(max(14px, env(safe-area-inset-top)) + 58px); padding: 10px 14px; border-radius: 12px; background: rgba(232, 163, 61, 0.92); color: #1d1206; font-weight: 600; font-size: 0.85rem; text-align: center; }

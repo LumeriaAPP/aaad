@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { XREstimatedLight } from 'three/addons/webxr/XREstimatedLight.js';
 import { createMenu3D } from './menu3d.js';
+import { loadHandTracker, detectHand } from './hand.js';
 
 const TABLE_MIN = 0.4, TABLE_MAX = 1.25; // masanın döşəmədən hündürlüyü (m)
 
@@ -110,7 +111,7 @@ export async function startAR(dishes, startIndex, ui) {
   // sessiya
   const session = await navigator.xr.requestSession('immersive-ar', {
     requiredFeatures: ['hit-test'],
-    optionalFeatures: ['dom-overlay', 'light-estimation', 'local-floor'],
+    optionalFeatures: ['dom-overlay', 'light-estimation', 'local-floor', 'camera-access'],
     domOverlay: { root: overlay },
   });
   let refType = 'local-floor';
@@ -118,6 +119,82 @@ export async function startAR(dishes, startIndex, ui) {
   renderer.xr.setReferenceSpaceType(refType);
   await renderer.xr.setSession(session);
   const viewerSpace = await session.requestReferenceSpace('viewer');
+  /* ---------- barmaqla seçim (kamera görüntüsü + əl tanıma) ---------- */
+  const gl = renderer.getContext();
+  let glBinding = null;
+  try { if (window.XRWebGLBinding && (!session.enabledFeatures || session.enabledFeatures.includes('camera-access'))) glBinding = new XRWebGLBinding(session, gl); } catch (e) { glBinding = null; }
+  const finger = { ready: false, busy: false, frame: 0, hover: -1, since: 0, cool: 0, wasPinch: false, cursor: ui.cursor, lost: 0 };
+  if (glBinding) loadHandTracker().then(() => { finger.ready = true; ui.onFinger && ui.onFinger('ready'); }).catch((e) => { console.warn('Əl tanıma yüklənmədi', e); ui.onFinger && ui.onFinger('off'); });
+  else ui.onFinger && ui.onFinger('off');
+  const SW = 224;
+  let fbSrc = null, fbDst = null, rb = null, pix = null, dstH = 0;
+  function grabCamera(view) {
+    const cam = view.camera;
+    if (!cam) return null;
+    const tex = glBinding.getCameraImage(cam);
+    if (!tex) return null;
+    const w = cam.width, h = cam.height, sh = Math.round((SW * h) / w);
+    if (!fbSrc) { fbSrc = gl.createFramebuffer(); fbDst = gl.createFramebuffer(); }
+    if (dstH !== sh) {
+      if (rb) gl.deleteRenderbuffer(rb);
+      rb = gl.createRenderbuffer();
+      gl.bindRenderbuffer(gl.RENDERBUFFER, rb);
+      gl.renderbufferStorage(gl.RENDERBUFFER, gl.RGBA8, SW, sh);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbDst);
+      gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, rb);
+      dstH = sh;
+      pix = new Uint8Array(SW * sh * 4);
+    }
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fbSrc);
+    gl.framebufferTexture2D(gl.READ_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, fbDst);
+    gl.blitFramebuffer(0, 0, w, h, 0, 0, SW, sh, gl.COLOR_BUFFER_BIT, gl.LINEAR);
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fbDst);
+    gl.readPixels(0, 0, SW, sh, gl.RGBA, gl.UNSIGNED_BYTE, pix);
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fbSrc);
+    gl.framebufferTexture2D(gl.READ_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+    renderer.resetState();
+    // WebGL sətirləri aşağıdan yuxarıdır — çevir
+    const out = new ImageData(SW, sh), row = SW * 4;
+    for (let y = 0; y < sh; y++) out.data.set(pix.subarray((sh - 1 - y) * row, (sh - y) * row), y * row);
+    return out;
+  }
+  const ndc = new THREE.Vector2();
+  function onHand(res, xrCam) {
+    const now = performance.now();
+    const cur = finger.cursor;
+    if (!res) {
+      if (++finger.lost > 3) { if (cur) cur.hidden = true; if (finger.hover >= 0) { menu.setHover(-1); finger.hover = -1; } }
+      finger.wasPinch = false;
+      return;
+    }
+    finger.lost = 0;
+    if (cur) { cur.hidden = false; cur.style.transform = `translate(${(res.x * innerWidth).toFixed(0)}px, ${(res.y * innerHeight).toFixed(0)}px)`; }
+    ndc.set(res.x * 2 - 1, -(res.y * 2 - 1));
+    raycaster.setFromCamera(ndc, xrCam.cameras && xrCam.cameras[0] ? xrCam.cameras[0] : xrCam);
+    const k = menu.pick(raycaster);
+    if (k == null || now < finger.cool) {
+      if (finger.hover >= 0) menu.setHover(-1);
+      finger.hover = -1;
+      if (cur) cur.style.setProperty('--p', 0);
+      finger.wasPinch = res.pinch;
+      return;
+    }
+    if (k !== finger.hover) { finger.hover = k; finger.since = now; }
+    const p = Math.min(1, (now - finger.since) / 900);
+    menu.setHover(k, p);
+    if (cur) cur.style.setProperty('--p', p);
+    const pinchNow = res.pinch && !finger.wasPinch;
+    finger.wasPinch = res.pinch;
+    if (p >= 1 || pinchNow) {
+      if (k !== index) show(k);
+      if (navigator.vibrate) navigator.vibrate(30);
+      finger.cool = now + 1200;
+      menu.setHover(-1);
+      finger.hover = -1;
+      if (cur) cur.style.setProperty('--p', 0);
+    }
+  }
   const hitSource = await session.requestHitTestSource({ space: viewerSpace });
   let lowest = Infinity; // döşəmə təxmini (local-floor olmayanda)
 
@@ -200,6 +277,16 @@ export async function startAR(dishes, startIndex, ui) {
     ui.onChange(index, holder.visible ? 'placed' : lastHit ? (onTable ? 'table' : 'floor') : 'searching');
     // yeni yemək yumşaq "peyda olur"
     menu.update(renderer.xr.getCamera(), holder, dishSize, t / 1000);
+    // barmaq: hər 3-cü kadrda kamera görüntüsünü götür, əl tanımanı kadrdan kənarda işlət
+    if (finger.ready && menu.group.visible && !finger.busy && ++finger.frame % 3 === 0) {
+      const vp = frame.getViewerPose(ref);
+      const img = vp && vp.views[0] ? grabCamera(vp.views[0]) : null;
+      if (img) {
+        finger.busy = true;
+        const xrCam = renderer.xr.getCamera();
+        setTimeout(() => { try { onHand(detectHand(img), xrCam); } catch (e) { console.warn(e); } finger.busy = false; }, 0);
+      }
+    }
     if (popT < 1) { popT = Math.min(1, popT + 1 / 18); const k = 1 - Math.pow(1 - popT, 3); dishSlot.scale.setScalar(0.6 + 0.4 * k); dishSlot.position.y = (1 - k) * 0.04; }
     renderer.render(scene, camera);
   });

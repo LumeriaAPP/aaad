@@ -120,6 +120,14 @@ async function startWebXR(i) {
     arApi = await startAR(list, i, {
       overlay: ov,
       brand: { title: RESTAURANT.name, sub: RESTAURANT.sub, currency: RESTAURANT.currency },
+      cursor: $('#fingerCursor'),
+      onFinger(state) {
+        const h = $('#fingerHint');
+        h.hidden = false;
+        h.textContent = state === 'ready' ? '☝ Barmağınızla menyudakı yeməyi göstərin — 1 saniyə saxlayın və ya çimdikləyin' : 'Barmaqla seçim bu telefonda yoxdur — menyuya toxunun';
+        clearTimeout(h.t);
+        h.t = setTimeout(() => (h.hidden = true), 6000);
+      },
       onChange(k, state) {
         if (state !== lastState) { $('#arHint').textContent = HINT[state] || ''; lastState = state; }
         if (k !== arIndex || state === 'ready') {

@@ -1,0 +1,2 @@
+MediaPipe Tasks Vision 1.0.1 and hand_landmarker model — Apache License 2.0, (c) Google LLC
+https://github.com/google-ai-edge/mediapipe

@@ -1,6 +1,6 @@
 # Zəfəran Bistro — 3D / AR menyu
 
-Sayt açılır → **“Kameranı aç”** → telefonu masaya tutun → yemək masada, yanında havada **3D menyu** (karta toxunub seçmək olur), aşağıda da sürüşən siyahı.
+Sayt açılır → **“Kameranı aç”** → telefonu masaya tutun → yemək masada, yanında havada **3D menyu** (karta toxunub və ya **barmaqla göstərib** seçmək olur: 1 san. saxlayın və ya çimdikləyin; Android Chrome, kamera görüntüsünə giriş — WebXR camera-access), aşağıda da sürüşən siyahı.
 
 Restoran üçün veb menyu: müştəri masadakı QR kodu skan edir, yeməyə toxunur və **“Masada gör”** ilə
 telefonun kamerasında yeməyi **real ölçüdə masanın üstündə** görür (artırılmış reallıq). Tətbiq yükləmək lazım deyil.
@@ -32,6 +32,7 @@ Add New → Project → `LumeriaAPP/aaad` → **Root Directory: `ar-menu`** → 
 AR yalnız **https** ünvanında işləyir (Vercel avtomatik verir).
 
 ## Lisenziyalar
+- MediaPipe Tasks Vision 1.0.1 + hand_landmarker modeli (barmaqla seçim) — Apache-2.0
 - Pizza: “Pizza”, Rigsters (Sketchfab) — CC BY 4.0
 - Tort: “Cake with Cherry”, brysew (Sketchfab) — CC BY 4.0
 - Latte: “Coffee Cup Latte”, Yuliya (Sketchfab) — CC BY 4.0

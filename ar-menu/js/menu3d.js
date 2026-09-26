@@ -47,7 +47,7 @@ export async function createMenu3D(dishes, { title = 'Menyu', sub = '', currency
   group.add(titleMesh);
   // kartlar
   const items = dishes.map((d, i) => {
-    const tex = panelTex(W, ITEM_H, (g, w, h, on) => {
+    const tex = panelTex(W, ITEM_H, (g, w, h, on, hover = 0) => {
       roundRect(g, 4, 4, w - 8, h - 8, 40);
       if (on) { const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, 'rgba(240,178,80,0.97)'); gr.addColorStop(1, 'rgba(201,120,42,0.97)'); g.fillStyle = gr; }
       else g.fillStyle = 'rgba(20,17,14,0.78)';
@@ -67,6 +67,13 @@ export async function createMenu3D(dishes, { title = 'Menyu', sub = '', currency
       g.textAlign = 'right'; g.fillStyle = on ? '#1d1206' : '#e8a33d'; g.font = '700 40px "Plus Jakarta Sans", sans-serif';
       g.fillText(money(d.price), w - 36, h / 2);
       g.textAlign = 'left';
+      // barmaq üstündədir: aşağıda dolan zolaq (dolanda seçilir)
+      if (hover > 0) {
+        g.strokeStyle = on ? '#1d1206' : '#e8a33d'; g.lineWidth = 10;
+        roundRect(g, 10, 10, w - 20, h - 20, 36); g.stroke();
+        g.fillStyle = on ? 'rgba(29,18,6,0.8)' : '#e8a33d';
+        g.fillRect(40, h - 26, (w - 80) * Math.min(1, hover), 10);
+      }
     });
     tex.redraw(false);
     const m = plane(W, ITEM_H, tex);
@@ -95,7 +102,7 @@ export async function createMenu3D(dishes, { title = 'Menyu', sub = '', currency
   label.visible = false;
   label.renderOrder = 5;
 
-  let active = -1;
+  let active = -1, hovered = -1;
   const camPos = new THREE.Vector3(), tmp = new THREE.Vector3(), right = new THREE.Vector3();
   return {
     group, label,
@@ -104,6 +111,12 @@ export async function createMenu3D(dishes, { title = 'Menyu', sub = '', currency
       active = i;
       items[i].userData.tex.redraw(true);
       lTex.redraw(dishes[i]);
+    },
+    // barmaq kartın üstündədir: p — 0..1 gözləmə irəliləyişi (i = -1 → heç biri)
+    setHover(i, p = 0) {
+      if (hovered >= 0 && hovered !== i && items[hovered]) items[hovered].userData.tex.redraw(hovered === active, 0);
+      hovered = i;
+      if (i >= 0) items[i].userData.tex.redraw(i === active, Math.max(0.02, p));
     },
     // toxunuş şüası menyu kartına dəyirsə — onun indeksi
     pick(raycaster) {
