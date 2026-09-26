@@ -9,41 +9,35 @@ export const RESTAURANT = {
 export const CATEGORIES = [
   { id: 'all', name: 'Hamısı' },
   { id: 'main', name: 'Əsas yeməklər' },
-  { id: 'salad', name: 'Salatlar' },
   { id: 'dessert', name: 'Desertlər' },
   { id: 'drink', name: 'İçkilər' },
 ];
 
+// Hamısı real 3D modellərdir (Sketchfab, CC BY / CC BY-SA) — real ölçüyə gətirilib (tools/import.html).
+// Kodla qurulmuş nümunələr (plov, salat, çizkeyk, limonad) models/ qovluğunda qalır, menyudan çıxarılıb.
 export const DISHES = [
   {
-    id: 'plov', cat: 'main', name: 'Şah plov', price: 24,
-    desc: 'Lavaş qabığında zəfəranlı düyü, quzu əti, şabalıd, qaysı və kişmiş.',
-    info: '2 nəfərlik · 650 q', tags: ['Milli mətbəx', 'Aşpazın seçimi'],
-  },
-  {
-    id: 'pizza', cat: 'main', name: 'Marqarita pizza', price: 16,
-    desc: 'Odun sobasında, San Marzano pomidor sousu, təzə motsarella və reyhan.',
-    info: '30 sm · 480 q', tags: ['Vegetarian'],
+    id: 'pizza', cat: 'main', name: 'Prosciutto pizza', price: 18,
+    desc: 'İncə xəmir, pomidor sousu, motsarella, prosciutto və təzə rukola.',
+    info: '32 sm · 520 q', tags: ['Odun sobası'],
+    credit: '3D model: “Pizza”, Rigsters (Sketchfab), CC BY 4.0',
   },
   {
     id: 'burger', cat: 'main', name: 'Klassik burger', price: 14,
     desc: 'Mərmərli mal əti kotleti, pendir, pomidor, kahı, yumşaq bulka.',
-    info: '11 sm · 280 q', tags: ['Real 3D model'],
+    info: '11 sm · 280 q', tags: [],
     credit: '3D model: “Back Yard Burgers – Classic Burger”, Ehsan Abbasi (Sketchfab), CC BY-SA 4.0',
   },
   {
-    id: 'salad', cat: 'salad', name: 'Sezar salatı', price: 11,
-    desc: 'Romen kahısı, qrildə toyuq, parmezan, kruton, çeri pomidor və Sezar sousu.',
-    info: '320 q', tags: [],
+    id: 'cake', cat: 'dessert', name: 'Albalılı tort', price: 7,
+    desc: 'Yumşaq biskvit, qaymaqlı krem, ağ şirə və təzə albalı.',
+    info: '1 dilim · 150 q', tags: ['Ev istehsalı'],
+    credit: '3D model: “Cake with Cherry”, brysew (Sketchfab), CC BY 4.0',
   },
   {
-    id: 'cheesecake', cat: 'dessert', name: 'Çizkeyk', price: 8,
-    desc: 'Nyu-York çizkeyki, giləmeyvə sousu, təzə çiyələk və nanə.',
-    info: '160 q', tags: ['Ev istehsalı'],
-  },
-  {
-    id: 'lemonade', cat: 'drink', name: 'Ev limonadı', price: 5,
-    desc: 'Təzə limon, nanə, buz — şəkərsiz də hazırlanır.',
-    info: '400 ml', tags: ['Soyuq'],
+    id: 'latte', cat: 'drink', name: 'Latte', price: 5,
+    desc: 'Espresso, buxarda qızdırılmış süd, latte art.',
+    info: '300 ml', tags: ['İsti'],
+    credit: '3D model: “Coffee Cup Latte”, Yuliya (Sketchfab), CC BY 4.0',
   },
 ];

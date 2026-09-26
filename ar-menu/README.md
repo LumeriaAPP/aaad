@@ -1,5 +1,7 @@
 # Zəfəran Bistro — 3D / AR menyu
 
+Sayt açılır → **“Kameranı aç”** → telefonu masaya tutun → yemək masada, yanında havada **3D menyu** (karta toxunub seçmək olur), aşağıda da sürüşən siyahı.
+
 Restoran üçün veb menyu: müştəri masadakı QR kodu skan edir, yeməyə toxunur və **“Masada gör”** ilə
 telefonun kamerasında yeməyi **real ölçüdə masanın üstündə** görür (artırılmış reallıq). Tətbiq yükləmək lazım deyil.
 
@@ -30,6 +32,9 @@ Add New → Project → `LumeriaAPP/aaad` → **Root Directory: `ar-menu`** → 
 AR yalnız **https** ünvanında işləyir (Vercel avtomatik verir).
 
 ## Lisenziyalar
+- Pizza: “Pizza”, Rigsters (Sketchfab) — CC BY 4.0
+- Tort: “Cake with Cherry”, brysew (Sketchfab) — CC BY 4.0
+- Latte: “Coffee Cup Latte”, Yuliya (Sketchfab) — CC BY 4.0
 - Burger 3D modeli: “Back Yard Burgers – Classic Burger”, Ehsan Abbasi (Sketchfab) — CC BY-SA 4.0; ölçü və mövqe dəyişdirilib (`tools/import.html`). Dəyişdirilmiş model də CC BY-SA 4.0-dır.
 - [@google/model-viewer](https://modelviewer.dev) 4.3.1 — Apache-2.0
 - qrcode-generator 2.0.4 — MIT

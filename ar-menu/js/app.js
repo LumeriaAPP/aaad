@@ -119,6 +119,7 @@ async function startWebXR(i) {
     const { startAR } = await import('./ar.js');
     arApi = await startAR(list, i, {
       overlay: ov,
+      brand: { title: RESTAURANT.name, sub: RESTAURANT.sub, currency: RESTAURANT.currency },
       onChange(k, state) {
         if (state !== lastState) { $('#arHint').textContent = HINT[state] || ''; lastState = state; }
         if (k !== arIndex || state === 'ready') {
@@ -131,7 +132,7 @@ async function startWebXR(i) {
           if (card) { syncing = true; arRail.scrollTo({ left: card.offsetLeft - (arRail.clientWidth - card.clientWidth) / 2, behavior: 'smooth' }); setTimeout(() => (syncing = false), 450); }
         }
       },
-      onExit(k) { ov.hidden = true; arApi = null; goSlide(k); },
+      onExit(k) { ov.hidden = true; arApi = null; hideStart(); goSlide(k); },
     });
   } catch (err) {
     ov.hidden = true;
@@ -252,4 +253,21 @@ $('#olist').addEventListener('click', (e) => {
   const q = (order.get(b.dataset.q) || 0) + +b.dataset.d;
   if (q <= 0) order.delete(b.dataset.q); else order.set(b.dataset.q, q);
   updateBasket();
+});
+
+/* ---------- açılış ekranı: birbaşa kamera ---------- */
+const start = $('#start');
+function hideStart() { start.classList.add('is-gone'); setTimeout(() => (start.hidden = true), 500); $('#camFab').hidden = false; }
+$('#startBtn').addEventListener('click', async () => {
+  await arCheck;
+  if (webxr) { cat = 'all'; render(); return startWebXR(0); }
+  if (isIOSQuickLook) { hideStart(); return quickLook(0); }
+  hideStart();
+  toast('Bu cihazda kamera (AR) yoxdur — telefonla açın. Menyuya burada baxa bilərsiniz.');
+});
+$('#startSkip').addEventListener('click', hideStart);
+$('#camFab').addEventListener('click', () => openAR(cur));
+if (location.hash) hideStart();
+arCheck.then(() => {
+  if (!canAR()) $('#startNote').hidden = false, $('#startNote').textContent = 'Bu cihaz kamerada 3D-ni dəstəkləmir. Telefonda (Android Chrome və ya iPhone Safari) açın.';
 });

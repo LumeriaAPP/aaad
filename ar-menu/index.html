@@ -13,6 +13,21 @@
   <script type="module" src="vendor/model-viewer/model-viewer.min.js"></script>
 </head>
 <body>
+  <!-- Açılış: bir toxunuşla birbaşa kamera (brauzer kameranı toxunuşsuz açmağa icazə vermir) -->
+  <section class="start" id="start">
+    <div class="start__glow"></div>
+    <div class="start__brand"><span class="brand__mark">Z</span><span class="brand__name"><b>Zəfəran</b> <em>Bistro</em></span></div>
+    <h1>Menyu <em>masanızda</em></h1>
+    <p>Kameranı açın, telefonu masaya tutun — yeməklər real ölçüdə masanızda görünəcək.</p>
+    <button class="start__btn" id="startBtn">
+      <span class="start__ring"></span>
+      <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="m12 7 5 3v5l-5 3-5-3v-5z"/><path d="M12 12v6M12 12l5-2M12 12l-5-2"/></svg>
+      <b>Kameranı aç</b>
+    </button>
+    <button class="start__skip" id="startSkip">Kamerasız menyuya bax →</button>
+    <p class="start__note" id="startNote" hidden></p>
+  </section>
+
   <header class="top">
     <div class="brand">
       <span class="brand__mark">Z</span>
@@ -38,8 +53,16 @@
   <div class="dots" id="dots"></div>
 
   <footer class="foot"><p>Qiymətlərə xidmət haqqı daxil deyil · 3D görüntülər təxminidir</p>
-    <p class="credit">Burger 3D modeli: “Back Yard Burgers – Classic Burger” — <a href="https://sketchfab.com/3d-models/back-yard-burgers-classic-burger-6e13942ff76d4129b06e097cdd060adb" target="_blank" rel="noopener">Ehsan Abbasi</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a> (ölçüsü dəyişdirilib)</p></footer>
+    <p class="credit">3D modellər (Sketchfab, ölçüsü dəyişdirilib):
+      <a href="https://sketchfab.com/3d-models/pizza-40d50989fec1460f8838b608d999ccd0" target="_blank" rel="noopener">“Pizza” — Rigsters</a> (CC BY 4.0) ·
+      <a href="https://sketchfab.com/3d-models/back-yard-burgers-classic-burger-6e13942ff76d4129b06e097cdd060adb" target="_blank" rel="noopener">“Classic Burger” — Ehsan Abbasi</a> (CC BY-SA 4.0) ·
+      <a href="https://sketchfab.com/3d-models/cake-with-cherry-353d9e6667a042b5b086302f1309ce8a" target="_blank" rel="noopener">“Cake with Cherry” — brysew</a> (CC BY 4.0) ·
+      <a href="https://sketchfab.com/3d-models/coffee-cup-latte-efa39a779fca473a993d65a8f7c47236" target="_blank" rel="noopener">“Coffee Cup Latte” — Yuliya</a> (CC BY 4.0)</p></footer>
 
+  <button class="cam-fab" id="camFab" hidden>
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m12 7 5 3v5l-5 3-5-3v-5z"/><path d="M12 12v6M12 12l5-2M12 12l-5-2"/></svg>
+    Kamerada bax
+  </button>
   <button class="basket" id="basketBtn" hidden><span id="basketCount">0</span> yemək · <b id="basketSum">0 ₼</b><i>Sifarişə bax</i></button>
 
   <!-- Kamera (AR) rejiminin üst qatı: WebXR sessiyasında kamera görüntüsünün üstündə göstərilir -->

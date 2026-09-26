@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { XREstimatedLight } from 'three/addons/webxr/XREstimatedLight.js';
+import { createMenu3D } from './menu3d.js';
 
 const TABLE_MIN = 0.4, TABLE_MAX = 1.25; // masanın döşəmədən hündürlüyü (m)
 
@@ -62,6 +63,12 @@ export async function startAR(dishes, startIndex, ui) {
   const dishSlot = new THREE.Group();
   holder.add(dishSlot);
 
+  // havada asılı 3D menyu + yeməyin üstündə ad
+  const menu = await createMenu3D(dishes, ui.brand || {});
+  scene.add(menu.group, menu.label);
+  const dishSize = new THREE.Vector3(0.2, 0.05, 0.2);
+  const raycaster = new THREE.Raycaster();
+
   // hədəf halqası (masa tapılanda yaşıl, döşəmədə qırmızı)
   const reticle = new THREE.Mesh(new THREE.RingGeometry(0.07, 0.085, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 }));
   reticle.matrixAutoUpdate = false;
@@ -89,7 +96,9 @@ export async function startAR(dishes, startIndex, ui) {
     dishSlot.add(obj);
     const box = new THREE.Box3().setFromObject(obj);
     const s = box.getSize(new THREE.Vector3());
+    dishSize.copy(s);
     blob.scale.set(s.x * 1.25, 1, s.z * 1.25);
+    menu.setActive(index);
     popT = 0;
     ui.onChange(index, 'ready');
     // qonşu yeməkləri əvvəlcədən yüklə (sürüşdürəndə gözləmə olmasın)
@@ -115,8 +124,18 @@ export async function startAR(dishes, startIndex, ui) {
   let placed = false, onTable = false, lastHit = null;
   const hitMat = new THREE.Matrix4(), hitPos = new THREE.Vector3(), hitQ = new THREE.Quaternion(), hitS = new THREE.Vector3();
 
-  session.addEventListener('select', () => {
+  session.addEventListener('select', (e) => {
     if (drag.moved) { drag.moved = false; return; }
+    // əvvəl: 3D menyunun kartına toxunulubmu?
+    const pose = e.frame && e.frame.getPose(e.inputSource.targetRaySpace, renderer.xr.getReferenceSpace());
+    if (pose) {
+      const m = new THREE.Matrix4().fromArray(pose.transform.matrix);
+      const o = new THREE.Vector3().setFromMatrixPosition(m);
+      const d = new THREE.Vector3(0, 0, -1).transformDirection(m);
+      raycaster.set(o, d);
+      const k = menu.pick(raycaster);
+      if (k != null) { show(k); return; }
+    }
     if (!lastHit || !onTable) { ui.onChange(index, 'need-table'); return; }
     holder.position.copy(hitPos);
     // yemək kameraya baxsın
@@ -180,6 +199,7 @@ export async function startAR(dishes, startIndex, ui) {
     reticle.visible = !!lastHit && (!holder.visible || drag.active === false);
     ui.onChange(index, holder.visible ? 'placed' : lastHit ? (onTable ? 'table' : 'floor') : 'searching');
     // yeni yemək yumşaq "peyda olur"
+    menu.update(renderer.xr.getCamera(), holder, dishSize, t / 1000);
     if (popT < 1) { popT = Math.min(1, popT + 1 / 18); const k = 1 - Math.pow(1 - popT, 3); dishSlot.scale.setScalar(0.6 + 0.4 * k); dishSlot.position.y = (1 - k) * 0.04; }
     renderer.render(scene, camera);
   });
