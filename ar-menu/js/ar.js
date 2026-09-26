@@ -164,7 +164,7 @@ export async function startAR(dishes, startIndex, ui) {
     const now = performance.now();
     const cur = finger.cursor;
     if (!res) {
-      if (++finger.lost > 3) { if (cur) cur.hidden = true; if (finger.hover >= 0) { menu.setHover(-1); finger.hover = -1; } }
+      if (++finger.lost > 6) { if (cur) cur.hidden = true; if (finger.hover >= 0) { menu.setHover(-1); finger.hover = -1; } }
       finger.wasPinch = false;
       return;
     }
@@ -199,6 +199,7 @@ export async function startAR(dishes, startIndex, ui) {
   let lowest = Infinity; // döşəmə təxmini (local-floor olmayanda)
 
   let placed = false, onTable = false, lastHit = null;
+  const seen = { at: -1e9, table: false, pose: null, state: '', pending: null, pendingAt: 0 };
   const hitMat = new THREE.Matrix4(), hitPos = new THREE.Vector3(), hitQ = new THREE.Quaternion(), hitS = new THREE.Vector3();
 
   session.addEventListener('select', (e) => {
@@ -273,12 +274,23 @@ export async function startAR(dishes, startIndex, ui) {
         }
       }
     }
-    reticle.visible = !!lastHit && (!holder.visible || drag.active === false);
-    ui.onChange(index, holder.visible ? 'placed' : lastHit ? (onTable ? 'table' : 'floor') : 'searching');
+    // səth bir kadr tapılıb bir kadr itəndə yanıb-sönməsin: son tapılmadan 0.5 san saxla
+    const nowMs = performance.now();
+    if (lastHit) { seen.at = nowMs; seen.table = onTable; }
+    const recent = nowMs - seen.at < 500;
+    if (!lastHit && recent) { lastHit = seen.pose; onTable = seen.table; }
+    if (lastHit) seen.pose = lastHit;
+    reticle.visible = recent && !holder.visible;
+    const want = holder.visible ? 'placed' : recent ? (seen.table ? 'table' : 'floor') : 'searching';
+    if (want !== seen.state) { if (want !== seen.pending) { seen.pending = want; seen.pendingAt = nowMs; } else if (nowMs - seen.pendingAt > 400 || want === 'placed') { seen.state = want; ui.onChange(index, want); } }
+    else seen.pending = null;
     // yeni yemək yumşaq "peyda olur"
     menu.update(renderer.xr.getCamera(), holder, dishSize, t / 1000);
-    // barmaq: hər 3-cü kadrda kamera görüntüsünü götür, əl tanımanı kadrdan kənarda işlət
-    if (finger.ready && menu.group.visible && !finger.busy && ++finger.frame % 3 === 0) {
+    if (popT < 1) { popT = Math.min(1, popT + 1 / 18); const k = 1 - Math.pow(1 - popT, 3); dishSlot.scale.setScalar(0.6 + 0.4 * k); dishSlot.position.y = (1 - k) * 0.04; }
+    renderer.render(scene, camera);
+    // kadr çəkildikdən sonra (kadrı pozmasın)
+    // barmaq: hər 4-cü kadrda kamera görüntüsünü götür, əl tanımanı kadrdan kənarda işlət
+    if (finger.ready && menu.group.visible && !finger.busy && ++finger.frame % 4 === 0) {
       const vp = frame.getViewerPose(ref);
       const img = vp && vp.views[0] ? grabCamera(vp.views[0]) : null;
       if (img) {
@@ -287,8 +299,6 @@ export async function startAR(dishes, startIndex, ui) {
         setTimeout(() => { try { onHand(detectHand(img), xrCam); } catch (e) { console.warn(e); } finger.busy = false; }, 0);
       }
     }
-    if (popT < 1) { popT = Math.min(1, popT + 1 / 18); const k = 1 - Math.pow(1 - popT, 3); dishSlot.scale.setScalar(0.6 + 0.4 * k); dishSlot.position.y = (1 - k) * 0.04; }
-    renderer.render(scene, camera);
   });
 
   function cleanup() {
