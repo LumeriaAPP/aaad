@@ -157,7 +157,7 @@ function interiorEnv() {
   if (!envRoomFallback) envRoomFallback = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   return envRoomFallback;
 }
-const TOUR_ENV = 0.3; // turda ətraf işığın gücü
+const TOUR_ENV = 0.42; // turda ətraf işığın gücü
 // Ekspozisiya (divan modelinin artıq işıqları silindikdən sonra yenidən tənzimlənib)
 const TOUR_EXP = 0.95;
 const FLOOR_EXP = 0.78;
