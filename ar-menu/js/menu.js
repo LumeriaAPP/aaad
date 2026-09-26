@@ -27,8 +27,9 @@ export const DISHES = [
   },
   {
     id: 'burger', cat: 'main', name: 'Klassik burger', price: 14,
-    desc: 'Mərmərli mal əti kotleti, çedar, pomidor, kahı, kartof fri ilə.',
-    info: '420 q', tags: [],
+    desc: 'Mərmərli mal əti kotleti, pendir, pomidor, kahı, yumşaq bulka.',
+    info: '11 sm · 280 q', tags: ['Real 3D model'],
+    credit: '3D model: “Back Yard Burgers – Classic Burger”, Ehsan Abbasi (Sketchfab), CC BY-SA 4.0',
   },
   {
     id: 'salad', cat: 'salad', name: 'Sezar salatı', price: 11,

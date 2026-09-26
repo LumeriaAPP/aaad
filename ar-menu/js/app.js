@@ -181,6 +181,8 @@ function openSheet(i) {
   $('#dInfo').textContent = d.info;
   $('#dDesc').textContent = d.desc;
   $('#dTags').innerHTML = d.tags.map((t) => `<span>${esc(t)}</span>`).join('');
+  $('#dCredit').textContent = d.credit || '';
+  $('#dCredit').hidden = !d.credit;
   mv.poster = `img/${d.id}.webp`;
   mv.src = `models/${d.id}.glb`;
   mv.alt = `${d.name} — 3D model`;

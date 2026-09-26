@@ -155,3 +155,4 @@ img { display: block; max-width: 100%; }
 
 .toast { position: fixed; left: 50%; top: 76px; z-index: 60; transform: translateX(-50%); padding: 10px 16px; border-radius: 12px; background: #2a231b; border: 1px solid var(--acc-2); font-size: 0.86rem; max-width: calc(100vw - 32px); text-align: center; }
 .btn-ar { white-space: nowrap; }
+.credit { font-size: 0.72rem; color: var(--muted); } .credit a { color: inherit; text-decoration: underline; }

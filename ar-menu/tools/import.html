@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8">
+  <title>Hazır modeli menyuya hazırla</title>
+  <script type="importmap">{ "imports": { "three": "../vendor/three/three.module.js", "three/addons/": "../vendor/three/addons/" } }</script>
+</head>
+<body style="margin:0;background:#111;color:#eee;font:14px system-ui">
+  <p id="s">Hazırlanır…</p>
+  <script type="module">
+    // İstifadə: import.html?src=src/burger.glb&size=0.115&axis=xz
+    //  size — real ölçü (metr), axis=xz → ən böyük üfüqi ölçü, axis=y → hündürlük
+    // Model: işıq/kameralar silinir, real ölçüyə gətirilir, mərkəzə qoyulur, altı y=0 (masa) olur.
+    // Nəticə window.__out: { glb, usdz, poster, size }
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+    import { USDZExporter } from 'three/addons/exporters/USDZExporter.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    const q = new URLSearchParams(location.search);
+    const size = +(q.get('size') || 0.12), axis = q.get('axis') || 'xz';
+    const toB64 = (buf) => { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+    const gltf = await new GLTFLoader().loadAsync(q.get('src'));
+    const src = gltf.scene;
+    const extras = [];
+    src.traverse((o) => { if (o.isLight || o.isCamera) extras.push(o); });
+    extras.forEach((o) => o.removeFromParent());
+    src.updateMatrixWorld(true);
+    // bütün iyerarxiyanı düz dünyaya "bişir": hər mesh öz dünya matrisi ilə
+    const out = new THREE.Group();
+    out.name = 'dish';
+    src.traverse((o) => {
+      if (!o.isMesh) return;
+      const m = new THREE.Mesh(o.geometry.clone().applyMatrix4(o.matrixWorld), o.material);
+      m.name = o.name;
+      out.add(m);
+    });
+    // ölçü dəqiq həndəsədən (fırlanmış qutu yox) hesablanır
+    let box = new THREE.Box3().setFromObject(out, true);
+    const s0 = box.getSize(new THREE.Vector3());
+    const k = size / (axis === 'y' ? s0.y : Math.max(s0.x, s0.z));
+    out.children.forEach((m) => m.geometry.scale(k, k, k));
+    box = new THREE.Box3().setFromObject(out, true);
+    const c = box.getCenter(new THREE.Vector3());
+    out.children.forEach((m) => m.geometry.translate(-c.x, -box.min.y, -c.z));
+    out.children.forEach((m) => { m.geometry.computeBoundingBox(); m.geometry.computeBoundingSphere(); });
+    box = new THREE.Box3().setFromObject(out);
+    const glb = await new GLTFExporter().parseAsync(out, { binary: true, maxTextureSize: 1024 });
+    const usdz = await new USDZExporter().parseAsync(out, { quickLookCompatible: true, maxTextureSize: 1024 });
+    // menyu şəkli
+    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true });
+    renderer.setSize(800, 800); renderer.setPixelRatio(1);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
+    const scene = new THREE.Scene();
+    scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+    const key = new THREE.DirectionalLight(0xfff4e6, 2.2);
+    const bs = box.getSize(new THREE.Vector3()).length();
+    key.position.set(bs * 1.2, bs * 2.4, bs * 1.4); key.castShadow = true; key.shadow.mapSize.set(1024, 1024);
+    Object.assign(key.shadow.camera, { left: -bs, right: bs, top: bs, bottom: -bs, near: 0.01, far: bs * 8 });
+    scene.add(key);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(bs * 8, bs * 8).rotateX(-Math.PI / 2), new THREE.ShadowMaterial({ opacity: 0.3 }));
+    floor.receiveShadow = true; scene.add(floor);
+    out.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } });
+    scene.add(out);
+    const cc = box.getCenter(new THREE.Vector3());
+    const cam = new THREE.PerspectiveCamera(30, 1, 0.001, 50);
+    cam.position.copy(cc).add(new THREE.Vector3(0.55, 0.5, 0.75).normalize().multiplyScalar(bs * 1.75));
+    cam.lookAt(cc);
+    renderer.render(scene, cam);
+    window.__out = { glb: toB64(glb), usdz: toB64(usdz), poster: renderer.domElement.toDataURL('image/webp', 0.88), size: box.getSize(new THREE.Vector3()).toArray() };
+    document.getElementById('s').textContent = 'Hazır';
+  </script>
+</body>
+</html>

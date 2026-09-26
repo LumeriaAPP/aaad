@@ -17,6 +17,9 @@ telefonun kamerasında yeməyi **real ölçüdə masanın üstündə** görür (
 - `js/ar.js` — kamera rejimi (WebXR, masa aşkarlanması)
 - `tools/` — nümunə yeməklərin generatoru (`tools/build.html` → GLB + USDZ + şəkil), yalnız inkişaf üçün
 
+## Hazır modeli əlavə etmək
+`tools/src/`-ə GLB qoyun → `tools/import.html?src=src/<fayl>.glb&size=0.115` (size — real ölçü, metr) → GLB, USDZ və menyu şəkli yaranır.
+
 ## Real yeməklər
 Nümunə modellər kodla qurulub. Real restoran üçün hər yeməyin 3D skanı lazımdır:
 telefonla fotoqrammetriya (Polycam, RealityScan, Luma), sonra GLB kimi ixrac → `models/`-ə qoyun, `js/menu.js`-ə əlavə edin.
@@ -27,6 +30,7 @@ Add New → Project → `LumeriaAPP/aaad` → **Root Directory: `ar-menu`** → 
 AR yalnız **https** ünvanında işləyir (Vercel avtomatik verir).
 
 ## Lisenziyalar
+- Burger 3D modeli: “Back Yard Burgers – Classic Burger”, Ehsan Abbasi (Sketchfab) — CC BY-SA 4.0; ölçü və mövqe dəyişdirilib (`tools/import.html`). Dəyişdirilmiş model də CC BY-SA 4.0-dır.
 - [@google/model-viewer](https://modelviewer.dev) 4.3.1 — Apache-2.0
 - qrcode-generator 2.0.4 — MIT
 - three.js r186 (yalnız `tools/`) — MIT
