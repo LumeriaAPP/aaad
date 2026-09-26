@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "headers": [
+    { "source": "/models/(.*)", "headers": [{ "key": "Content-Type", "value": "model/gltf-binary" }, { "key": "Cache-Control", "value": "public, max-age=86400" }] },
+    { "source": "/vendor/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=2592000" }] }
+  ]
+}

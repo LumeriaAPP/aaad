@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Masa QR kartları — çap</title>
+  <style>
+    @import url('css/fonts.css');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Plus Jakarta Sans", system-ui, sans-serif; background: #eee8df; color: #1c1611; padding: 24px; }
+    .ctl { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 24px; }
+    label { display: grid; gap: 4px; font-size: 13px; }
+    input { padding: 8px 10px; border: 1px solid #bbb; border-radius: 8px; font: inherit; }
+    button { padding: 9px 16px; border-radius: 8px; border: 0; background: #1c1611; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, 8.5cm); gap: 0.6cm; }
+    .card { width: 8.5cm; height: 11cm; background: #14110e; color: #f6efe4; border-radius: 14px; padding: 0.7cm 0.6cm; display: grid; justify-items: center; align-content: space-between; text-align: center; break-inside: avoid; }
+    .card h2 { font-family: "Cormorant Garamond", Georgia, serif; font-weight: 600; font-size: 26px; }
+    .card h2 em { color: #e8a33d; }
+    .card p { font-size: 11px; color: #cbbfae; line-height: 1.4; }
+    .qr { width: 4.8cm; background: #fff; border-radius: 10px; padding: 6px; }
+    .qr svg { width: 100%; height: auto; display: block; }
+    .num { font-size: 13px; font-weight: 700; letter-spacing: 0.2em; color: #e8a33d; }
+    @media print { body { background: #fff; padding: 0; } .ctl { display: none; } .card { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  </style>
+</head>
+<body>
+  <div class="ctl">
+    <label>Menyunun ünvanı<input id="url" size="40"></label>
+    <label>Masa sayı<input id="n" type="number" min="1" max="100" value="8"></label>
+    <button id="make">Yarat</button>
+    <button onclick="print()">Çap et</button>
+  </div>
+  <div class="cards" id="cards"></div>
+  <script type="module">
+    import qrcode from './vendor/qrcode/qrcode.mjs';
+    const base = new URL('./', location.href).toString();
+    document.getElementById('url').value = base;
+    function make() {
+      const url = document.getElementById('url').value.trim();
+      const n = Math.min(100, Math.max(1, +document.getElementById('n').value || 1));
+      let html = '';
+      for (let i = 1; i <= n; i++) {
+        const link = `${url}${url.includes('?') ? '&' : '?'}masa=${i}`;
+        const q = qrcode(0, 'M'); q.addData(link); q.make();
+        html += `<div class="card"><h2>Zəfəran <em>Bistro</em></h2><div class="qr">${q.createSvgTag({ cellSize: 4, margin: 2, scalable: true })}</div>
+          <p><b style="color:#f6efe4">3D menyu</b><br>Kameranı koda tutun — yeməkləri sifarişdən əvvəl masanızda görün</p><span class="num">MASA ${i}</span></div>`;
+      }
+      document.getElementById('cards').innerHTML = html;
+    }
+    document.getElementById('make').addEventListener('click', make);
+    make();
+  </script>
+</body>
+</html>

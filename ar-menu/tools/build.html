@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8">
+  <title>3D yemək generatoru</title>
+  <script type="importmap">{ "imports": { "three": "./lib/three/three.module.js", "three/addons/": "./lib/three/addons/" } }</script>
+  <style>body{margin:0;background:#111;color:#eee;font:14px system-ui} canvas{display:block}</style>
+</head>
+<body>
+  <p id="s">Hazırlanır…</p>
+  <script type="module">
+    // Yeməkləri qurur, GLB kimi ixrac edir və menyu üçün kiçik şəkil (poster) çəkir.
+    // Nəticə window.__out-da: { ad: { glb: base64, poster: dataURL } } — tools/README.md-ə baxın.
+    import * as THREE from 'three';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { DISHES } from './dishes.js';
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true });
+    renderer.setSize(640, 640);
+    renderer.setPixelRatio(1);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    const out = {};
+    const exporter = new GLTFExporter();
+    for (const [name, make] of Object.entries(DISHES)) {
+      const dish = make();
+      dish.name = name;
+      // GLB
+      const glb = await exporter.parseAsync(dish, { binary: true, maxTextureSize: 512 });
+      const b64 = btoa(Array.from(new Uint8Array(glb), (c) => String.fromCharCode(c)).join(''));
+      // poster
+      const scene = new THREE.Scene();
+      scene.environment = env;
+      const key = new THREE.DirectionalLight(0xfff4e6, 2.2);
+      key.position.set(0.3, 0.6, 0.35); key.castShadow = true;
+      key.shadow.mapSize.set(1024, 1024);
+      Object.assign(key.shadow.camera, { left: -0.3, right: 0.3, top: 0.3, bottom: -0.3, near: 0.01, far: 2 });
+      scene.add(key);
+      const floor = new THREE.Mesh(new THREE.PlaneGeometry(3, 3).rotateX(-Math.PI / 2), new THREE.ShadowMaterial({ opacity: 0.28 }));
+      floor.receiveShadow = true;
+      scene.add(floor);
+      dish.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      scene.add(dish);
+      const box = new THREE.Box3().setFromObject(dish);
+      const size = box.getSize(new THREE.Vector3()).length();
+      const c = box.getCenter(new THREE.Vector3());
+      const cam = new THREE.PerspectiveCamera(32, 1, 0.01, 10);
+      cam.position.copy(c).add(new THREE.Vector3(0.55, 0.62, 0.72).normalize().multiplyScalar(size * 1.55));
+      cam.lookAt(c);
+      renderer.setClearColor(0x000000, 0);
+      renderer.render(scene, cam);
+      out[name] = { glb: b64, poster: renderer.domElement.toDataURL('image/webp', 0.86), size: [box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z] };
+      document.getElementById('s').textContent = 'Hazır: ' + Object.keys(out).join(', ');
+    }
+    window.__out = out;
+  </script>
+</body>
+</html>
