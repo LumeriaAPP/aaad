@@ -1649,7 +1649,7 @@ function frame(now) {
   if (!waterTex) { waterTex = []; scene.traverse((o) => { if (o.userData.water) waterTex.push(o.userData.water); }); if (!waterTex.length) waterTex = null; }
   if (waterTex) for (const w of waterTex) { w.offset.x = t * 0.012; w.offset.y = t * 0.008; }
   bakuUniforms.uTime.value = t;
-  if (clouds) clouds.update(dt, sunSim.on ? skyAlt : 40, sunSim.on ? skyNightK : 0);
+  if (clouds) clouds.update(dt, sunSim.on ? skyAlt : 40, sunSim.on ? skyNightK : 0, camera);
   // yollarda maşınlar (turda və foto-renderdə dayanır — görünmür/lazım deyil)
   if (traffic && !rendering && state.mode !== 'tour' && !Q.has('notraffic')) traffic.update(Math.min(rawDt, 0.1));
 

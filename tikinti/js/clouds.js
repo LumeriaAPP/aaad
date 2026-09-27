@@ -31,6 +31,8 @@ function puffTexture() {
   g.fillRect(0, 0, S, S);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
+  // şəffaf piksellərin rəngi qaradır — premultiplied olmasa, süzgəcdə tünd haşiyə/pərdə yaranır
+  t.premultiplyAlpha = true;
   return t;
 }
 
@@ -66,6 +68,7 @@ function shadowTexture() {
 export function createClouds(scene, { count = 26, area = 1400, lite = false } = {}) {
   const group = new THREE.Group();
   group.name = 'clouds';
+  group.userData.noAO = true; // AO keçidi spraytları qalın kvadrat kimi görüb göyü tündləşdirməsin
   const tex = puffTexture();
   const r = rand(3);
   const mats = [];
@@ -76,7 +79,7 @@ export function createClouds(scene, { count = 26, area = 1400, lite = false } = 
     const size = 60 + r() * 90;
     const parts = lite ? 4 : 5 + Math.floor(r() * 4);
     for (let k = 0; k < parts; k++) {
-      const m = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false, opacity: 0.5 + r() * 0.3, color: 0xffffff });
+      const m = new THREE.SpriteMaterial({ map: tex, transparent: true, premultipliedAlpha: true, depthWrite: false, fog: false, opacity: 0.5 + r() * 0.3, color: 0xffffff });
       m.userData.base = m.opacity;
       mats.push(m);
       const s = new THREE.Sprite(m);
@@ -88,8 +91,7 @@ export function createClouds(scene, { count = 26, area = 1400, lite = false } = 
     }
     // bəziləri kameranın keçdiyi hündürlükdə (öndən keçib dərinlik verir), çoxu yuxarıda
     const low = i % 4 === 0;
-    cloud.position.set((r() - 0.5) * area, low ? 70 + r() * 25 : 105 + r() * 70, (r() - 0.5) * area);
-    if (low) cloud.children.forEach((s) => { s.material.opacity *= 0.5; s.material.userData.base = s.material.opacity; });
+    cloud.position.set((r() - 0.5) * area, low ? 150 + r() * 30 : 185 + r() * 90, (r() - 0.5) * area);
     cloud.userData.speed = 0.6 + r() * 0.6;
     group.add(cloud);
     clouds.push(cloud);
@@ -109,6 +111,7 @@ export function createClouds(scene, { count = 26, area = 1400, lite = false } = 
   const shadow = new THREE.Mesh(new THREE.PlaneGeometry(area, area).rotateX(-Math.PI / 2), shMat);
   shadow.position.y = 0.08;
   shadow.renderOrder = 1;
+  shadow.userData.noAO = true;
   scene.add(shadow);
 
   const wind = new THREE.Vector3(1, 0, 0.35).normalize();
@@ -120,18 +123,21 @@ export function createClouds(scene, { count = 26, area = 1400, lite = false } = 
   return {
     group, shadow,
     /** dt — saniyə; sunAlt — günəşin hündürlüyü (dərəcə); night — 0..1 */
-    update(dt, sunAlt = 40, night = 0) {
+    update(dt, sunAlt = 40, night = 0, camera = null) {
       for (const c of clouds) {
         c.position.addScaledVector(wind, c.userData.speed * 4 * dt);
         if (c.position.x > half) c.position.x -= area;
         if (c.position.z > half) c.position.z -= area;
+        // kameraya yaxın bulud ekranı örtməsin — yaxınlaşdıqca əriyib yox olur
+        const d = camera ? c.position.distanceTo(camera.position) : 1e9;
+        c.userData.fade = Math.min(1, Math.max(0, (d - 90) / 160));
       }
       shift += 4 * 0.9 * dt;
       shTex.offset.set((-shift * wind.x) / area * REP, (shift * wind.z) / area * REP);
       // rəng: gündüz ağ, günbatımında isti, gecə tünd-mavi
       const warm = Math.exp(-Math.pow((sunAlt - 6) / 9, 2));
       tint.copy(DAY).lerp(WARM, Math.min(1, warm * 1.1)).lerp(NIGHT, night);
-      for (const m of mats) { m.color.copy(tint); m.opacity = m.userData.base * (1 - night * 0.45); }
+      for (const c of clouds) for (const s of c.children) { s.material.color.copy(tint); s.material.opacity = s.material.userData.base * (1 - night * 0.45) * c.userData.fade; }
       // kölgə yalnız günəş varkən; alçaq günəşdə zəifləyir
       shMat.opacity = 0.2 * Math.max(0, Math.min(1, (sunAlt + 1) / 12)) * (1 - night);
       shadow.visible = shMat.opacity > 0.005;
