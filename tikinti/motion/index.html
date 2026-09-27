@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3D Satış Sistemi — motion</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  #stage {
+    position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden;
+    background: #000; color: #f5f5f7; transform-origin: 0 0;
+    font-family: 'Inter Tight', system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+  }
+  .scene { position: absolute; inset: 0; display: none; }
+  #s3, #s4, #s6, #s7 { background: #000; }
+  .abs { position: absolute; }
+  img { display: block; }
+  .w { display: inline-block; overflow: hidden; vertical-align: top; padding: 0.14em 0.03em 0.16em; margin: -0.14em -0.03em -0.16em; }
+  .wi { display: inline-block; will-change: transform; }
+  .grad .wi { background: linear-gradient(95deg, #7fe0cf 0%, #f5f5f7 70%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .eyebrow { font-size: 22px; font-weight: 600; letter-spacing: 0.3em; text-transform: uppercase; color: #8ee3d4; }
+  .fill { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+  /* S1 */
+  #s1 .t { position: absolute; left: 0; right: 0; text-align: center; font-weight: 700; letter-spacing: -0.035em; }
+  #s1l1 { top: 380px; font-size: 138px; }
+  #s1l2 { top: 555px; font-size: 138px; }
+  #s1line { left: 50%; top: 770px; height: 2px; background: linear-gradient(90deg, transparent, #8ee3d4, transparent); }
+
+  /* S2 */
+  #s2wrap { position: absolute; inset: 0; overflow: hidden; }
+  #s2cam { position: absolute; inset: 0; }
+  .tilt { filter: blur(9px); -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,.6) 22%, transparent 42%, transparent 78%, #000 100%); mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,.6) 22%, transparent 42%, transparent 78%, #000 100%); }
+  #s2shade { position: absolute; inset: 0; background: linear-gradient(20deg, rgba(0,0,0,.78) 0%, rgba(0,0,0,.35) 38%, transparent 62%); }
+  #s2label { left: 120px; top: 110px; }
+  #s2title { left: 120px; top: 700px; font-size: 112px; font-weight: 700; letter-spacing: -0.035em; line-height: 1.02; }
+  .pill { display: flex; align-items: center; gap: 14px; padding: 16px 26px; border-radius: 999px; background: rgba(28, 28, 32, 0.55); border: 1px solid rgba(255,255,255,.16); backdrop-filter: blur(18px) saturate(1.4); font-size: 30px; font-weight: 600; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+  .pill i { width: 18px; height: 18px; border-radius: 50%; display: inline-block; }
+  #s2time { right: 120px; top: 96px; }
+
+  /* S3 */
+  #s3glow { position: absolute; inset: 0; background: radial-gradient(900px 700px at 72% 52%, rgba(46, 150, 132, 0.34), transparent 70%); }
+  #s3num { left: 120px; top: 318px; font-size: 30px; font-weight: 600; letter-spacing: 0.2em; color: #8ee3d4; font-variant-numeric: tabular-nums; }
+  #s3words { left: 120px; top: 370px; width: 760px; height: 230px; overflow: hidden; }
+  .s3w { position: absolute; left: 0; top: 18px; font-size: 150px; font-weight: 800; letter-spacing: -0.045em; line-height: 1.1; white-space: nowrap; }
+  #s3subs { left: 124px; top: 616px; width: 700px; height: 50px; overflow: hidden; }
+  .s3s { position: absolute; left: 0; top: 0; font-size: 34px; font-weight: 500; color: #a1a1a6; white-space: nowrap; }
+  #s3bar { left: 124px; top: 706px; display: flex; gap: 12px; }
+  #s3bar div { width: 110px; height: 4px; border-radius: 4px; background: rgba(255,255,255,.16); overflow: hidden; }
+  #s3bar div b { display: block; height: 100%; width: 0; background: #8ee3d4; }
+  #s3deck { left: 820px; top: 236px; width: 980px; height: 612px; perspective: 1800px; }
+  .s3c { position: absolute; inset: 0; border-radius: 30px; overflow: hidden; background: #111; box-shadow: 0 50px 140px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.08); transform-origin: 50% 50%; }
+  .s3c img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* S4 */
+  #s4title { left: 0; right: 0; top: 96px; text-align: center; font-size: 80px; font-weight: 700; letter-spacing: -0.035em; }
+  #s4dev { left: 400px; top: 262px; width: 1120px; height: 740px; perspective: 2200px; }
+  #s4body { position: absolute; inset: 0; transform-origin: 50% 100%; }
+  #s4screen { position: absolute; left: 0; top: 0; width: 1120px; height: 700px; border-radius: 30px; background: #0b0b0c; border: 14px solid #1c1c1e; box-sizing: border-box; overflow: hidden; box-shadow: 0 0 0 2px #3a3a3c, 0 60px 160px rgba(0,0,0,.8); }
+  #s4screen img { width: 100%; height: 100%; object-fit: cover; }
+  #s4base { position: absolute; left: -90px; top: 700px; width: 1300px; height: 30px; border-radius: 0 0 26px 26px; background: linear-gradient(180deg, #d9d9de 0%, #9a9aa0 55%, #5c5c62 100%); }
+  #s4base::after { content: ""; position: absolute; left: 50%; top: 0; width: 180px; height: 10px; margin-left: -90px; border-radius: 0 0 10px 10px; background: #7a7a80; }
+  .chip { position: absolute; padding: 22px 30px 20px; border-radius: 26px; background: rgba(30, 30, 34, 0.62); border: 1px solid rgba(255,255,255,.18); backdrop-filter: blur(22px) saturate(1.5); box-shadow: 0 30px 80px rgba(0,0,0,.55); }
+  .chip small { display: block; font-size: 20px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: #8ee3d4; margin-bottom: 6px; }
+  .chip b { display: block; font-size: 46px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  #s4glow { position: absolute; inset: 0; background: radial-gradient(1000px 600px at 50% 70%, rgba(46, 150, 132, 0.28), transparent 70%); }
+
+  /* S5 */
+  #s5cam { position: absolute; inset: 0; }
+  #s5shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0,0,0,.82) 0%, rgba(0,0,0,.55) 38%, rgba(0,0,0,.1) 70%, rgba(0,0,0,.35) 100%); }
+  #s5warm { position: absolute; inset: 0; background: radial-gradient(1200px 800px at 80% 90%, rgba(255, 150, 70, .55), transparent 70%); mix-blend-mode: soft-light; }
+  #s5title { left: 120px; top: 330px; font-size: 118px; font-weight: 700; letter-spacing: -0.04em; line-height: 1.02; }
+  #s5sub { left: 124px; top: 610px; font-size: 34px; font-weight: 500; color: #c7c7cc; }
+  #s5arc { right: 90px; bottom: 60px; width: 820px; height: 470px; }
+  #s5clock { position: absolute; left: 0; right: 0; top: 190px; text-align: center; font-size: 88px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+  #s5clock small { display: block; font-size: 22px; font-weight: 600; letter-spacing: 0.24em; color: #ffd29a; margin-top: 4px; }
+
+  /* S6 */
+  #s6title { left: 0; right: 0; top: 70px; text-align: center; font-size: 76px; font-weight: 700; letter-spacing: -0.035em; }
+  #s6grid { position: absolute; left: 80px; top: 208px; width: 1760px; height: 780px; transform-origin: 50% 50%; }
+  .tile { position: absolute; width: 560px; height: 370px; border-radius: 26px; overflow: hidden; background: #111; box-shadow: 0 30px 90px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.07); }
+  .tile img { width: 100%; height: 100%; object-fit: cover; }
+  .tile span { position: absolute; left: 26px; bottom: 22px; font-size: 30px; font-weight: 700; letter-spacing: -0.015em; text-shadow: 0 2px 20px rgba(0,0,0,.6); }
+  .tile::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(0,0,0,.6), transparent 45%); }
+  .tile span { z-index: 1; }
+
+  /* S7 */
+  #s7glow { position: absolute; inset: 0; background: radial-gradient(700px 500px at 50% 42%, rgba(46, 150, 132, 0.4), transparent 70%); }
+  #s7icon { left: 890px; top: 250px; width: 140px; height: 160px; }
+  #s7word { left: 0; right: 0; top: 460px; text-align: center; font-size: 124px; font-weight: 700; letter-spacing: -0.04em; }
+  #s7word .wi { background: linear-gradient(100deg, #86868b 0%, #f5f5f7 30%, #f5f5f7 42%, #ffffff 48%, #9ff0e0 52%, #f5f5f7 58%, #f5f5f7 70%, #86868b 100%); background-size: 400% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #s7tag { left: 0; right: 0; top: 650px; text-align: center; font-size: 44px; font-weight: 500; color: #a1a1a6; letter-spacing: -0.01em; }
+
+  /* ümumi */
+  #grain { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.06; mix-blend-mode: overlay; pointer-events: none; }
+  #vignette { position: absolute; inset: 0; background: radial-gradient(120% 120% at 50% 50%, transparent 60%, rgba(0,0,0,.55) 100%); pointer-events: none; }
+  #fade { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <!-- S1: çəngəl -->
+  <section class="scene" id="s1">
+    <div id="s1grp" class="abs" style="inset:0">
+      <div class="t" id="s1l1">Hələ tikilməyib.</div>
+      <div class="t grad" id="s1l2">Artıq satılır.</div>
+      <div class="abs" id="s1line"></div>
+    </div>
+  </section>
+
+  <!-- S2: kompleks -->
+  <section class="scene" id="s2">
+    <div id="s2wrap">
+      <div id="s2cam">
+        <img class="fill" id="s2day" src="shots/aerial_sunset.jpg" alt="">
+        <img class="fill" id="s2night" src="shots/aerial_night.jpg" alt="">
+        <img class="fill tilt" id="s2dayB" src="shots/aerial_sunset.jpg" alt="">
+        <img class="fill tilt" id="s2nightB" src="shots/aerial_night.jpg" alt="">
+      </div>
+      <div id="s2shade"></div>
+    </div>
+    <div class="abs eyebrow" id="s2label">3D Satış Sistemi</div>
+    <div class="abs" id="s2title"><div>Bütün kompleks.</div><div class="grad">Bir baxışda.</div></div>
+    <div class="abs pill" id="s2time"><i id="s2dot"></i><span id="s2clock">19:08</span></div>
+  </section>
+
+  <!-- S3: kinetik yol -->
+  <section class="scene" id="s3">
+    <div id="s3glow"></div>
+    <div class="abs" id="s3num">01 / 04</div>
+    <div class="abs" id="s3words">
+      <div class="s3w">Kompleks</div><div class="s3w">Korpus</div><div class="s3w">Mərtəbə</div><div class="s3w">Mənzil</div>
+    </div>
+    <div class="abs" id="s3subs">
+      <div class="s3s">Bütün ərazi 3D-də</div><div class="s3s">Mərtəbə, mənzil sayı, status</div><div class="s3s">Bina açılır, mərtəbə görünür</div><div class="s3s">Plan, qiymət, mənzərə</div>
+    </div>
+    <div class="abs" id="s3bar"><div><b></b></div><div><b></b></div><div><b></b></div><div><b></b></div></div>
+    <div class="abs" id="s3deck">
+      <div class="s3c"><img src="shots/markers.jpg" alt=""></div>
+      <div class="s3c"><img src="shots/korpus.jpg" alt=""></div>
+      <div class="s3c"><img src="shots/bina.jpg" alt=""></div>
+      <div class="s3c"><img src="shots/floor.jpg" alt=""></div>
+    </div>
+  </section>
+
+  <!-- S4: cihaz + məlumat kartları -->
+  <section class="scene" id="s4">
+    <div id="s4glow"></div>
+    <div class="abs" id="s4title">Hər mənzil. <span class="grad">Hər detal.</span></div>
+    <div class="abs" id="s4dev">
+      <div id="s4body">
+        <div id="s4screen"><img id="s4img" src="shots/card.jpg" alt=""></div>
+        <div id="s4base"></div>
+      </div>
+    </div>
+    <div class="chip" id="c1"><small>Sahə</small><b>99 m²</b></div>
+    <div class="chip" id="c2"><small>Qiymət</small><b>252 000 ₼</b></div>
+    <div class="chip" id="c3"><small>Otaq</small><b>2</b></div>
+    <div class="chip" id="c4"><small>Mənzərə</small><b>Şimal-qərb</b></div>
+  </section>
+
+  <!-- S5: günəş -->
+  <section class="scene" id="s5">
+    <div id="s5cam"><img class="fill" src="shots/tour.jpg" alt=""></div>
+    <div id="s5warm"></div>
+    <div id="s5shade"></div>
+    <div class="abs" id="s5title"><div>Günəşi</div><div class="grad">əvvəlcədən görün.</div></div>
+    <div class="abs" id="s5sub">Hər otaq, ilin hər günü, hər saatı.</div>
+    <div class="abs" id="s5arc">
+      <svg width="820" height="470" viewBox="0 0 820 470">
+        <defs>
+          <radialGradient id="sunG"><stop offset="0" stop-color="#fff6df"/><stop offset=".35" stop-color="#ffc56b"/><stop offset="1" stop-color="#ff9a3d" stop-opacity="0"/></radialGradient>
+        </defs>
+        <line x1="20" y1="430" x2="800" y2="430" stroke="rgba(255,255,255,.35)" stroke-width="2"/>
+        <path id="arcBase" d="M 60 430 A 350 350 0 0 1 760 430" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="2" stroke-dasharray="6 10"/>
+        <path id="arcDone" d="M 60 430 A 350 350 0 0 1 760 430" fill="none" stroke="#ffc56b" stroke-width="4" stroke-linecap="round"/>
+        <circle id="sunHalo" r="70" fill="url(#sunG)"/>
+        <circle id="sunDot" r="17" fill="#fff4d6"/>
+        <text x="60" y="462" fill="#c7c7cc" font-size="22" font-weight="600" text-anchor="middle" font-family="Inter Tight">05:10</text>
+        <text x="760" y="462" fill="#c7c7cc" font-size="22" font-weight="600" text-anchor="middle" font-family="Inter Tight">20:16</text>
+      </svg>
+      <div id="s5clock"><span id="s5time">05:10</span><small>21 İYUN · BAKI</small></div>
+    </div>
+  </section>
+
+  <!-- S6: mozaika -->
+  <section class="scene" id="s6">
+    <div class="abs" id="s6title">Və daha <span class="grad">çox.</span></div>
+    <div id="s6grid">
+      <div class="tile"><img src="shots/plan.jpg" alt=""><span>Mebelli mənzillər</span></div>
+      <div class="tile"><img src="shots/courtyard.jpg" alt=""><span>Yaşıl həyət</span></div>
+      <div class="tile"><img src="shots/lowangle.jpg" alt=""><span>Real işıq və kölgə</span></div>
+      <div class="tile"><img src="shots/tour_sun.jpg" alt=""><span>Virtual tur</span></div>
+      <div class="tile"><img src="shots/korpus.jpg" alt=""><span>Korpus kartları</span></div>
+      <div class="tile"><img src="shots/aerial_night.jpg" alt=""><span>Gecə görünüşü</span></div>
+    </div>
+  </section>
+
+  <!-- S7: loqo -->
+  <section class="scene" id="s7">
+    <div id="s7glow"></div>
+    <svg class="abs" id="s7icon" viewBox="0 0 140 160">
+      <defs><linearGradient id="cubeG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9ff0e0"/><stop offset="1" stop-color="#2e9684"/></linearGradient></defs>
+      <path id="cubeFill" d="M70 8 L130 42 L130 118 L70 152 L10 118 L10 42 Z" fill="url(#cubeG)" opacity="0"/>
+      <path id="cubeOut" d="M70 8 L130 42 L130 118 L70 152 L10 118 L10 42 Z" fill="none" stroke="#f5f5f7" stroke-width="4" stroke-linejoin="round"/>
+      <path id="cubeIn" d="M10 42 L70 76 L130 42 M70 76 L70 152" fill="none" stroke="#f5f5f7" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+    </svg>
+    <div class="abs" id="s7word">3D Satış Sistemi</div>
+    <div class="abs" id="s7tag">Binanı ekranda satın.</div>
+  </section>
+
+  <canvas id="grain" width="960" height="540"></canvas>
+  <div id="vignette"></div>
+  <div id="fade"></div>
+</div>
+
+<script>
+(() => {
+  const DUR = 20;
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => [...document.querySelectorAll(s)];
+  const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+  const P = (t, a, b) => clamp((t - a) / (b - a));
+  const lerp = (a, b, k) => a + (b - a) * k;
+  const ex = (x) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * x));            // expo out
+  const eo = (x) => 1 - Math.pow(1 - x, 4);                                // quart out
+  const ei = (x) => x * x * x;                                            // cubic in
+  const eio = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+  const back = (x, s = 1.6) => (x >= 1 ? 1 : 1 + (s + 1) * Math.pow(x - 1, 3) + s * Math.pow(x - 1, 2));
+
+  // sözləri maskalı "w > wi" qutularına böl
+  function split(el) {
+    const out = [];
+    const walk = (node) => [...node.childNodes].forEach((c) => {
+      if (c.nodeType === 3) {
+        const frag = document.createDocumentFragment();
+        c.textContent.split(/(\s+)/).forEach((part) => {
+          if (!part) return;
+          if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(part)); return; }
+          const w = document.createElement('span'); w.className = 'w';
+          const wi = document.createElement('span'); wi.className = 'wi'; wi.textContent = part;
+          w.appendChild(wi); frag.appendChild(w); out.push(wi);
+        });
+        c.replaceWith(frag);
+      } else if (c.nodeType === 1) walk(c);
+    });
+    walk(el);
+    return out;
+  }
+  // sözlər aşağıdan qalxır (maska ilə), bir az əyik + bulanıqdan
+  function wordsIn(ws, t, start, { stagger = 0.07, dur = 0.8, rot = 7 } = {}) {
+    ws.forEach((w, i) => {
+      const k = ex(P(t, start + i * stagger, start + i * stagger + dur));
+      w.style.transform = `translate3d(0, ${((1 - k) * 115).toFixed(2)}%, 0) rotate(${((1 - k) * rot).toFixed(2)}deg)`;
+    });
+  }
+  const show = (el, on) => { el.style.display = on ? 'block' : 'none'; };
+  const S = (id) => document.getElementById(id);
+
+  const W1 = split(S('s1l1')), W2 = split(S('s1l2'));
+  const W2t = split(S('s2title'));
+  const W4t = split(S('s4title'));
+  const W5t = split(S('s5title'));
+  const W6t = split(S('s6title'));
+  const W7w = split(S('s7word'));
+  const W7t = split(S('s7tag'));
+  const s3w = $$('.s3w'), s3s = $$('.s3s'), s3c = $$('.s3c'), s3bars = $$('#s3bar b');
+  const tiles = $$('.tile');
+  // mozaika düzülüşü: 3 sütun × 2 sətir
+  tiles.forEach((tl, i) => { tl.style.left = `${(i % 3) * 600}px`; tl.style.top = `${Math.floor(i / 3) * 410}px`; });
+  const chips = [S('c1'), S('c2'), S('c3'), S('c4')];
+  const CHIP_POS = [[150, 340], [1450, 300], [210, 700], [1440, 690]];
+
+  // dənəvərlik (film grain): 4 variant, kadr nömrəsinə görə
+  const grain = S('grain'), gctx = grain.getContext('2d');
+  const grains = [0, 1, 2, 3].map((k) => {
+    const d = gctx.createImageData(960, 540);
+    let s = 1234 + k * 999;
+    for (let i = 0; i < d.data.length; i += 4) { s = (s * 1664525 + 1013904223) >>> 0; const v = s >>> 24; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
+    return d;
+  });
+
+  const arc = S('arcDone');
+  const arcLen = arc.getTotalLength();
+  arc.style.strokeDasharray = `${arcLen}`;
+  const cubeOut = S('cubeOut'), cubeIn = S('cubeIn');
+  const cubeOutLen = cubeOut.getTotalLength(), cubeInLen = cubeIn.getTotalLength();
+  cubeOut.style.strokeDasharray = `${cubeOutLen}`; cubeIn.style.strokeDasharray = `${cubeInLen}`;
+  const hhmm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(Math.floor(m % 60)).padStart(2, '0')}`;
+
+  function render(t) {
+    // ---------- S1 (0 – 2.5) ----------
+    const s1 = t < 2.55; show(S('s1'), s1);
+    if (s1) {
+      const ln = ex(P(t, 0.1, 0.9));
+      S('s1line').style.width = `${(ln * 560).toFixed(1)}px`;
+      S('s1line').style.marginLeft = `${(-ln * 280).toFixed(1)}px`;
+      S('s1line').style.opacity = String(1 - P(t, 1.8, 2.2));
+      wordsIn(W1, t, 0.3, { stagger: 0.09 });
+      wordsIn(W2, t, 1.1, { stagger: 0.09 });
+      const dim = eo(P(t, 1.25, 1.75));
+      S('s1l1').style.color = `rgb(${Math.round(lerp(245, 110, dim))},${Math.round(lerp(245, 110, dim))},${Math.round(lerp(247, 115, dim))})`;
+      const out = ei(P(t, 2.05, 2.5));
+      S('s1grp').style.transform = `scale(${1 + out * 0.9})`;
+      S('s1grp').style.opacity = String(1 - out);
+      S('s1grp').style.filter = `blur(${(out * 14).toFixed(1)}px)`;
+    }
+
+    // ---------- S2 (2.3 – 5.75) ----------
+    const s2 = t >= 2.3 && t < 5.8; show(S('s2'), s2);
+    if (s2) {
+      const slit = ex(P(t, 2.3, 3.0));
+      S('s2wrap').style.clipPath = `inset(${(50 * (1 - slit)).toFixed(2)}% 0 ${(50 * (1 - slit)).toFixed(2)}% 0)`;
+      const push = eo(P(t, 2.3, 5.6));
+      const whip = ei(P(t, 5.35, 5.75));
+      S('s2cam').style.transform = `translate3d(${(-whip * 60).toFixed(2)}%, 0, 0) scale(${(1.34 - push * 0.26).toFixed(4)}) rotate(${((1 - push) * -1.5).toFixed(3)}deg)`;
+      S('s2cam').style.filter = whip > 0 ? `blur(${(whip * 30).toFixed(1)}px)` : 'none';
+      const night = eio(P(t, 4.35, 5.1));
+      S('s2night').style.opacity = S('s2nightB').style.opacity = String(night);
+      const lab = ex(P(t, 2.7, 3.6));
+      S('s2label').style.opacity = String(lab * (1 - whip));
+      S('s2label').style.letterSpacing = `${(0.7 - lab * 0.4).toFixed(3)}em`;
+      wordsIn(W2t, t, 2.95, { stagger: 0.1 });
+      S('s2title').style.opacity = String(1 - whip);
+      S('s2title').style.transform = `translate3d(${(-whip * 300).toFixed(1)}px, 0, 0)`;
+      const pill = back(P(t, 3.9, 4.5), 1.3);
+      S('s2time').style.opacity = String(clamp(pill) * (1 - whip));
+      S('s2time').style.transform = `translateY(${((1 - pill) * -30).toFixed(1)}px) scale(${(0.85 + 0.15 * pill).toFixed(3)})`;
+      S('s2time').style.transformOrigin = '100% 50%';
+      const mins = lerp(19 * 60 + 8, 21 * 60 + 30, eio(P(t, 4.35, 5.1)));
+      S('s2clock').textContent = hhmm(mins);
+      S('s2dot').style.background = night < 0.5 ? '#ffb25c' : '#9fb7ff';
+      S('s2dot').style.boxShadow = `0 0 18px ${night < 0.5 ? '#ffb25c' : '#9fb7ff'}`;
+    }
+
+    // ---------- S3 (5.45 – 9.7) ----------
+    const s3 = t >= 5.45 && t < 9.75; show(S('s3'), s3);
+    if (s3) {
+      const enter = ex(P(t, 5.45, 6.0));
+      const exit = ei(P(t, 9.25, 9.7));
+      S('s3').style.transform = `translate3d(${((1 - enter) * 45).toFixed(2)}%, 0, 0)`;
+      S('s3').style.filter = enter < 1 ? `blur(${((1 - enter) * 24).toFixed(1)}px)` : 'none';
+      S('s3').style.opacity = String(1 - exit);
+      S('s3glow').style.opacity = String(0.6 + 0.4 * Math.sin(t * 2.2) * 0.5 + 0.2);
+      const B0 = 5.5;
+      const idx = clamp(Math.floor(t - B0), 0, 3);
+      S('s3num').textContent = `0${idx + 1} / 04`;
+      s3w.forEach((el, k) => {
+        const tin = B0 + k - 0.02, tout = B0 + k + 1 - 0.1;
+        const ki = k === 0 ? 1 : ex(P(t, tin, tin + 0.45));
+        const ko = k === 3 ? 0 : ei(P(t, tout, tout + 0.28));
+        const y = (1 - ki) * 105 - ko * 105;
+        el.style.transform = `translate3d(0, ${y.toFixed(2)}%, 0)`;
+        const vel = (k === 0 ? 0 : (1 - ki) * 1) + ko * (1 - ko) * 4;
+        el.style.filter = vel > 0.02 ? `blur(${(vel * 7).toFixed(1)}px)` : 'none';
+        el.style.visibility = (t >= tin - 0.05 || k === 0) && !(ko >= 1) ? 'visible' : 'hidden';
+      });
+      s3s.forEach((el, k) => {
+        const tin = B0 + k + 0.08, tout = B0 + k + 0.92;
+        const ki = k === 0 ? ex(P(t, 5.7, 6.2)) : ex(P(t, tin, tin + 0.45));
+        const ko = k === 3 ? 0 : ei(P(t, tout, tout + 0.22));
+        el.style.transform = `translate3d(0, ${((1 - ki) * 110 - ko * 110).toFixed(2)}%, 0)`;
+        el.style.opacity = String(ki * (1 - ko));
+      });
+      s3bars.forEach((b, k) => { b.style.width = `${(eio(P(t, B0 + k, B0 + k + 1)) * 100).toFixed(1)}%`; });
+      s3c.forEach((c, k) => {
+        const tin = B0 + k - 0.05;
+        const ki = k === 0 ? ex(P(t, 5.55, 6.2)) : ex(P(t, tin, tin + 0.6));
+        const ko = k === 3 ? 0 : eo(P(t, B0 + k + 0.9, B0 + k + 1.45));
+        const rotY = (1 - ki) * -32 + ko * 26;
+        const tx = (1 - ki) * 260 - ko * 180;
+        const tz = (1 - ki) * -300 - ko * 420;
+        const sc = 1 - ko * 0.06;
+        c.style.transform = `translate3d(${tx.toFixed(1)}px, 0, ${tz.toFixed(1)}px) rotateY(${rotY.toFixed(2)}deg) scale(${sc.toFixed(3)})`;
+        c.style.opacity = String(clamp(ki * 1.4) * (1 - ko));
+        c.style.zIndex = String(10 + k);
+        c.style.visibility = t >= tin - 0.02 && ko < 1 ? 'visible' : 'hidden';
+        const img = c.firstElementChild;
+        img.style.transform = `scale(${(1.12 - 0.12 * eo(P(t, tin, tin + 1.3))).toFixed(4)})`;
+      });
+    }
+
+    // ---------- S4 (9.5 – 12.75) ----------
+    const s4 = t >= 9.5 && t < 12.8; show(S('s4'), s4);
+    if (s4) {
+      const e = ex(P(t, 9.5, 10.5));
+      const zoom = ei(P(t, 12.3, 12.78));
+      S('s4body').style.transform = `translate3d(0, ${((1 - e) * 300).toFixed(1)}px, 0) rotateX(${((1 - e) * 42).toFixed(2)}deg) scale(${(0.8 + 0.2 * e + 0.035 * eo(P(t, 10.5, 12.3)) + zoom * 1.8).toFixed(4)})`;
+      S('s4dev').style.opacity = String(clamp(e * 1.5));
+      S('s4img').style.transform = `scale(${(1.1 - 0.1 * eo(P(t, 9.7, 12.3))).toFixed(4)})`;
+      S('s4glow').style.opacity = String(e * (1 - zoom));
+      wordsIn(W4t, t, 9.7, { stagger: 0.09 });
+      S('s4title').style.opacity = String(1 - zoom);
+      chips.forEach((c, i) => {
+        const st = 10.25 + i * 0.16;
+        const k = back(P(t, st, st + 0.6), 1.5);
+        const [px, py] = CHIP_POS[i];
+        const cx = 960 - px, cy = 560 - py; // ekranın ortasından "uçub çıxır"
+        const fl = Math.sin(t * 1.6 + i * 1.7) * 8;
+        c.style.left = `${px}px`; c.style.top = `${py}px`;
+        c.style.transform = `translate3d(${((1 - k) * cx * 0.8).toFixed(1)}px, ${((1 - k) * cy * 0.8 + fl * clamp(k)).toFixed(1)}px, 0) scale(${(0.4 + 0.6 * k).toFixed(3)})`;
+        c.style.opacity = String(clamp(k * 1.6) * (1 - zoom));
+      });
+      S('s4').style.opacity = String(1 - P(t, 12.55, 12.8));
+    }
+
+    // ---------- S5 (12.5 – 15.15) ----------
+    const s5 = t >= 12.5 && t < 15.2; show(S('s5'), s5);
+    if (s5) {
+      const inK = ex(P(t, 12.5, 13.1));
+      S('s5').style.opacity = String(clamp(P(t, 12.5, 12.85)) * (1 - P(t, 14.85, 15.15)));
+      S('s5cam').style.transform = `scale(${(1.28 - 0.18 * eo(P(t, 12.5, 15.1))).toFixed(4)})`;
+      wordsIn(W5t, t, 12.75, { stagger: 0.1 });
+      S('s5sub').style.opacity = String(ex(P(t, 13.4, 14.0)));
+      S('s5sub').style.transform = `translateY(${((1 - ex(P(t, 13.4, 14.0))) * 20).toFixed(1)}px)`;
+      const sp = eio(P(t, 12.9, 14.8));
+      const ang = Math.PI * (1 - sp); // 180° → 0°
+      const cx = 410 + Math.cos(ang) * 350, cy = 430 - Math.sin(ang) * 350;
+      S('sunDot').setAttribute('cx', cx.toFixed(1)); S('sunDot').setAttribute('cy', cy.toFixed(1));
+      S('sunHalo').setAttribute('cx', cx.toFixed(1)); S('sunHalo').setAttribute('cy', cy.toFixed(1));
+      arc.style.strokeDashoffset = `${(arcLen * (1 - sp)).toFixed(1)}`;
+      S('s5arc').style.opacity = String(inK);
+      S('s5time').textContent = hhmm(lerp(5 * 60 + 10, 20 * 60 + 16, sp));
+      S('s5warm').style.opacity = String(0.25 + 0.75 * Math.sin(sp * Math.PI * 0.5 + Math.PI * 0.5 * sp));
+    }
+
+    // ---------- S6 (14.95 – 17.75) ----------
+    const s6 = t >= 14.95 && t < 17.8; show(S('s6'), s6);
+    if (s6) {
+      S('s6').style.opacity = String(clamp(P(t, 14.95, 15.2)));
+      const z = ex(P(t, 15.0, 16.1));
+      S('s6grid').style.transform = `scale(${(2.35 - 1.35 * z).toFixed(4)})`;
+      const out = P(t, 17.15, 17.7);
+      tiles.forEach((tl, i) => {
+        const col = i % 3, row = Math.floor(i / 3);
+        const d = Math.hypot(col - 1, row - 0.5);
+        const k = ex(P(t, 15.05 + d * 0.12, 15.75 + d * 0.12));
+        const ko = ei(clamp((out - d * 0.08) / 0.75));
+        const tx = (1 - col) * 600 * ko * 0.95, ty = (0.5 - row) * 410 * ko * 0.95;
+        tl.style.transform = `translate3d(${tx.toFixed(1)}px, ${ty.toFixed(1)}px, 0) scale(${((0.88 + 0.12 * k) * (1 - ko * 0.75)).toFixed(4)})`;
+        tl.style.opacity = String(clamp(k * 1.3) * (1 - ko));
+        tl.firstElementChild.style.transform = `scale(${(1.15 - 0.15 * eo(P(t, 15.0, 17.2))).toFixed(4)})`;
+      });
+      wordsIn(W6t, t, 15.75, { stagger: 0.1 });
+      S('s6title').style.opacity = String(1 - ei(P(t, 17.1, 17.5)));
+    }
+
+    // ---------- S7 (17.45 – 20) ----------
+    const s7 = t >= 17.45; show(S('s7'), s7);
+    if (s7) {
+      const g = ex(P(t, 17.45, 18.6));
+      S('s7glow').style.opacity = String(g);
+      S('s7glow').style.transform = `scale(${(0.7 + 0.3 * g).toFixed(3)})`;
+      const d1 = eio(P(t, 17.5, 18.25)), d2 = eio(P(t, 17.85, 18.45));
+      cubeOut.style.strokeDashoffset = `${(cubeOutLen * (1 - d1)).toFixed(1)}`;
+      cubeIn.style.strokeDashoffset = `${(cubeInLen * (1 - d2)).toFixed(1)}`;
+      S('cubeFill').setAttribute('opacity', (0.9 * ex(P(t, 18.35, 19.0))).toFixed(3));
+      const ic = back(P(t, 17.5, 18.3), 1.2);
+      S('s7icon').style.transform = `scale(${(0.7 + 0.3 * ic).toFixed(4)})`;
+      wordsIn(W7w, t, 18.0, { stagger: 0.11 });
+      const sh = eio(P(t, 18.5, 19.6));
+      W7w.forEach((w) => { w.style.backgroundPosition = `${(100 - sh * 100).toFixed(2)}% 0`; });
+      wordsIn(W7t, t, 18.65, { stagger: 0.06, dur: 0.7, rot: 0 });
+      const settle = eo(P(t, 18.0, 20));
+      S('s7word').style.transform = `scale(${(1.04 - 0.04 * settle).toFixed(4)})`;
+    }
+
+    // ---------- ümumi ----------
+    S('fade').style.opacity = String(P(t, 19.72, 20));
+    gctx.putImageData(grains[Math.floor(t * 24) % 4], 0, 0);
+  }
+
+  window.seek = (t) => render(t);
+  window.DURATION = DUR;
+  // bütün şəkillər və şriftlər hazır olanda
+  window.ready = Promise.all([document.fonts.ready, ...$$('img').map((i) => i.decode().catch(() => {}))]).then(() => true);
+
+  const q = new URLSearchParams(location.search);
+  const fit = () => {
+    const k = Math.min(innerWidth / 1920, innerHeight / 1080);
+    const st = S('stage');
+    st.style.transform = `translate(${(innerWidth - 1920 * k) / 2}px, ${(innerHeight - 1080 * k) / 2}px) scale(${k})`;
+  };
+  if (q.has('capture')) { render(0); return; }
+  fit(); addEventListener('resize', fit);
+  window.ready.then(() => {
+    const t0 = performance.now();
+    const loop = (now) => { render(((now - t0) / 1000) % DUR); requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+  });
+})();
+</script>
+</body>
+</html>
