@@ -212,6 +212,24 @@
     .band img, .hero__media { transform: none !important; }
   }
   body { margin: 0; }
+
+  /* ── mətn animasiyaları ── */
+  .w { display: inline-block; overflow: hidden; vertical-align: top; padding: 0.14em 0.04em 0.1em; margin: -0.14em -0.04em -0.1em; }
+  .wi { display: inline-block; will-change: transform; }
+  .anim .rv .wi { transform: translate3d(0, 115%, 0) rotate(7deg); transform-origin: 0% 100%; transition: transform 1.15s cubic-bezier(.16, 1, .3, 1); transition-delay: calc(var(--i, 0) * 55ms + var(--d, 0s)); }
+  .anim .rv.in .wi { transform: none; }
+  .anim .fx { opacity: 0; transform: translate3d(0, 28px, 0); filter: blur(10px); transition: opacity 1s ease, transform 1.2s cubic-bezier(.16, 1, .3, 1), filter 1s ease; transition-delay: var(--d, .25s); }
+  .anim .fx.in { opacity: 1; transform: none; filter: none; }
+  .anim .tags li, .anim .path li { transition-delay: calc(var(--d, .3s) + var(--j, 0) * 70ms); }
+  .anim .tags.fx li, .anim .path.fx li { opacity: 0; transform: translateY(12px) scale(.96); transition-property: opacity, transform, color, border-color, background; transition-duration: .7s; }
+  .anim .tags.fx.in li, .anim .path.fx.in li { opacity: 1; transform: none; }
+  .vs td.old { text-decoration: none; }
+  .vs td.old s { text-decoration: none; background: linear-gradient(var(--mute), var(--mute)) 0 58% / 100% 1px no-repeat; }
+  .anim .vs tr.fx td.old s { background-size: 0% 1px; transition: background-size .9s cubic-bezier(.65, 0, .35, 1) calc(var(--d, 0s) + .45s); }
+  .anim .vs tr.fx.in td.old s { background-size: 100% 1px; }
+  .scr { color: var(--acc); }
+  .btn { will-change: transform; }
+  @media (prefers-reduced-motion: reduce) { .anim .rv .wi, .anim .fx, .anim .tags.fx li, .anim .path.fx li { transform: none !important; opacity: 1 !important; filter: none !important; } }
 </style>
 </head>
 <body>
@@ -470,8 +488,8 @@
       if (best !== activeStep) {
         activeStep = best;
         shots.forEach((s, i) => s.classList.toggle('on', i === best));
-        devCap.textContent = steps[best].dataset.cap;
-        devUrl.textContent = steps[best].dataset.url;
+        scramble(devCap, steps[best].dataset.cap);
+        scramble(devUrl, steps[best].dataset.url);
       }
     }
 
@@ -521,6 +539,69 @@
       else if (!e.isIntersecting && running) { running = false; clearTimeout(timer); }
     }), { threshold: 0.3 }).observe($('#typeWord').closest('.ribbon'));
   })();
+
+  // ── mətn animasiyaları: başlıqlar söz-söz, mono yazılar deşifrə, qalanı bulanıqdan aydınlaşır ──
+  const CH = '0123456789+-.·/ABCDEFGHIJKLMNOPQRSTUVXYZƏÖÜŞÇĞ';
+  function scramble(el, finalText) {
+    if (reduce) { if (finalText != null) el.textContent = finalText; return; }
+    if (finalText != null) el.textContent = finalText;
+    const nodes = []; const walk = (n) => n.childNodes.forEach((c) => c.nodeType === 3 ? nodes.push(c) : walk(c)); walk(el);
+    const finals = nodes.map((n) => n.textContent); const total = finals.join('').length || 1;
+    const t0 = performance.now(), dur = 520 + total * 14;
+    cancelAnimationFrame(el._scr);
+    const tick = (now) => {
+      const p = Math.min(1, (now - t0) / dur); let k = 0;
+      nodes.forEach((n, i) => { n.textContent = [...finals[i]].map((c) => { const pos = k++ / total; return c === ' ' || pos < p ? c : CH[(Math.random() * CH.length) | 0]; }).join(''); });
+      if (p < 1) el._scr = requestAnimationFrame(tick);
+    };
+    el._scr = requestAnimationFrame(tick);
+  }
+  function splitWords(root) {
+    let i = 0;
+    const walk = (node) => [...node.childNodes].forEach((c) => {
+      if (c.nodeType === 3) {
+        const frag = document.createDocumentFragment();
+        c.textContent.split(/(\s+)/).forEach((part) => {
+          if (!part) return;
+          if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(part)); return; }
+          const w = document.createElement('span'); w.className = 'w';
+          const wi = document.createElement('span'); wi.className = 'wi'; wi.style.setProperty('--i', i++); wi.textContent = part;
+          w.appendChild(wi); frag.appendChild(w);
+        });
+        c.replaceWith(frag);
+      } else if (c.nodeType === 1 && c.tagName !== 'BR') walk(c);
+    });
+    walk(root);
+  }
+  if (!reduce && 'IntersectionObserver' in window) {
+    document.documentElement.classList.add('anim');
+    document.querySelectorAll('.hero h1, .floor__head h2, .journey__intro h2, .st, .band__copy h2, .roof h2, .pain h3, .steps h3').forEach((h) => { splitWords(h); h.classList.add('rv'); });
+    document.querySelectorAll('.vs td.old').forEach((td) => { td.innerHTML = `<s>${td.innerHTML}</s>`; });
+    const fxSel = '.hero .lead, .hero .path, .hero .cue, .floor__head .lead, .journey__intro .lead, .journey__intro .path, .pain p, .step p, .tags, .kv, .step__img, .steps p, .vs tbody tr, .ctas, .foot, .band__copy .mono';
+    document.querySelectorAll(fxSel).forEach((el) => el.classList.add('fx'));
+    document.querySelectorAll('.vs tbody tr').forEach((tr, i) => tr.style.setProperty('--d', `${0.1 + i * 0.12}s`));
+    document.querySelectorAll('.tags, .path').forEach((l) => [...l.children].forEach((li, j) => li.style.setProperty('--j', j)));
+    document.querySelectorAll('.pain').forEach((p, i) => p.style.setProperty('--d', `${i * 0.08}s`));
+    const scrSel = '.lvl, .step__n';
+    const io = new IntersectionObserver((es) => es.forEach((e) => {
+      if (!e.isIntersecting) return;
+      const el = e.target; io.unobserve(el);
+      if (el.matches(scrSel)) scramble(el); else el.classList.add('in');
+    }), { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+    document.querySelectorAll('.rv, .fx, ' + scrSel).forEach((el) => io.observe(el));
+    // səhifənin sonuna çatanda qalan hər şeyi aç
+    addEventListener('scroll', () => {
+      if (innerHeight + scrollY >= document.documentElement.scrollHeight - 6) document.querySelectorAll('.roof .fx:not(.in), .roof .rv:not(.in)').forEach((el) => el.classList.add('in'));
+    }, { passive: true });
+    // giriş: yüklənəndə dərhal
+    requestAnimationFrame(() => setTimeout(() => document.querySelectorAll('.hero .rv, .hero .fx').forEach((el) => el.classList.add('in')), 150));
+    // "maqnit" düymələr
+    if (matchMedia('(hover: hover)').matches) document.querySelectorAll('.btn').forEach((b) => {
+      b.addEventListener('pointermove', (e) => { const r = b.getBoundingClientRect(); b.style.transform = `translate(${(e.clientX - r.left - r.width / 2) * 0.18}px, ${(e.clientY - r.top - r.height / 2) * 0.28}px)`; });
+      b.addEventListener('pointerleave', () => { b.style.transition = 'transform .5s cubic-bezier(.16,1,.3,1), background .3s, color .3s'; b.style.transform = ''; });
+      b.addEventListener('pointerenter', () => { b.style.transition = 'background .3s, color .3s'; });
+    });
+  }
 
   let ticking = false;
   const req = () => { if (!ticking) { ticking = true; requestAnimationFrame(() => { ticking = false; frame(); }); } };
