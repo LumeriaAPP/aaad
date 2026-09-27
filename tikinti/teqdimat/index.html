@@ -61,7 +61,7 @@
   .elev { position: fixed; right: calc(var(--gut) * 0.45); top: 50%; transform: translateY(-50%); z-index: 25; display: flex; align-items: stretch; gap: 10px; height: min(56vh, 460px); pointer-events: none; }
   .elev__track { position: relative; width: 1px; background: var(--dim); }
   .elev__fill { position: absolute; left: 0; bottom: 0; width: 1px; height: 0; background: var(--acc); }
-  .elev__ticks { display: flex; flex-direction: column-reverse; justify-content: space-between; }
+  .elev__ticks { display: none; flex-direction: column-reverse; justify-content: space-between; }
   .elev__ticks span { font-family: var(--mono); font-size: 10px; color: var(--dim); letter-spacing: 0.08em; transition: color .3s; line-height: 1; }
   .elev__ticks span.on { color: var(--paper); }
   @media (max-width: 860px) { .elev { display: none; } }
@@ -121,7 +121,7 @@
   .kv dt { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--mute); }
   .kv dd { margin: 0; font-size: 22px; font-weight: 600; font-variation-settings: "wdth" 85; font-variant-numeric: tabular-nums; }
   .step__img { display: none; margin: 8px 0 0; }
-  @media (min-width: 861px) { .journey__grid { padding-right: calc(var(--gut) + 64px); } }
+  @media (min-width: 861px) { .journey__grid { padding-right: calc(var(--gut) + 20px); } }
   .journey__screen { position: sticky; top: 0; height: 100vh; display: grid; align-content: center; gap: 14px; }
   .device { border: 1px solid var(--dim); border-radius: 14px; overflow: hidden; background: var(--ink-2); box-shadow: 0 40px 120px -40px rgba(124, 195, 182, 0.18), 0 30px 80px -30px #000; }
   .device__bar { display: flex; align-items: center; gap: 7px; padding: 11px 14px; border-bottom: 1px solid var(--line); }
@@ -256,7 +256,7 @@
       </div>
       <div class="hero__veil" id="heroVeil"></div>
       <div class="hero__copy wrap">
-        <span class="mono lvl"><b>±0.000</b> Təməl</span>
+        <span class="mono lvl">Təməl</span>
         <h1 class="xl" id="heroTitle"><span>Binanı</span><span class="out">hələ tikilməmiş</span><span>satın<em class="acc">.</em></span></h1>
         <div class="hero__foot">
           <div style="display:grid;gap:18px"><p class="lead">Alıcı mənzili 3D-də seçir, içində gəzir və günəşin otağa neçədə düşdüyünü görür. Hamısı sizin saytınızda, gecə-gündüz.</p><ol class="path path--hero"><li>Kompleks</li><li>Korpus</li><li>Mərtəbə</li><li>Mənzil</li><li>Satış</li></ol></div>
@@ -269,7 +269,7 @@
   <!-- +3.30 problem -->
   <section class="floor wrap" data-level="+3.300" data-name="Problem">
     <div class="floor__head">
-      <span class="mono lvl"><b>+3.300</b> Problem</span>
+      <span class="mono lvl">Problem</span>
       <h2 class="lg">Alıcı ömürlük qərarı bir <span class="out">təqdimata</span> baxıb verir.</h2>
     </div>
     <div class="pains">
@@ -295,7 +295,7 @@
   <!-- +9.90 alıcının yolu -->
   <section class="journey" data-level="+9.900" data-name="Alıcının yolu" id="journey">
     <div class="journey__intro wrap">
-      <span class="mono lvl"><b>+9.900</b> Alıcının yolu</span>
+      <span class="mono lvl">Alıcının yolu</span>
       <h2 class="lg">Layihəni göstərmək yox. <em class="acc">Alıcıya seçdirmək.</em></h2>
       <p class="lead">Alıcı kompleksdən mənzilə qədər hər qərarı 3D-də özü verir. Doqquz addım, bir link, satış ofisinə gəlmədən.</p>
       <ol class="path"><li>Kompleks</li><li>Korpus</li><li>Mərtəbə</li><li>Mənzil</li><li>Satış</li></ol>
@@ -397,7 +397,7 @@
   <!-- +16.50 nəticə -->
   <section class="floor wrap" data-level="+13.200" data-name="Nəticə">
     <div class="floor__head">
-      <span class="mono lvl"><b>+13.200</b> Nəticə</span>
+      <span class="mono lvl">Nəticə</span>
       <h2 class="lg">Satış ofisiniz <span class="out">heç vaxt</span> bağlanmır.</h2>
     </div>
     <div class="table-wrap">
@@ -416,7 +416,7 @@
   <!-- +19.80 proses -->
   <section class="floor wrap" data-level="+16.500" data-name="Proses">
     <div class="floor__head">
-      <span class="mono lvl"><b>+16.500</b> Necə işləyir</span>
+      <span class="mono lvl">Necə işləyir</span>
       <h2 class="lg">Çertyojdan satışa<br>üç addım.</h2>
     </div>
     <ol class="steps">
@@ -428,7 +428,7 @@
 
   <!-- +23.10 dam -->
   <section class="roof wrap" data-level="+19.800" data-name="Dam">
-    <span class="mono lvl"><b>+19.800</b> Dam</span>
+    <span class="mono lvl">Dam</span>
     <h2 class="xl" style="margin-top:24px">Növbəti layihənizi <em class="acc">ekranda</em> satın.</h2>
     <div class="foot">
       <span class="mono">Demodakı bina nümunədir, sizin layihənizlə əvəz olunur</span>
