@@ -27,6 +27,7 @@ import { CamGuard } from './camguard.js';
 import { listBuildings, buildCustom, heightOf } from './custom.js';
 import { loadDesign, isCustom, DEFAULT_FABRIC } from './design.js';
 import { initStudio } from './studio.js';
+import { createClouds } from './clouds.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -169,6 +170,8 @@ new HDRLoader(manager).setDataType(THREE.FloatType).load('assets/hdri/aristea_wr
   scene.backgroundIntensity = 1.0;
   // duman rəngini üfüqün rənginə uyğunlaşdır
   scene.fog.color.copy(horizonColor(tex));
+  // günbatımı/axşam rejimi artıq açıqdırsa, HDRI onun işığını əzməsin
+  if (sunSim.on) { scene.background = null; applySun(); }
 }, bytes(T_SKY), () => T_SKY.done());
 function horizonColor(tex) {
   const { data, width, height } = tex.image;
@@ -1164,6 +1167,9 @@ canvas.addEventListener('pointerup', (e) => {
 /* =========================================================
    Günəş simulyasiyası (tarix + saat → günəşin real mövqeyi)
    ========================================================= */
+// buludlar (günəşin rənginə görə boyanır)
+const clouds = Q.has('noclouds') ? null : createClouds(scene, { lite: LITE });
+let skyAlt = 40, skyNightK = 0;
 const sunSim = { on: false, playing: false, y: new Date().getFullYear(), m: 6, d: 21, min: 12 * 60 };
 const skyMesh = new Sky();
 skyMesh.scale.setScalar(3600);
@@ -1171,6 +1177,7 @@ skyMesh.visible = false;
 scene.add(skyMesh);
 const skyNight = { value: 0 };
 const skyDusk = { value: 0 };
+const skyGold = { value: 0 }; // günbatımı (günəş 0–15°): isti qızılı göy
 const skyEnvScene = new THREE.Scene();
 const skyEnv = new Sky();
 skyEnv.scale.setScalar(50);
@@ -1179,11 +1186,13 @@ for (const sk of [skyMesh, skyEnv]) {
   // Sky şeyderi çox parlaqdır — səhnənin ekspozisiyasına uyğunlaşdır
   sk.material.uniforms.uNightSky = skyNight;
   sk.material.uniforms.uDusk = skyDusk;
+  sk.material.uniforms.uGold = skyGold;
   sk.material.onBeforeCompile = (sh) => {
     sh.uniforms.uNightSky = skyNight;
     sh.uniforms.uDusk = skyDusk;
+    sh.uniforms.uGold = skyGold;
     sh.fragmentShader = sh.fragmentShader
-      .replace('void main() {', `uniform float uNightSky; uniform float uDusk;
+      .replace('void main() {', `uniform float uNightSky; uniform float uDusk; uniform float uGold;
         float starHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
         void main() {`)
       .replace('gl_FragColor = vec4( texColor, 1.0 );', `vec3 dirN = normalize(vWorldPosition - cameraPosition);
@@ -1192,7 +1201,16 @@ for (const sk of [skyMesh, skyEnv]) {
         vec3 q = floor(dirN * 420.0);
         float star = step(0.9965, starHash(q)) * smoothstep(0.03, 0.25, up) * (0.4 + 0.6 * starHash(q + 3.1));
         vec3 duskCol = mix(vec3(1.0, 0.62, 0.45), vec3(0.34, 0.4, 0.66), pow(up, 0.33));
-        gl_FragColor = vec4(texColor * 0.2 + (nightCol + vec3(star) * 0.9 * (1.0 - uDusk)) * uNightSky + duskCol * uDusk * 0.55, 1.0);`);
+        vec3 outCol = texColor * 0.2 + (nightCol + vec3(star) * 0.9 * (1.0 - uDusk)) * uNightSky + duskCol * uDusk * 0.55;
+        // günbatımı: üfüqdə şaftalı-narıncı, ortada çəhrayı, yuxarıda yumşaq mavi + günəş ətrafında parıltı
+        vec3 gHor = vec3(1.0, 0.64, 0.40), gMid = vec3(0.93, 0.66, 0.66), gTop = vec3(0.50, 0.60, 0.80);
+        vec3 gold = mix(gHor, gMid, smoothstep(0.0, 0.18, up));
+        gold = mix(gold, gTop, smoothstep(0.12, 0.7, up));
+        float sd = max(dot(dirN, vSunDirection), 0.0);
+        gold += vec3(1.0, 0.72, 0.45) * (pow(sd, 8.0) * 0.55 + pow(sd, 90.0) * 1.6);
+        gold *= 0.62;
+        outCol = mix(outCol, gold, uGold);
+        gl_FragColor = vec4(outCol, 1.0);`);
   };
   const u = sk.material.uniforms;
   u.turbidity.value = 2.0; u.rayleigh.value = 2.6; u.mieCoefficient.value = 0.004; u.mieDirectionalG.value = 0.85;
@@ -1200,6 +1218,7 @@ for (const sk of [skyMesh, skyEnv]) {
 let skyEnvRT = null, envTimer = 0;
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const SUN_WARM = new THREE.Color(0xff9a52), SUN_DAY = new THREE.Color(0xfff3e2);
+const GOLD_HEMI = new THREE.Color(0xffc49a);
 const FOG_DAY = new THREE.Color(0xc4d2de), FOG_DUSK = new THREE.Color(0xd9a383), FOG_NIGHT = new THREE.Color(0x1a2438);
 
 let _glow = null;
@@ -1218,14 +1237,19 @@ function rebuildSkyEnv() {
 
 function applySun() {
   const date = localDate(sunSim.y, sunSim.m, sunSim.d, sunSim.min);
-  const { altitude, azimuth } = sunPosition(date);
+  // "Günbatımı" rejimi: günəş bədii mövqedə — alçaqdan, kameraya görə qabaq-soldan (binaların üzü parlaq, kölgələr uzun)
+  const { altitude, azimuth } = sunSim.art ? { altitude: THREE.MathUtils.degToRad(17), azimuth: THREE.MathUtils.degToRad(235) } : sunPosition(date);
   sunDirection(altitude, azimuth, lightDir);
   const altDeg = THREE.MathUtils.radToDeg(altitude);
+  skyAlt = altDeg;
   for (const sk of [skyMesh, skyEnv]) sk.material.uniforms.sunPosition.value.copy(lightDir);
   const day = smooth(-1, 6, altDeg);
   const night = 1 - smooth(-7, 3, altDeg);
+  skyNightK = night;
+  const gold = altDeg > -1.5 ? Math.exp(-Math.pow((altDeg - 14) / 10, 2)) : 0;
+  skyGold.value = gold;
   if (altDeg > -1.5) {
-    sunLight.intensity = 3.6 * day * (0.55 + 0.45 * smooth(0, 30, altDeg));
+    sunLight.intensity = 3.6 * day * (0.55 + 0.45 * smooth(0, 30, altDeg)) * (1 + gold * 1.3);
     sunLight.color.lerpColors(SUN_WARM, SUN_DAY, smooth(2, 28, altDeg));
   } else {
     // günəş batıb: ay işığı (soyuq, zəif) formaları göstərir
@@ -1237,13 +1261,14 @@ function applySun() {
   hemi.intensity = 0.25 + 0.12 * smooth(-10, 20, altDeg) + night * 0.35 + duskK * 0.35;
   setBloom(THREE.MathUtils.lerp(6, 0.95, night), 0.08 + night * 0.2);
   hemi.color.set(duskK > 0.4 ? 0x9a93c0 : night > 0.5 ? 0x5d7098 : 0xcfe0f5);
+  if (gold > 0.3) { hemi.color.lerp(GOLD_HEMI, gold * 0.6); hemi.intensity *= 1 + gold * 0.2; }
   windowMaterial().userData.uniforms.uNight.value = night;
   skyNight.value = night;
   skyDusk.value = Math.exp(-Math.pow((altDeg + 2.5) / 3.2, 2));
   bakuUniforms.uNight.value = night;
-  const envK = 0.4 + 0.6 * smooth(-6, 15, altDeg);
+  const envK = (0.4 + 0.6 * smooth(-6, 15, altDeg)) * (1 + gold * 0.1); // günbatımında kölgələr dərin, günəşli tərəflər parlaq
   scene.environmentIntensity = state.mode === 'tour' ? TOUR_ENV * envK : envK;
-  scene.fog.density = 0.00035 + night * 0.0003;
+  scene.fog.density = (0.00035 + night * 0.0003) * (1 - gold * 0.5);
   // axşam: fənərlər, lobbi, lövhə yanır
   for (const m of glowMats()) {
     if (m.userData.nightGlow != null) m.emissiveIntensity = m.userData.nightGlow * (1 + night * 9) + (m.userData.nightGlowAdd || 0) * night;
@@ -1251,7 +1276,7 @@ function applySun() {
   }
   // turda: otaq lampaları qaranlıqlaşdıqca yanır
   if (state.mode === 'tour' && tourData) lampPool.forEach((l, i) => (l.intensity = tourData.lamps[i] ? 0.3 + 3.2 * night : 0));
-  renderer.toneMappingExposure = (state.mode === 'tour' ? TOUR_EXP : state.mode === 'floor' ? FLOOR_EXP : 0.8) * (1 + night * 0.9);
+  renderer.toneMappingExposure = (state.mode === 'tour' ? TOUR_EXP : state.mode === 'floor' ? FLOOR_EXP : 0.8) * (1 + night * 0.9) * (1 + gold * 0.55);
   const dusk = 1 - smooth(4, 20, Math.abs(altDeg));
   scene.fog.color.copy(FOG_DAY).lerp(FOG_DUSK, dusk * day).lerp(FOG_NIGHT, night);
   aimSun(lastAim.center, lastAim.size);
@@ -1276,6 +1301,7 @@ function updateSunUI(altDeg, azDeg) {
     <span>Gün uzunluğu <b>${t.rise != null && t.set != null ? fmtTime(t.set - t.rise) : '—'}</b></span>`;
 }
 function setSunDay(m, d) {
+  sunSim.art = false;
   sunSim.m = m; sunSim.d = d;
   sunSim.times = sunTimes(sunSim.y, m, d);
   const { rise, set } = sunSim.times;
@@ -1290,14 +1316,18 @@ $('#sunDays').innerHTML = SEASONS.map((s) => `<button class="chip" data-m="${s.m
   `<input type="date" id="sunDate" aria-label="Tarix">`;
 $('#sunDays').addEventListener('click', (e) => { const c = e.target.closest('[data-m]'); if (c) setSunDay(+c.dataset.m, +c.dataset.d); });
 $('#sunDate').addEventListener('change', (e) => { const [, mm, dd] = e.target.value.split('-').map(Number); if (mm && dd) setSunDay(mm, dd); });
-sunTimeInput.addEventListener('input', () => { sunSim.min = +sunTimeInput.value; sunSim.playing = false; $('#sunPlay').classList.remove('is-on'); applySun(); });
+sunTimeInput.addEventListener('input', () => { sunSim.art = false; sunSim.min = +sunTimeInput.value; sunSim.playing = false; $('#sunPlay').classList.remove('is-on'); applySun(); });
 $('#sunPlay').addEventListener('click', () => {
   sunSim.playing = !sunSim.playing;
   $('#sunPlay').classList.toggle('is-on', sunSim.playing);
   if (sunSim.playing && (sunSim.min > (sunSim.times.set ?? 1440) || sunSim.min < (sunSim.times.rise ?? 0) - 60)) sunSim.min = (sunSim.times.rise ?? 360) - 30;
 });
 $('#sunClose').addEventListener('click', () => setSunMode(false));
-$('#sunBtn').addEventListener('click', () => setSunMode(!sunSim.on));
+$('#sunBtn').addEventListener('click', () => {
+  // günbatımı rejimi fonda açıqdırsa, düymə əvvəlcə paneli göstərsin
+  if (sunSim.on && sunPanel.hidden) { sunPanel.hidden = false; return; }
+  setSunMode(!sunSim.on);
+});
 
 function setSunMode(on) {
   if (on === sunSim.on) return;
@@ -1404,13 +1434,18 @@ $$('[data-daytime]').forEach((b) => b.addEventListener('click', () => {
   const mode = b.dataset.daytime;
   $$('[data-daytime]').forEach((x) => x.classList.toggle('is-on', x === b));
   if (mode !== 'day') {
-    sunSim.m = 6; sunSim.d = 21; sunSim.min = mode === 'dusk' ? 20 * 60 + 31 : 20 * 60 + 58;
+    sunSim.m = 6; sunSim.d = 21; sunSim.min = mode === 'sunset' ? 19 * 60 + 8 : mode === 'dusk' ? 20 * 60 + 31 : 20 * 60 + 58;
     setSunMode(true);
     setSunDay(6, 21);
+    if (mode === 'sunset') { sunSim.art = true; applySun(); }
+    sunPanel.hidden = true; // baş planda panel lazım deyil — "Günəş" düyməsi ilə açılır
   } else {
     setSunMode(false);
   }
 }));
+// ilk görünüş: günbatımı (?day ilə gündüz)
+if (!Q.has('day')) $('[data-daytime="sunset"]').click();
+else $$('[data-daytime]').forEach((x) => x.classList.toggle('is-on', x.dataset.daytime === 'day'));
 
 /* =========================================================
    Foto-render: işıq izləmə (path tracing) ilə real render
@@ -1610,10 +1645,11 @@ function frame(now) {
   const dt = Math.min(rawDt, 0.05);
   const t = timer.getElapsed();
   runTweens(performance.now());
-  if (sunSim.on && sunSim.playing) { sunSim.min = (sunSim.min + dt * 50) % 1440; applySun(); }
+  if (sunSim.on && sunSim.playing) { sunSim.art = false; sunSim.min = (sunSim.min + dt * 50) % 1440; applySun(); }
   if (!waterTex) { waterTex = []; scene.traverse((o) => { if (o.userData.water) waterTex.push(o.userData.water); }); if (!waterTex.length) waterTex = null; }
   if (waterTex) for (const w of waterTex) { w.offset.x = t * 0.012; w.offset.y = t * 0.008; }
   bakuUniforms.uTime.value = t;
+  if (clouds) clouds.update(dt, sunSim.on ? skyAlt : 40, sunSim.on ? skyNightK : 0);
   // yollarda maşınlar (turda və foto-renderdə dayanır — görünmür/lazım deyil)
   if (traffic && !rendering && state.mode !== 'tour' && !Q.has('notraffic')) traffic.update(Math.min(rawDt, 0.1));
 
