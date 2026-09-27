@@ -149,9 +149,15 @@
   }
 
   /* ── sürüşən lent ── */
-  .ribbon { overflow: hidden; padding-block: clamp(28px, 5vh, 48px); border-top: 1px solid var(--line); }
-  .ribbon__row { display: flex; gap: 0.35em; white-space: nowrap; font-size: clamp(56px, 12vw, 200px); line-height: 1; font-weight: 800; letter-spacing: -0.03em; font-variation-settings: "wdth" 62; text-transform: uppercase; will-change: transform; }
-  .ribbon__row span:nth-child(even) { color: transparent; -webkit-text-stroke: 1px var(--dim); }
+  .ribbon { padding-block: clamp(56px, 12vh, 120px); border-top: 1px solid var(--line); display: grid; gap: clamp(20px, 4vh, 36px); }
+  .type { display: flex; align-items: baseline; gap: clamp(12px, 2vw, 28px); min-height: 1em; font-size: clamp(56px, 12vw, 200px); line-height: 0.9; font-weight: 800; letter-spacing: -0.03em; font-variation-settings: "wdth" 62; text-transform: uppercase; white-space: nowrap; }
+  .type__n { font-family: var(--mono); font-size: clamp(12px, 1.1vw, 15px); font-weight: 400; letter-spacing: .12em; color: var(--acc); align-self: flex-start; padding-top: .6em; font-variation-settings: normal; }
+  .type__w { display: inline-flex; align-items: baseline; }
+  .caret { display: inline-block; width: 0.06em; height: 0.78em; margin-left: 0.06em; background: var(--acc); animation: caret 1s steps(1) infinite; }
+  @keyframes caret { 50% { opacity: 0; } }
+  .path li { transition: color .35s, border-color .35s, background .35s; }
+  .path--live li.on { color: var(--ink); background: var(--acc); border-color: var(--acc); }
+  .path--live li.done { color: var(--acc); border-color: rgba(124, 195, 182, .45); }
 
   /* ── tam ekran şəkil ── */
   .band { position: relative; height: 130vh; overflow: hidden; border-top: 1px solid var(--line); }
@@ -202,7 +208,8 @@
     .reveal { height: auto; } .reveal__stage { position: relative; height: auto; padding-block: 140px; }
     .reveal p span { color: var(--paper); }
     .shot { transition: none; transform: none; }
-    .ribbon__row, .band img, .hero__media { transform: none !important; }
+    .caret { animation: none; }
+    .band img, .hero__media { transform: none !important; }
   }
   body { margin: 0; }
 </style>
@@ -263,8 +270,9 @@
     </div>
   </section>
 
-  <div class="ribbon" aria-hidden="true">
-    <div class="ribbon__row" data-drift="-1"><span>Kompleks</span><span>Korpus</span><span>Mərtəbə</span><span>Mənzil</span><span>Satış</span><span>Kompleks</span><span>Korpus</span></div>
+  <div class="ribbon wrap" aria-label="Kompleks, korpus, mərtəbə, mənzil, satış">
+    <div class="type" aria-hidden="true"><span class="type__n" id="typeN">01 / 05</span><span class="type__w"><span id="typeWord">Kompleks</span><i class="caret"></i></span></div>
+    <ol class="path path--live" id="typePath" aria-hidden="true"><li class="on">Kompleks</li><li>Korpus</li><li>Mərtəbə</li><li>Mənzil</li><li>Satış</li></ol>
   </div>
 
   <!-- +9.90 alıcının yolu -->
@@ -442,7 +450,6 @@
   const devCap = $('#devCap'), devUrl = $('#devUrl');
   let activeStep = 0;
   const pars = [...document.querySelectorAll('[data-par]')];
-  const ribbons = [...document.querySelectorAll('[data-drift]')];
   const fill = $('#fill');
 
   // bölmənin ekrandan keçmə irəliləyişi (0 → 1), sticky bölmələr üçün
@@ -488,12 +495,32 @@
       const c = (r.top + r.height / 2 - H / 2) / H;
       img.style.transform = `translate3d(0, ${(-c * parseFloat(img.dataset.par) * r.height).toFixed(1)}px, 0)`;
     });
-    ribbons.forEach((rb) => {
-      const r = rb.getBoundingClientRect();
-      const c = (r.top - H) / (H + r.height);
-      rb.style.transform = `translate3d(${(c * 30 * parseFloat(rb.dataset.drift)).toFixed(2)}%, 0, 0)`;
-    });
   }
+
+  // yazı makinası: mərhələlər hərf-hərf yazılır, scroll-dan asılı deyil
+  (() => {
+    const words = ['Kompleks', 'Korpus', 'Mərtəbə', 'Mənzil', 'Satış'];
+    const el = $('#typeWord'), num = $('#typeN'), path = [...$('#typePath').children];
+    let wi = 0, ci = words[0].length, del = false, running = false, timer = 0;
+    const mark = () => { num.textContent = `0${wi + 1} / 05`; path.forEach((li, i) => { li.classList.toggle('on', i === wi); li.classList.toggle('done', i < wi); }); };
+    const step = () => {
+      const w = words[wi];
+      if (!del) {
+        ci++; el.textContent = w.slice(0, ci);
+        if (ci >= w.length) { del = true; timer = setTimeout(step, 2200); return; }
+        timer = setTimeout(step, 95);
+      } else {
+        ci--; el.textContent = w.slice(0, ci);
+        if (ci <= 0) { del = false; wi = (wi + 1) % words.length; mark(); timer = setTimeout(step, 260); return; }
+        timer = setTimeout(step, 40);
+      }
+    };
+    if (reduce) return;
+    new IntersectionObserver((es) => es.forEach((e) => {
+      if (e.isIntersecting && !running) { running = true; del = true; timer = setTimeout(step, 1200); }
+      else if (!e.isIntersecting && running) { running = false; clearTimeout(timer); }
+    }), { threshold: 0.3 }).observe($('#typeWord').closest('.ribbon'));
+  })();
 
   let ticking = false;
   const req = () => { if (!ticking) { ticking = true; requestAnimationFrame(() => { ticking = false; frame(); }); } };
