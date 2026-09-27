@@ -1205,6 +1205,7 @@ canvas.addEventListener('pointerup', (e) => {
 // buludlar (günəşin rənginə görə boyanır)
 const clouds = Q.has('noclouds') ? null : createClouds(scene, { lite: LITE });
 let skyAlt = 40, skyNightK = 0;
+let sunTween = null; // { alt, az, t0, dur } — keçidin başlanğıc günəş mövqeyi
 const sunSim = { on: false, playing: false, y: new Date().getFullYear(), m: 6, d: 21, min: 12 * 60 };
 const skyMesh = new Sky();
 skyMesh.scale.setScalar(3600);
@@ -1273,7 +1274,17 @@ function rebuildSkyEnv() {
 function applySun() {
   const date = localDate(sunSim.y, sunSim.m, sunSim.d, sunSim.min);
   // "Günbatımı" rejimi: günəş bədii mövqedə — alçaqdan, kameraya görə qabaq-soldan (binaların üzü parlaq, kölgələr uzun)
-  const { altitude, azimuth } = sunSim.art ? { altitude: THREE.MathUtils.degToRad(17), azimuth: THREE.MathUtils.degToRad(235) } : sunPosition(date);
+  let { altitude, azimuth } = sunSim.art ? { altitude: THREE.MathUtils.degToRad(17), azimuth: THREE.MathUtils.degToRad(235) } : sunPosition(date);
+  // rejim dəyişəndə günəş yeni yerə birdən-birə yox, sürətli amma rəvan keçir
+  if (sunTween) {
+    const k = Math.min(1, (performance.now() - sunTween.t0) / sunTween.dur);
+    const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+    let dAz = azimuth - sunTween.az;
+    dAz = Math.atan2(Math.sin(dAz), Math.cos(dAz));
+    altitude = sunTween.alt + (altitude - sunTween.alt) * e;
+    azimuth = sunTween.az + dAz * e;
+    if (k >= 1) sunTween = null;
+  }
   sunDirection(altitude, azimuth, lightDir);
   const altDeg = THREE.MathUtils.radToDeg(altitude);
   skyAlt = altDeg;
@@ -1465,9 +1476,47 @@ function updateMasterplan() {
     mpCard.style.transform = `translate(${x}px, ${y}px)`;
   }
 }
+/* Keçid (crossfade): cari kadrın şəkli üstə qoyulur, səhnə dəyişir, şəkil 0.9 s-də əriyir.
+   Gündüz (HDRI göy) ↔ günəş simulyasiyası kimi fərqli rejimlər arasında sərt dəyişməni gizlədir. */
+const xfade = document.createElement('canvas');
+xfade.className = 'xfade';
+xfade.setAttribute('aria-hidden', 'true');
+Object.assign(xfade.style, { position: 'fixed', inset: '0', width: '100%', height: '100%', pointerEvents: 'none', opacity: '0', zIndex: getComputedStyle(canvas).zIndex });
+canvas.after(xfade);
+let xfadePending = null;
+function crossfade(fn) { xfadePending = fn; }
+function runCrossfade(drawn) {
+  const fn = xfadePending;
+  xfadePending = null;
+  if (drawn && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    xfade.width = canvas.width; xfade.height = canvas.height;
+    xfade.getContext('2d').drawImage(canvas, 0, 0);
+    xfade.style.transition = 'none';
+    xfade.style.opacity = '1';
+    fn();
+    requestAnimationFrame(() => requestAnimationFrame(() => { xfade.style.transition = 'opacity 0.9s ease'; xfade.style.opacity = '0'; }));
+  } else fn();
+}
+let firstDaytime = true;
 $$('[data-daytime]').forEach((b) => b.addEventListener('click', () => {
   const mode = b.dataset.daytime;
   $$('[data-daytime]').forEach((x) => x.classList.toggle('is-on', x === b));
+  const instant = firstDaytime; firstDaytime = false;
+  // günəş simulyasiyası daxilində: günəş hərəkət edir; gündüz ↔ digərləri: yumşaq keçid
+  if (!instant && mode !== 'day' && sunSim.on) {
+    const alt = Math.asin(THREE.MathUtils.clamp(lightDir.y, -1, 1)), az = Math.atan2(lightDir.x, -lightDir.z);
+    sunSim.m = 6; sunSim.d = 21; sunSim.min = mode === 'sunset' ? 19 * 60 + 8 : mode === 'dusk' ? 20 * 60 + 31 : 20 * 60 + 58;
+    sunSim.art = mode === 'sunset';
+    sunTween = { alt, az, t0: performance.now(), dur: 1400 };
+    applySun();
+    sunPanel.hidden = true;
+    return;
+  }
+  if (!instant) { crossfade(() => applyDaytime(mode)); return; }
+  applyDaytime(mode);
+}));
+function applyDaytime(mode) {
+  sunTween = null;
   if (mode !== 'day') {
     sunSim.m = 6; sunSim.d = 21; sunSim.min = mode === 'sunset' ? 19 * 60 + 8 : mode === 'dusk' ? 20 * 60 + 31 : 20 * 60 + 58;
     setSunMode(true);
@@ -1477,10 +1526,11 @@ $$('[data-daytime]').forEach((b) => b.addEventListener('click', () => {
   } else {
     setSunMode(false);
   }
-}));
+}
 // ilk görünüş: günbatımı (?day ilə gündüz)
 if (!Q.has('day')) $('[data-daytime="sunset"]').click();
 else $$('[data-daytime]').forEach((x) => x.classList.toggle('is-on', x.dataset.daytime === 'day'));
+firstDaytime = false;
 
 /* =========================================================
    Foto-render: işıq izləmə (path tracing) ilə real render
@@ -1680,6 +1730,7 @@ function frame(now) {
   const dt = Math.min(rawDt, 0.05);
   const t = timer.getElapsed();
   runTweens(performance.now());
+  if (sunSim.on && sunTween) applySun();
   if (sunSim.on && sunSim.playing) { sunSim.art = false; sunSim.min = (sunSim.min + dt * 50) % 1440; applySun(); }
   if (!waterTex) { waterTex = []; scene.traverse((o) => { if (o.userData.water) waterTex.push(o.userData.water); }); if (!waterTex.length) waterTex = null; }
   if (waterTex) for (const w of waterTex) { w.offset.x = t * 0.012; w.offset.y = t * 0.008; }
@@ -1716,6 +1767,7 @@ function frame(now) {
   else if (sceneHidden()) drawn = false; // 3D ekranda görünmür (video və ya dolu bölmə üstündədir) — GPU-nu yorma
   else if (Q.has('nopp')) renderer.render(scene, camera);
   else { updateTilt(dt); composer.render(dt); }
+  if (xfadePending) runCrossfade(drawn);
   adaptiveQuality(rawDt, drawn);
   requestAnimationFrame(frame);
 }
