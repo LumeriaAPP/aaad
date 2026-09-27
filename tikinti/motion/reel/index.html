@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3D Satış Sistemi — reel</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+  :root { --ink: #070708; --paper: #f2f0ea; --acc: #d4ff3a; --mute: #8a8a86; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  #stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--ink); color: var(--paper); transform-origin: 0 0; font-family: 'Unbounded', sans-serif; }
+  .L { position: absolute; inset: 0; display: none; overflow: hidden; }
+  .fill { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }
+  .big { font-weight: 800; letter-spacing: -0.045em; line-height: 0.86; text-transform: uppercase; }
+  canvas { position: absolute; left: 0; top: 0; }
+  .ch { display: inline-block; will-change: transform; }
+
+  /* HUD */
+  #hud { position: absolute; inset: 0; pointer-events: none; z-index: 50; }
+  #hud .mono { position: absolute; font-size: 17px; color: var(--paper); opacity: .9; }
+  #hudTL { left: 56px; top: 44px; }
+  #hudTR { right: 56px; top: 44px; text-align: right; }
+  #hudBL { left: 56px; bottom: 40px; }
+  #hudBR { right: 56px; bottom: 40px; text-align: right; }
+  #hudBar { position: absolute; left: 56px; right: 56px; bottom: 26px; height: 2px; background: rgba(242,240,234,.18); }
+  #hudBar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--acc); }
+  .cm { position: absolute; width: 26px; height: 26px; border-color: var(--paper); border-style: solid; opacity: .85; }
+  #cm1 { left: 30px; top: 30px; border-width: 2px 0 0 2px; } #cm2 { right: 30px; top: 30px; border-width: 2px 2px 0 0; }
+  #cm3 { left: 30px; bottom: 30px; border-width: 0 0 2px 2px; } #cm4 { right: 30px; bottom: 30px; border-width: 0 2px 2px 0; }
+  .rec { display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: #ff3b30; margin-right: 10px; vertical-align: 1px; }
+
+  /* S0 */
+  #s0grid { opacity: .9; }
+  #s0count { position: absolute; left: 0; right: 0; top: 330px; text-align: center; font-size: 380px; }
+  #s0lbl { position: absolute; left: 0; right: 0; top: 760px; text-align: center; font-size: 22px; color: var(--mute); }
+
+  /* S1 */
+  #s1wrap { position: absolute; left: 0; right: 0; top: 190px; }
+  .s1row { position: relative; height: 330px; }
+  .s1row div { position: absolute; left: 0; right: 0; text-align: center; font-size: 300px; white-space: nowrap; }
+  #s1r2 div { color: transparent; -webkit-text-stroke: 3px var(--paper); }
+  #s1r3 div { color: var(--acc); }
+  #s1under { position: absolute; left: 50%; top: 885px; height: 10px; background: var(--acc); }
+
+  /* S2 */
+  #s2img { transform-origin: 48% 56%; }
+  #s2shade { position: absolute; inset: 0; background: radial-gradient(120% 90% at 50% 60%, transparent 40%, rgba(0,0,0,.55) 100%); }
+  #s2word { position: absolute; left: 0; right: 0; top: 380px; text-align: center; font-size: 250px; color: #070708; text-shadow: 0 0 80px rgba(242,240,234,.6); }
+  .tag { position: absolute; padding: 10px 16px; background: var(--acc); color: #0a0a0a; font-size: 22px; font-weight: 700; white-space: nowrap; }
+  .tag::before { content: ""; position: absolute; left: -46px; top: 50%; width: 46px; height: 2px; background: var(--acc); }
+  .tag::after { content: ""; position: absolute; left: -54px; top: calc(50% - 7px); width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--acc); box-sizing: border-box; }
+
+  /* S3 — maska (şəkil hərflərin içində) */
+  #s3 { background: var(--paper); }
+  #s3mask { position: absolute; inset: 0; }
+  #s3txt { position: absolute; left: 0; right: 0; top: 330px; text-align: center; font-size: 360px; font-weight: 900; letter-spacing: -0.05em; line-height: 1; background-image: url('shots/aerial_night.jpg'); background-size: 2400px auto; -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #s3cap { position: absolute; left: 0; right: 0; top: 740px; text-align: center; font-size: 24px; color: #111; }
+
+  /* S4 — sonsuz zoom */
+  #s4 { background: #000; }
+  .zl { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; margin: -540px 0 0 -960px; overflow: hidden; box-shadow: 0 0 0 3px var(--acc); }
+  .zl img { width: 100%; height: 100%; object-fit: cover; }
+  #s4lbl { position: absolute; left: 56px; top: 110px; font-size: 150px; }
+  #s4sub { position: absolute; left: 60px; top: 262px; font-size: 22px; color: var(--acc); }
+  #s4ring { position: absolute; left: 50%; top: 50%; border: 2px solid var(--acc); border-radius: 50%; }
+
+  /* S5 — rəqəmlər */
+  #s5 { background: var(--acc); color: #0a0a0a; }
+  .num { position: absolute; left: 0; right: 0; text-align: center; font-weight: 900; letter-spacing: -0.06em; line-height: 1; font-variant-numeric: tabular-nums; }
+  #s5n { top: 250px; font-size: 460px; }
+  #s5u { position: absolute; left: 0; right: 0; top: 760px; text-align: center; font-size: 30px; }
+  #s5bars { position: absolute; left: 0; right: 0; bottom: 0; height: 1080px; }
+
+  /* S6 — split */
+  #s6a, #s6b { position: absolute; top: 0; bottom: 0; width: 960px; overflow: hidden; }
+  #s6a { left: 0; } #s6b { right: 0; }
+  #s6a img, #s6b img { position: absolute; top: 0; height: 1080px; width: 1920px; object-fit: cover; }
+  #s6a img { left: 0; } #s6b img { right: 0; }
+  #s6mid { position: absolute; left: 957px; top: 0; bottom: 0; width: 6px; background: var(--acc); }
+  #s6t1, #s6t2 { position: absolute; font-size: 120px; }
+  #s6t1 { left: 60px; bottom: 90px; } #s6t2 { right: 60px; bottom: 90px; text-align: right; }
+  #s6clock { position: absolute; left: 0; right: 0; top: 440px; text-align: center; font-size: 200px; font-weight: 800; color: var(--acc); text-shadow: 0 10px 60px rgba(0,0,0,.7); font-variant-numeric: tabular-nums; letter-spacing: -0.04em; }
+
+  /* S7 — final */
+  #s7 { background: var(--ink); }
+  #s7big { position: absolute; left: 0; right: 0; top: 330px; text-align: center; font-size: 250px; }
+  #s7sub { position: absolute; left: 0; right: 0; top: 640px; text-align: center; font-size: 44px; font-weight: 400; letter-spacing: -0.01em; }
+  #s7cred { position: absolute; left: 0; right: 0; top: 780px; text-align: center; font-size: 20px; color: var(--mute); }
+  #s7box { position: absolute; border: 3px solid var(--acc); }
+
+  /* keçid pərdələri */
+  #wipe { position: absolute; inset: 0; z-index: 40; pointer-events: none; }
+  #wipe i { position: absolute; top: 0; bottom: 0; background: var(--acc); }
+  #flash { position: absolute; inset: 0; background: #fff; opacity: 0; z-index: 45; pointer-events: none; }
+  #grain { position: absolute; inset: 0; width: 1920px; height: 1080px; opacity: .07; mix-blend-mode: overlay; z-index: 60; pointer-events: none; }
+  #fx { position: absolute; left: 0; top: 0; z-index: 44; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <!-- S0: sayğac -->
+  <section class="L" id="s0">
+    <canvas id="s0grid" width="1920" height="1080"></canvas>
+    <div class="big" id="s0count">03</div>
+    <div class="mono" id="s0lbl">render · 1920×1080 · 60 fps</div>
+  </section>
+
+  <!-- S1: kinetik tipoqrafiya -->
+  <section class="L" id="s1">
+    <div id="s1wrap">
+      <div class="s1row" id="s1r1"><div class="big">KƏRPİC</div></div>
+      <div class="s1row" id="s1r2"><div class="big">YOX.</div></div>
+      <div class="s1row" id="s1r3"><div class="big">PİKSEL.</div></div>
+    </div>
+    <div id="s1under"></div>
+  </section>
+
+  <!-- S2: kompleks, dinamik zoom + etiketlər -->
+  <section class="L" id="s2">
+    <img class="fill" id="s2img" src="shots/aerial_sunset.jpg" alt="">
+    <div id="s2shade"></div>
+    <div class="big" id="s2word">8 KORPUS</div>
+    <div class="tag mono" id="t1">KORPUS 1 · 16 MƏRTƏBƏ</div>
+    <div class="tag mono" id="t2">HOVUZ · 26×9 M</div>
+    <div class="tag mono" id="t3">YAŞIL HƏYƏT</div>
+  </section>
+
+  <!-- S3: maska -->
+  <section class="L" id="s3">
+    <div id="s3mask"><div class="big" id="s3txt">GECƏ</div></div>
+    <div class="mono" id="s3cap">21:30 · işıqlar avtomatik yanır</div>
+  </section>
+
+  <!-- S4: sonsuz zoom -->
+  <section class="L" id="s4">
+    <div class="zl" id="z0"><img src="shots/aerial_sunset.jpg" alt=""></div>
+    <div class="zl" id="z1"><img src="shots/bina_c.jpg" alt=""></div>
+    <div class="zl" id="z2"><img src="shots/floor_c.jpg" alt=""></div>
+    <div class="zl" id="z3"><img src="shots/plan_c.jpg" alt=""></div>
+    <div id="s4ring"></div>
+    <div class="big" id="s4lbl">KOMPLEKS</div>
+    <div class="mono" id="s4sub">01 — ərazi</div>
+  </section>
+
+  <!-- S5: rəqəmlər -->
+  <section class="L" id="s5">
+    <canvas id="s5bars" width="1920" height="1080"></canvas>
+    <div class="num" id="s5n">0</div>
+    <div class="mono" id="s5u">mənzil · real vaxtda status</div>
+  </section>
+
+  <!-- S6: split — gündüz | gecə -->
+  <section class="L" id="s6">
+    <div id="s6a"><img src="shots/aerial_sunset.jpg" alt=""></div>
+    <div id="s6b"><img src="shots/aerial_night.jpg" alt=""></div>
+    <div id="s6mid"></div>
+    <div class="big" id="s6clock">19:08</div>
+    <div class="big" id="s6t1">GÜN</div>
+    <div class="big" id="s6t2">GECƏ</div>
+  </section>
+
+  <!-- S7: final -->
+  <section class="L" id="s7">
+    <div id="s7box"></div>
+    <div class="big" id="s7big">3D SATIŞ</div>
+    <div id="s7sub">Binanı tikilmədən satın.</div>
+    <div class="mono" id="s7cred">three.js · webgl · real-time · 2026</div>
+  </section>
+
+  <div id="wipe"><i id="w1"></i><i id="w2"></i></div>
+  <canvas id="fx" width="1920" height="1080"></canvas>
+  <div id="flash"></div>
+
+  <div id="hud">
+    <div class="cm" id="cm1"></div><div class="cm" id="cm2"></div><div class="cm" id="cm3"></div><div class="cm" id="cm4"></div>
+    <div class="mono" id="hudTL"><span class="rec"></span>REEL / 3D SATIŞ SİSTEMİ</div>
+    <div class="mono" id="hudTR">40.41°N  49.87°E</div>
+    <div class="mono" id="hudBL">SCN 01</div>
+    <div class="mono" id="hudBR">00:00:00</div>
+    <div id="hudBar"><i id="hudProg"></i></div>
+  </div>
+  <canvas id="grain" width="960" height="540"></canvas>
+</div>
+
+<script>
+(() => {
+  const DUR = 15;
+  const $ = (s) => document.querySelector(s);
+  const S = (id) => document.getElementById(id);
+  const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+  const P = (t, a, b) => clamp((t - a) / (b - a));
+  const lerp = (a, b, k) => a + (b - a) * k;
+  const ex = (x) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * x));
+  const ei = (x) => (x <= 0 ? 0 : Math.pow(2, 10 * x - 10));
+  const eio = (x) => (x < 0.5 ? 16 * x ** 5 : 1 - Math.pow(-2 * x + 2, 5) / 2); // quint in-out
+  const eo = (x) => 1 - Math.pow(1 - x, 4);
+  const back = (x, s = 1.7) => (x >= 1 ? 1 : 1 + (s + 1) * Math.pow(x - 1, 3) + s * Math.pow(x - 1, 2));
+  const elastic = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : Math.pow(2, -10 * x) * Math.sin((x * 10 - 0.75) * (2 * Math.PI / 3)) + 1);
+  const rnd = (i) => { const s = Math.sin(i * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+  const show = (id, on) => { S(id).style.display = on ? 'block' : 'none'; };
+  const BEAT = 0.5;
+
+  // hərflərə böl
+  function chars(el) {
+    const txt = el.textContent; el.textContent = '';
+    return [...txt].map((c) => { const s = document.createElement('span'); s.className = 'ch'; s.textContent = c === ' ' ? ' ' : c; el.appendChild(s); return s; });
+  }
+  const C1 = [...document.querySelectorAll('.s1row div')].map(chars);
+  const C2 = chars(S('s2word'));
+  const C7 = chars(S('s7big'));
+  const S7sub = chars(S('s7sub'));
+  const SCR = 'ABCDEFGHİJKLMNOPQRSTUVXYZƏŞÇĞÖÜ0123456789#%/+';
+  function scramble(el, text, k, seed = 1) {
+    const n = text.length; let o = '';
+    for (let i = 0; i < n; i++) o += text[i] === ' ' || i / n < k ? text[i] : SCR[Math.floor(rnd(i * 7 + seed + Math.floor(k * 30)) * SCR.length)];
+    el.textContent = o;
+  }
+
+  // qrid (S0)
+  const g0 = S('s0grid').getContext('2d');
+  // FX kanvası (sürət xətləri, parçalar)
+  const fx = S('fx').getContext('2d');
+  // S5 zolaqları
+  const g5 = S('s5bars').getContext('2d');
+  // dən
+  const grain = S('grain'), gctx = grain.getContext('2d');
+  const grains = [0, 1, 2, 3, 4, 5].map((k) => {
+    const d = gctx.createImageData(960, 540); let s = 99 + k * 7777;
+    for (let i = 0; i < d.data.length; i += 4) { s = (s * 1664525 + 1013904223) >>> 0; const v = s >>> 24; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
+    return d;
+  });
+  const hhmm = (m) => `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(Math.floor(m % 60)).padStart(2, '0')}`;
+  // səhnə başına "kamera sarsıntısı" (vuruşlarda)
+  const kickAt = [];
+  for (let b = 2; b < 12; b += BEAT) kickAt.push(b);
+  kickAt.push(13.0);
+  const shake = (t, amt = 1) => {
+    let k = 0; for (const a of kickAt) { const d = t - a; if (d >= 0 && d < 0.25) k = Math.max(k, Math.exp(-d * 22)); }
+    return { x: (rnd(Math.floor(t * 60)) - 0.5) * 18 * k * amt, y: (rnd(Math.floor(t * 60) + 9) - 0.5) * 12 * k * amt, s: 1 + 0.018 * k * amt };
+  };
+
+  function speedLines(t, a, b, dir = 1, color = 'rgba(242,240,234,') {
+    const k = Math.sin(Math.PI * P(t, a, b));
+    if (k <= 0.01) return;
+    for (let i = 0; i < 46; i++) {
+      const y = rnd(i * 3.1) * 1080, len = 300 + rnd(i) * 900, w = 1 + rnd(i * 5) * 3;
+      const x = ((t * 5200 * (0.6 + rnd(i * 2))) + rnd(i * 9) * 3000) % 3200 - 600;
+      fx.fillStyle = color + (0.15 + 0.5 * rnd(i * 4)) * k + ')';
+      fx.fillRect(dir > 0 ? x : 1920 - x - len, y, len * k, w);
+    }
+  }
+
+  function render(t) {
+    fx.clearRect(0, 0, 1920, 1080);
+    // ---------------- S0 (0 – 2.0): qrid + sayğac ----------------
+    show('s0', t < 2.0);
+    if (t < 2.0) {
+      g0.clearRect(0, 0, 1920, 1080);
+      const gk = ex(P(t, 0, 0.9));
+      g0.strokeStyle = 'rgba(242,240,234,0.12)'; g0.lineWidth = 1;
+      for (let i = 0; i <= 24; i++) {
+        const x = i * 80, len = 1080 * clamp(gk * 1.4 - i * 0.02);
+        g0.beginPath(); g0.moveTo(x + 0.5, 540 - len / 2); g0.lineTo(x + 0.5, 540 + len / 2); g0.stroke();
+      }
+      for (let j = 0; j <= 13; j++) {
+        const y = j * 80 + 20, len = 1920 * clamp(gk * 1.4 - j * 0.03);
+        g0.beginPath(); g0.moveTo(960 - len / 2, y + 0.5); g0.lineTo(960 + len / 2, y + 0.5); g0.stroke();
+      }
+      // skan xətti
+      const sy = (t * 900) % 1080;
+      g0.fillStyle = 'rgba(212,255,58,0.5)'; g0.fillRect(0, sy, 1920, 2);
+      // sayğac: 03 → 02 → 01 vuruşlarla (0.5, 1.0, 1.5)
+      const n = t < 0.5 ? 3 : t < 1.0 ? 2 : 1;
+      const lt = t < 0.5 ? t : (t - 0.5) % 0.5;
+      const pop = t < 0.5 ? ex(P(t, 0.1, 0.45)) : ex(lt / 0.2);
+      const el = S('s0count');
+      el.textContent = '0' + n;
+      el.style.transform = `scale(${(0.6 + 0.4 * pop).toFixed(3)})`;
+      el.style.opacity = String(t < 0.5 ? pop : 1 - 0.6 * P(lt, 0.3, 0.5));
+      el.style.color = n === 1 ? 'var(--acc)' : 'var(--paper)';
+      S('s0lbl').style.opacity = String(ex(P(t, 0.2, 0.7)));
+      // son: sayğac kəskin böyüyür (1.85–2.0)
+      const out = ei(P(t, 1.8, 2.0));
+      S('s0').style.transform = `scale(${1 + out * 6})`;
+      S('s0').style.filter = out > 0 ? `blur(${(out * 12).toFixed(1)}px)` : 'none';
+    }
+
+    // ---------------- S1 (2.0 – 3.5): KƏRPİC YOX. PİKSEL. ----------------
+    show('s1', t >= 2.0 && t < 3.55);
+    if (t >= 2.0 && t < 3.55) {
+      const sh = shake(t, 1.2);
+      S('s1wrap').style.transform = `translate(${sh.x}px, ${sh.y}px) scale(${sh.s})`;
+      C1.forEach((row, r) => {
+        const st = 2.0 + r * 0.25;
+        row.forEach((c, i) => {
+          const k = back(P(t, st + i * 0.018, st + i * 0.018 + 0.32), 2.2);
+          c.style.transform = `translateY(${((1 - k) * (r % 2 ? -1 : 1) * 380).toFixed(1)}px) rotate(${((1 - k) * (i % 2 ? 12 : -12)).toFixed(2)}deg)`;
+          c.style.opacity = String(clamp(k * 3));
+        });
+      });
+      // "KƏRPİC" xətlə üstündən pozulur, sonra silinir
+      const strike = ex(P(t, 2.55, 2.75));
+      S('s1r1').style.background = `linear-gradient(var(--acc), var(--acc)) no-repeat 50% 58% / ${(strike * 92).toFixed(1)}% 18px`;
+      const u = ex(P(t, 2.8, 3.05));
+      S('s1under').style.width = `${(u * 1200).toFixed(1)}px`; S('s1under').style.marginLeft = `${(-u * 600).toFixed(1)}px`;
+      // çıxış: sətirlər üfüqi parçalanır
+      const out = ei(P(t, 3.3, 3.55));
+      document.querySelectorAll('.s1row').forEach((r, i) => { r.style.transform = `translateX(${((i % 2 ? 1 : -1) * out * 2200).toFixed(0)}px) skewX(${((i % 2 ? -1 : 1) * out * 30).toFixed(1)}deg)`; });
+      speedLines(t, 3.25, 3.6, 1);
+    }
+
+    // ---------------- S2 (3.5 – 6.0): kompleks ----------------
+    show('s2', t >= 3.5 && t < 6.05);
+    if (t >= 3.5 && t < 6.05) {
+      const sh = shake(t, 0.9);
+      // itələnmiş zoom (dolly-in) + vuruşlarda sıçrayış
+      const z = 1.45 - 0.35 * eo(P(t, 3.5, 6.0));
+      const pan = eio(P(t, 3.5, 6.0));
+      S('s2img').style.transform = `translate(${(sh.x + lerp(40, -40, pan)).toFixed(1)}px, ${(sh.y + lerp(30, -10, pan)).toFixed(1)}px) scale(${(z * sh.s).toFixed(4)}) rotate(${lerp(-2.5, 1.5, pan).toFixed(3)}deg)`;
+      // giriş: şaquli pərdə açılır (pillələrlə)
+      const inK = ex(P(t, 3.5, 3.85));
+      S('s2').style.clipPath = `polygon(0 ${50 - inK * 50}%, 100% ${50 - inK * 50 - 8 * (1 - inK)}%, 100% ${50 + inK * 50}%, 0 ${50 + inK * 50 + 8 * (1 - inK)}%)`;
+      // "8 KORPUS" hərfləri ekrana çırpılır, sonra sağa sürüşüb çıxır
+      C2.forEach((c, i) => {
+        const k = ex(P(t, 3.75 + i * 0.03, 4.05 + i * 0.03));
+        const o = ei(P(t, 4.6 + i * 0.015, 4.85 + i * 0.015));
+        c.style.transform = `translate3d(${(o * 1400).toFixed(0)}px, 0, 0) scale(${(2.6 - 1.6 * k).toFixed(3)})`;
+        c.style.opacity = String(clamp(k * 2) * (1 - o));
+        c.style.filter = k < 1 ? `blur(${((1 - k) * 18).toFixed(1)}px)` : 'none';
+      });
+      // etiketlər (xətlə uzanan, lime)
+      const TAGS = [['t1', 1010, 330, 4.8], ['t2', 1000, 610, 5.05], ['t3', 520, 820, 5.3]];
+      TAGS.forEach(([id, x, y, st]) => {
+        const el = S(id); const k = ex(P(t, st, st + 0.3));
+        el.style.left = `${x}px`; el.style.top = `${y}px`;
+        el.style.clipPath = `inset(0 ${((1 - k) * 100).toFixed(1)}% 0 0)`;
+        el.style.opacity = k > 0 ? '1' : '0';
+        scramble(el.firstChild ? el : el, el.dataset.txt || (el.dataset.txt = el.textContent), P(t, st, st + 0.45), st * 10);
+        el.style.transform = `translate(${(sh.x * 0.5).toFixed(1)}px, ${(sh.y * 0.5).toFixed(1)}px)`;
+      });
+      speedLines(t, 5.75, 6.1, -1, 'rgba(212,255,58,');
+    }
+
+    // ---------------- S3 (6.0 – 7.0): maska GECƏ ----------------
+    show('s3', t >= 6.0 && t < 7.05);
+    if (t >= 6.0 && t < 7.05) {
+      const k = ex(P(t, 6.0, 6.3));
+      const txt = S('s3txt');
+      txt.style.transform = `scale(${(1.8 - 0.8 * k).toFixed(3)})`;
+      txt.style.letterSpacing = `${(-0.05 + 0.08 * (1 - k)).toFixed(3)}em`;
+      txt.style.backgroundPosition = `${(40 - P(t, 6, 7) * 30).toFixed(1)}% 55%`;
+      S('s3cap').style.opacity = String(ex(P(t, 6.25, 6.5)));
+      scramble(S('s3cap'), '21:30 · işıqlar avtomatik yanır', P(t, 6.25, 6.6), 3);
+      // çıxış: maska böyüyür, şəkil ekranı doldurur
+      const out = ei(P(t, 6.7, 7.05));
+      txt.style.transform = `scale(${((1.8 - 0.8 * k) * (1 + out * 14)).toFixed(3)})`;
+      S('s3').style.background = out > 0.6 ? '#000' : 'var(--paper)';
+    }
+
+    // ---------------- S4 (7.0 – 10.0): sonsuz zoom ----------------
+    show('s4', t >= 7.0 && t < 10.05);
+    if (t >= 7.0 && t < 10.05) {
+      // 4 səviyyə: kompleks → bina → mərtəbə → mənzil; hər biri ~0.75 s
+      const LV = ['KOMPLEKS', 'KORPUS', 'MƏRTƏBƏ', 'MƏNZİL'];
+      const SUB = ['01 — ərazi', '02 — 16 mərtəbə', '03 — 12-ci mərtəbə', '04 — № 51 · 99 m²'];
+      const T0 = 7.0, SEG = 0.75;
+      const u = (t - T0) / SEG; // 0..4
+      const lvl = clamp(Math.floor(u), 0, 3);
+      const f = u - lvl;
+      // hər səviyyədə: yavaş "drift" + sonda sürətli dalış (exponent)
+      const dive = ei(clamp((f - 0.55) / 0.45));
+      const ZF = 7.5; // növbəti səviyyə ekranı doldurana qədər böyümə
+      ['z0', 'z1', 'z2', 'z3'].forEach((id, i) => {
+        const el = S(id);
+        if (i < lvl || i > lvl + 1 || (lvl === 3 && i > 3)) { el.style.display = 'none'; return; }
+        el.style.display = 'block';
+        if (i === lvl) {
+          const s = (1 + 0.08 * f) * Math.pow(ZF, dive);
+          el.style.transform = `scale(${s.toFixed(4)})`;
+          el.style.filter = dive > 0.3 ? `blur(${((dive - 0.3) * 10).toFixed(1)}px)` : 'none';
+          el.style.boxShadow = 'none'; el.style.zIndex = '1';
+        } else {
+          // növbəti səviyyə kiçik "pəncərə" kimi mərkəzdə, dalışla böyüyür
+          const s = (1 / ZF) * Math.pow(ZF, dive) * (0.6 + 0.4 * ex(clamp(f / 0.3)));
+          el.style.transform = `scale(${s.toFixed(4)})`;
+          el.style.filter = 'none';
+          el.style.boxShadow = `0 0 0 ${(3 / s).toFixed(1)}px var(--acc), 0 0 ${(60 / s).toFixed(0)}px rgba(212,255,58,.35)`;
+          el.style.zIndex = '2';
+          el.style.opacity = String(clamp(f / 0.15));
+        }
+      });
+      // hədəf halqası
+      const ring = S('s4ring'); const rr = lerp(420, 140, ex(clamp(f / 0.5)));
+      ring.style.width = ring.style.height = `${rr * 2}px`; ring.style.margin = `${-rr}px 0 0 ${-rr}px`;
+      ring.style.opacity = String((1 - dive) * 0.9 * (lvl < 3 ? 1 : 1 - clamp(f * 2)));
+      // yazılar: səviyyə dəyişəndə yeni söz deşifrə olunur
+      const lf = clamp(f / 0.35);
+      scramble(S('s4lbl'), LV[lvl], lf, lvl * 17 + 1);
+      scramble(S('s4sub'), SUB[lvl], clamp(f / 0.45), lvl * 5 + 2);
+      S('s4lbl').style.transform = `translateX(${((1 - ex(lf)) * -60).toFixed(1)}px)`;
+      S('s4lbl').style.opacity = String(1 - dive * 0.8);
+      S('s4lbl').style.color = lvl === 3 ? 'var(--acc)' : 'var(--paper)';
+      // son: mənzildə dayanır və ağ parıltı
+      if (lvl === 3) { S('z3').style.transform = `scale(${(1 + 0.12 * eo(f)).toFixed(4)})`; S('z3').style.filter = 'none'; }
+    }
+
+    // ---------------- S5 (10.0 – 11.5): rəqəmlər, stutter ----------------
+    show('s5', t >= 10.0 && t < 11.55);
+    if (t >= 10.0 && t < 11.55) {
+      // stutter ritmi: 10.5–11.25 arasında şəkil "titrəyir"
+      const st = t >= 10.5 && t < 11.25;
+      const step = t < 10.75 ? 0.125 : t < 11.0 ? 0.0625 : 0.03125;
+      const tq = st ? 10.5 + Math.floor((t - 10.5) / step) * step : t;
+      const k = ex(P(tq, 10.0, 10.45));
+      const n = Math.round(lerp(0, 705, eo(P(t, 10.0, 10.6))));
+      S('s5n').textContent = String(n);
+      S('s5n').style.transform = `scale(${(0.7 + 0.3 * k + (st ? ((Math.floor((t - 10.5) / step)) % 2) * 0.06 : 0)).toFixed(3)})`;
+      S('s5u').style.opacity = String(ex(P(t, 10.2, 10.4)));
+      scramble(S('s5u'), 'mənzil · 3 status · real vaxtda', P(t, 10.2, 10.6), 9);
+      // arxada "status" zolaqları (yaşıl/sarı/qırmızı → lime palitrada tünd tonlar)
+      g5.clearRect(0, 0, 1920, 1080);
+      const cols = 60;
+      for (let i = 0; i < cols; i++) {
+        const h = (0.25 + 0.75 * rnd(i * 3.7)) * 1080 * ex(P(t, 10.0 + i * 0.006, 10.35 + i * 0.006));
+        g5.fillStyle = i % 7 === 0 ? 'rgba(10,10,10,0.9)' : i % 3 === 0 ? 'rgba(10,10,10,0.35)' : 'rgba(10,10,10,0.12)';
+        g5.fillRect(i * 32, 1080 - h, 26, h);
+      }
+      S('s5').style.background = st && Math.floor((t - 10.5) / step) % 2 ? '#0a0a0a' : 'var(--acc)';
+      S('s5').style.color = st && Math.floor((t - 10.5) / step) % 2 ? 'var(--acc)' : '#0a0a0a';
+      // tape-stop (11.25–11.55): hər şey aşağı "yıxılır"
+      const ts = eo(P(t, 11.25, 11.55));
+      S('s5').style.transform = `translateY(${(ts * 60).toFixed(1)}px) scaleY(${(1 - ts * 0.9).toFixed(3)})`;
+      S('s5').style.filter = ts > 0 ? `brightness(${(1 - ts * 0.9).toFixed(2)}) saturate(${(1 - ts).toFixed(2)})` : 'none';
+    }
+
+    // ---------------- S6 (11.55 – 13.0): split gündüz | gecə ----------------
+    show('s6', t >= 11.55 && t < 13.05);
+    if (t >= 11.55 && t < 13.05) {
+      const k = ex(P(t, 11.6, 12.1));
+      S('s6a').style.transform = `translateY(${((1 - k) * -1080).toFixed(0)}px)`;
+      S('s6b').style.transform = `translateY(${((1 - k) * 1080).toFixed(0)}px)`;
+      S('s6a').firstElementChild.style.transform = `scale(${(1.25 - 0.15 * eo(P(t, 11.6, 13))).toFixed(4)})`;
+      S('s6b').firstElementChild.style.transform = `scale(${(1.25 - 0.15 * eo(P(t, 11.6, 13))).toFixed(4)})`;
+      S('s6mid').style.transform = `scaleY(${ex(P(t, 11.9, 12.2)).toFixed(3)})`;
+      const ck = eio(P(t, 12.1, 12.85));
+      S('s6clock').textContent = hhmm(lerp(19 * 60 + 8, 21 * 60 + 30, ck));
+      S('s6clock').style.opacity = String(ex(P(t, 12.05, 12.25)));
+      S('s6t1').style.transform = `translateY(${((1 - ex(P(t, 12.0, 12.3))) * 200).toFixed(0)}px)`;
+      S('s6t2').style.transform = `translateY(${((1 - ex(P(t, 12.1, 12.4))) * 200).toFixed(0)}px)`;
+      // ayırıcı xətt sağa sürüşür → gecə qazanır
+      const sw = eio(P(t, 12.3, 12.95));
+      const mid = lerp(960, 1920, sw);
+      S('s6a').style.width = `${mid}px`; S('s6b').style.width = `${1920 - mid}px`;
+      S('s6mid').style.left = `${(mid - 3).toFixed(0)}px`;
+      speedLines(t, 12.85, 13.1, 1, 'rgba(212,255,58,');
+    }
+
+    // ---------------- S7 (13.0 – 15.0): final ----------------
+    show('s7', t >= 13.0);
+    if (t >= 13.0) {
+      const sh = shake(t, 1.6);
+      S('s7big').style.transform = `translate(${sh.x}px, ${sh.y}px)`;
+      C7.forEach((c, i) => {
+        const k = elastic(P(t, 13.0 + i * 0.025, 13.7 + i * 0.025));
+        c.style.transform = `translateY(${((1 - k) * 260).toFixed(1)}px) scaleY(${(0.4 + 0.6 * clamp(k)).toFixed(3)})`;
+        c.style.opacity = String(clamp(P(t, 13.0 + i * 0.025, 13.12 + i * 0.025)));
+        c.style.color = i < 2 ? 'var(--acc)' : 'var(--paper)';
+      });
+      S7sub.forEach((c, i) => { const k = ex(P(t, 13.55 + i * 0.012, 13.85 + i * 0.012)); c.style.opacity = String(k); c.style.transform = `translateY(${((1 - k) * 24).toFixed(1)}px)`; });
+      S('s7cred').style.opacity = String(ex(P(t, 13.9, 14.2)));
+      scramble(S('s7cred'), 'three.js · webgl · real-time · 2026', P(t, 13.9, 14.4), 4);
+      const bk = ex(P(t, 13.15, 13.55));
+      const bw = lerp(1920, 1500, bk), bh = lerp(1080, 620, bk);
+      Object.assign(S('s7box').style, { left: `${(960 - bw / 2).toFixed(0)}px`, top: `${(540 - bh / 2 + 20).toFixed(0)}px`, width: `${bw.toFixed(0)}px`, height: `${bh.toFixed(0)}px`, opacity: String(bk) });
+      // son 0.35 s: qaralma
+      S('s7').style.opacity = String(1 - P(t, 14.65, 15.0));
+    }
+
+    // ---------------- keçid pərdələri (lime) ----------------
+    const W = [[1.95, 2.12, 1], [5.95, 6.12, -1], [9.95, 10.12, 1]];
+    let wv = null;
+    for (const [a, b, d] of W) if (t >= a && t < b) wv = [P(t, a, b), d];
+    S('wipe').style.display = wv ? 'block' : 'none';
+    if (wv) {
+      const [k, d] = wv;
+      const x0 = eio(clamp(k * 2)) * 1920, x1 = eio(clamp(k * 2 - 1)) * 1920;
+      const w1 = S('w1');
+      if (d > 0) { w1.style.left = `${x1}px`; w1.style.width = `${Math.max(0, x0 - x1)}px`; }
+      else { w1.style.left = `${1920 - x0}px`; w1.style.width = `${Math.max(0, x0 - x1)}px`; }
+      S('w2').style.display = 'none';
+    }
+    // ağ parıltı (drop və final)
+    const fl = Math.max(Math.exp(-Math.max(0, t - 2.0) * 16) * (t >= 2.0 ? 1 : 0), Math.exp(-Math.max(0, t - 13.0) * 12) * (t >= 13.0 ? 1 : 0), Math.exp(-Math.max(0, t - 7.0) * 18) * (t >= 7.0 ? 0.5 : 0));
+    S('flash').style.opacity = String(fl * 0.6);
+
+    // ---------------- HUD ----------------
+    const scn = t < 2 ? '00' : t < 3.5 ? '01' : t < 6 ? '02' : t < 7 ? '03' : t < 10 ? '04' : t < 11.55 ? '05' : t < 13 ? '06' : '07';
+    S('hudBL').textContent = `SCN ${scn}  ·  ${t < 7 ? 'EXT' : t < 10 ? 'ZOOM' : t < 13 ? 'DATA' : 'END'}`;
+    const fr = Math.floor(t * 60);
+    S('hudBR').textContent = `00:${String(Math.floor(t)).padStart(2, '0')}:${String(fr % 60).padStart(2, '0')}`;
+    S('hudProg').style.width = `${(t / DUR * 100).toFixed(2)}%`;
+    const hudOn = t > 0.15 && t < 14.6;
+    S('hud').style.opacity = hudOn ? (t > 13.0 ? String(1 - P(t, 13.0, 13.3)) : '1') : '0';
+    const dark = (t >= 6.0 && t < 6.75) || (t >= 10.0 && t < 11.25);
+    S('hud').style.filter = dark ? 'invert(1)' : 'none';
+
+    gctx.putImageData(grains[Math.floor(t * 30) % 6], 0, 0);
+  }
+
+  window.seek = (t) => render(t);
+  window.DURATION = DUR;
+  window.ready = Promise.all([document.fonts.ready, ...[...document.querySelectorAll('img')].map((i) => i.decode().catch(() => {}))]).then(() => true);
+  const q = new URLSearchParams(location.search);
+  const fit = () => { const k = Math.min(innerWidth / 1920, innerHeight / 1080); S('stage').style.transform = `translate(${(innerWidth - 1920 * k) / 2}px, ${(innerHeight - 1080 * k) / 2}px) scale(${k})`; };
+  if (q.has('capture')) { render(0); return; }
+  fit(); addEventListener('resize', fit);
+  window.ready.then(() => { const t0 = performance.now(); const loop = (now) => { render(((now - t0) / 1000) % DUR); requestAnimationFrame(loop); }; requestAnimationFrame(loop); });
+})();
+</script>
+</body>
+</html>
