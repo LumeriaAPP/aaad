@@ -36,12 +36,13 @@
   #s0lbl { position: absolute; left: 0; right: 0; top: 760px; text-align: center; font-size: 22px; color: var(--mute); }
 
   /* S1 */
-  #s1wrap { position: absolute; left: 0; right: 0; top: 190px; }
-  .s1row { position: relative; height: 330px; }
-  .s1row div { position: absolute; left: 0; right: 0; text-align: center; font-size: 300px; white-space: nowrap; }
-  #s1r2 div { color: transparent; -webkit-text-stroke: 3px var(--paper); }
+  #s1wrap { position: absolute; left: 0; right: 0; top: 150px; }
+  .s1row { position: relative; height: 255px; }
+  .s1row div { position: absolute; left: 0; right: 0; text-align: center; font-size: 230px; white-space: nowrap; }
+  #s1r2 div { color: #34342f; }
+  #s1strike { position: absolute; left: 50%; top: 118px; height: 20px; background: var(--acc); z-index: 2; box-shadow: 0 0 40px rgba(212,255,58,.6); }
   #s1r3 div { color: var(--acc); }
-  #s1under { position: absolute; left: 50%; top: 885px; height: 10px; background: var(--acc); }
+  #s1under { position: absolute; left: 50%; top: 950px; height: 10px; background: var(--acc); }
 
   /* S2 */
   #s2img { transform-origin: 48% 56%; }
@@ -109,7 +110,7 @@
   <!-- S1: kinetik tipoqrafiya -->
   <section class="L" id="s1">
     <div id="s1wrap">
-      <div class="s1row" id="s1r1"><div class="big">KƏRPİC</div></div>
+      <div class="s1row" id="s1r1"><div class="big">KƏRPİC</div><span id="s1strike"></span></div>
       <div class="s1row" id="s1r2"><div class="big">YOX.</div></div>
       <div class="s1row" id="s1r3"><div class="big">PİKSEL.</div></div>
     </div>
@@ -301,7 +302,7 @@
       });
       // "KƏRPİC" xətlə üstündən pozulur, sonra silinir
       const strike = ex(P(t, 2.55, 2.75));
-      S('s1r1').style.background = `linear-gradient(var(--acc), var(--acc)) no-repeat 50% 58% / ${(strike * 92).toFixed(1)}% 18px`;
+      S('s1strike').style.width = `${(strike * 1180).toFixed(0)}px`; S('s1strike').style.marginLeft = `${(-strike * 590).toFixed(0)}px`;
       const u = ex(P(t, 2.8, 3.05));
       S('s1under').style.width = `${(u * 1200).toFixed(1)}px`; S('s1under').style.marginLeft = `${(-u * 600).toFixed(1)}px`;
       // çıxış: sətirlər üfüqi parçalanır
