@@ -11,6 +11,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
 import { COMPANY, BUILDING, PLAN_TYPES, APARTMENTS, STATUS, ordinal, fmtPrice, floorBaseY } from './data.js';
 import { buildTower, buildSurroundings, buildTrees } from './building.js';
@@ -318,6 +319,39 @@ function setBloom(threshold, strength) {
   bloom.enabled = BLOOM_OK && threshold < 5;
 }
 setBloom(99, 0);
+// Uzaq fon üçün "maket fotosu" (tilt-shift) bulanıqlığı: kadrın yuxarı hissəsi (uzaq şəhər/üfüq) yumşaq bulanır,
+// kompleks və ön plan kəskin qalır. Yalnız ana səhifənin 3D görünüşündə.
+const tiltShader = (dir) => ({
+  uniforms: { tDiffuse: { value: null }, uDir: { value: new THREE.Vector2(...dir) }, uRes: { value: new THREE.Vector2(innerWidth, innerHeight) }, uAmount: { value: 0 } },
+  vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 uDir; uniform vec2 uRes; uniform float uAmount; varying vec2 vUv;
+    void main() {
+      // bulanıqlıq: yuxarıda güclü, ortadan aşağı sıfır; aşağı kənarda çox az
+      float k = smoothstep(0.52, 1.0, vUv.y) + 0.35 * smoothstep(0.22, 0.0, vUv.y);
+      float r = k * uAmount;
+      if (r < 0.05) { gl_FragColor = texture2D(tDiffuse, vUv); return; }
+      vec2 st = uDir / uRes * r;
+      vec4 c = texture2D(tDiffuse, vUv) * 0.2270270270;
+      c += texture2D(tDiffuse, vUv + st * 1.3846153846) * 0.3162162162;
+      c += texture2D(tDiffuse, vUv - st * 1.3846153846) * 0.3162162162;
+      c += texture2D(tDiffuse, vUv + st * 3.2307692308) * 0.0702702703;
+      c += texture2D(tDiffuse, vUv - st * 3.2307692308) * 0.0702702703;
+      gl_FragColor = c;
+    }`,
+});
+const tiltH = new ShaderPass(tiltShader([1, 0])), tiltV = new ShaderPass(tiltShader([0, 1]));
+const tiltH2 = new ShaderPass(tiltShader([1, 0])), tiltV2 = new ShaderPass(tiltShader([0, 1]));
+const TILT = [tiltH, tiltV, tiltH2, tiltV2];
+if (!Q.has('notilt')) TILT.forEach((p) => composer.addPass(p));
+let tiltAmt = 0;
+function updateTilt(dt) {
+  // ana səhifədə açıq, mənzil seçimi/tur/renderdə söndürülür
+  const want = state.mode === 'landing' && !rendering ? (LITE ? 2.2 : 3.2) : 0;
+  tiltAmt += (want - tiltAmt) * Math.min(1, dt * 4);
+  const on = tiltAmt > 0.05;
+  const pr = renderer.getPixelRatio();
+  TILT.forEach((p, i) => { p.enabled = on; p.uniforms.uAmount.value = tiltAmt * (i < 2 ? 1 : 2.2) * pr; p.uniforms.uRes.value.set(innerWidth * pr, innerHeight * pr); });
+}
 composer.addPass(new OutputPass());
 
 /* =========================================================
@@ -1681,7 +1715,7 @@ function frame(now) {
   if (rendering) { if (!renderTick()) renderer.render(scene, camera); }
   else if (sceneHidden()) drawn = false; // 3D ekranda görünmür (video və ya dolu bölmə üstündədir) — GPU-nu yorma
   else if (Q.has('nopp')) renderer.render(scene, camera);
-  else composer.render(dt);
+  else { updateTilt(dt); composer.render(dt); }
   adaptiveQuality(rawDt, drawn);
   requestAnimationFrame(frame);
 }
