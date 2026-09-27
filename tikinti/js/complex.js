@@ -591,53 +591,166 @@ export function buildCity(GY = -0.4) {
     const t = new THREE.Object3D(); t.position.set(0, 0.8, -2.21); t.updateMatrix();
     tails.setMatrixAt(tails.count++, new THREE.Matrix4().multiplyMatrices(_o.matrix, t.matrix));
   };
+  // Sağtərəfli hərəkət: istiqamət boyunca sağ tərəfdəki zolaq.
+  // z oxu boyunca (+z) sağ tərəf -x-dir, x oxu boyunca (+x) sağ tərəf +z-dir.
+  const LANE = 3.4;
+  const laneC = (along, road, dir) => (along === 'z' ? road - dir * LANE : road + dir * LANE);
+  const heading = (along, dir) => (along === 'z' ? (dir > 0 ? 0 : Math.PI) : (dir > 0 ? Math.PI / 2 : -Math.PI / 2));
   for (const x of xs) {
-    for (let z = -E + 10; z < E - 10; z += 9 + rand() * 30) {
+    for (let z = -E + 10; z < E - 10; z += 12 + rand() * 30) {
       if (isNear(z, zs)) continue;
-      const lane = rand() < 0.5 ? -1 : 1;
-      addCar(x + lane * 3.4, z, lane > 0 ? 0 : Math.PI, { along: 'z', c: x + lane * 3.4, p: z, dir: lane, road: x, lane });
+      const dir = rand() < 0.5 ? -1 : 1;
+      addCar(laneC('z', x, dir), z, heading('z', dir), { along: 'z', c: laneC('z', x, dir), p: z, dir, road: x });
     }
   }
   for (const z of zs) {
-    for (let x = -E + 10; x < E - 10; x += 9 + rand() * 30) {
+    for (let x = -E + 10; x < E - 10; x += 12 + rand() * 30) {
       if (isNear(x, xs)) continue;
-      const lane = rand() < 0.5 ? -1 : 1;
-      addCar(x, z + lane * 3.4, lane > 0 ? -Math.PI / 2 : Math.PI / 2, { along: 'x', c: z + lane * 3.4, p: x, dir: -lane, road: z, lane });
+      const dir = rand() < 0.5 ? -1 : 1;
+      addCar(x, laneC('x', z, dir), heading('x', dir), { along: 'x', c: laneC('x', z, dir), p: x, dir, road: z });
     }
   }
   for (const m of [body, cab, wheels, heads, tails]) m.instanceMatrix.needsUpdate = true;
   body.instanceColor.needsUpdate = true;
   g.add(body, cab, wheels, heads, tails);
 
-  // Trafik: hər zolaqda maşınlar eyni sürətlə gedir (bir-birini keçmir), yolun sonunda o biri başa keçir.
-  // Kəsişmələrin yaxınında bir az yavaşlayırlar.
-  const laneSpeed = new Map();
-  for (const c of cars) {
-    const k = c.along + c.road + ':' + c.lane;
-    if (!laneSpeed.has(k)) laneSpeed.set(k, 8 + rand() * 5); // 30–47 km/saat
-    c.speed = laneSpeed.get(k);
+  /* ---------- Svetoforlar ----------
+     Hər kəsişmədə iki faza: şimal-cənub (z oxu) və şərq-qərb (x oxu).
+     Yaşıl → sarı → hamısı qırmızı (kəsişmə boşalsın) → o biri istiqamətə yaşıl. */
+  const GREEN = 11, YELLOW = 3, ALLRED = 2;
+  const CYCLE = 2 * (GREEN + YELLOW + ALLRED);
+  const junctions = [];
+  for (const x of xs) for (const z of zs) junctions.push({ x, z, off: rand() * CYCLE });
+  // faza: 'g' | 'y' | 'r' — verilmiş ox üçün
+  const signal = (j, axis, time) => {
+    let s = (time + j.off) % CYCLE;
+    if (axis === 'x') s = (s + GREEN + YELLOW + ALLRED) % CYCLE;
+    return s < GREEN ? 'g' : s < GREEN + YELLOW ? 'y' : 'r';
+  };
+  const junctionAt = (x, z) => junctions.find((j) => j.x === x && j.z === z);
+
+  // dirəklər, başlıqlar və lampalar (hər kəsişmədə 4 yanaşma)
+  const sigPoleMat = new THREE.MeshStandardMaterial({ color: 0x26282c, metalness: 0.5, roughness: 0.5 });
+  const sigHeadMat = new THREE.MeshStandardMaterial({ color: 0x15171a, roughness: 0.6 });
+  const lampBase = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+  const NA = junctions.length * 4;
+  const sPoles = inst(new THREE.CylinderGeometry(0.09, 0.11, 4.6, 8).translate(0, 2.3, 0), sigPoleMat, NA);
+  const sHeads = inst(new THREE.BoxGeometry(0.5, 1.45, 0.42).translate(0, 4.9, 0), sigHeadMat, NA);
+  const sLamps = inst(new THREE.SphereGeometry(0.15, 10, 8), lampBase, NA * 3);
+  sLamps.castShadow = false;
+  const approaches = [];
+  const SIG_COL = { r: new THREE.Color(0xff2a18), y: new THREE.Color(0xffb400), g: new THREE.Color(0x22ff66), off: new THREE.Color(0x1c1d20) };
+  for (const j of junctions) {
+    for (const [axis, dir] of [['z', 1], ['z', -1], ['x', 1], ['x', -1]]) {
+      // hərəkət istiqaməti və sağ tərəf
+      const fx = axis === 'x' ? dir : 0, fz = axis === 'z' ? dir : 0;
+      const rx = axis === 'z' ? -dir : 0, rz = axis === 'x' ? dir : 0;
+      const d = w / 2 + 1.6;
+      const px = j.x + rx * d - fx * d, pz = j.z + rz * d - fz * d;
+      const ry = Math.atan2(-fx, -fz); // üzü yaxınlaşan maşınlara
+      put(sPoles, px, GY + 0.2, pz, ry, 1, 1, 1);
+      put(sHeads, px, GY + 0.2, pz, ry, 1, 1, 1);
+      const base = sLamps.count;
+      for (let k = 0; k < 3; k++) {
+        const ly = GY + 0.2 + 4.9 + (1 - k) * 0.42;
+        put(sLamps, px - fx * 0.22, ly, pz - fz * 0.22, 0, 1, 1, 1);
+      }
+      approaches.push({ j, axis, base });
+    }
   }
+  for (let i = 0; i < sLamps.count; i++) sLamps.setColorAt(i, SIG_COL.off);
+  for (const m of [sPoles, sHeads, sLamps]) m.instanceMatrix.needsUpdate = true;
+  g.add(sPoles, sHeads, sLamps);
+  let lastLamp = '';
+  const paintLamps = (time) => {
+    let key = '';
+    const states = approaches.map((a) => { const s = signal(a.j, a.axis, time); key += s; return s; });
+    if (key === lastLamp) return;
+    lastLamp = key;
+    approaches.forEach((a, i) => {
+      const s = states[i];
+      sLamps.setColorAt(a.base, s === 'r' ? SIG_COL.r : SIG_COL.off);
+      sLamps.setColorAt(a.base + 1, s === 'y' ? SIG_COL.y : SIG_COL.off);
+      sLamps.setColorAt(a.base + 2, s === 'g' ? SIG_COL.g : SIG_COL.off);
+    });
+    sLamps.instanceColor.needsUpdate = true;
+  };
+
+  /* ---------- Hərəkət: ardınca getmə modeli (IDM) + svetofor ----------
+     Hər maşın öndəkinə görə sürətini tənzimləyir (məsafə saxlayır, növbəyə düzülür),
+     qırmızıda və dayana biləcəyi sarıda stop xəttində dayanır, yaşılda yumşaq sürətlənir. */
+  const lanes = new Map();
+  for (const c of cars) {
+    const k = c.along + c.road + ':' + c.dir;
+    if (!lanes.has(k)) lanes.set(k, []);
+    lanes.get(k).push(c);
+    c.v0 = 10 + rand() * 4; // 36–50 km/saat
+    c.v = c.v0 * 0.6;
+  }
+  const A_MAX = 2.2, B_COMF = 3.5, S0 = 2.6, T_HEAD = 1.3, LEN = 4.6;
   const cross = (c) => (c.along === 'z' ? zs : xs);
+  const STOP = w / 2 + 3 + 2.4 + LEN / 2; // kəsişmə mərkəzindən stop xəttinə qədər (zebra önündə)
+  const lo = -E + 10, span = E * 2 - 20;
   const wm = new THREE.Matrix4(), part = new THREE.Matrix4();
   const carOff = { wf: new THREE.Matrix4().makeTranslation(0, 0.34, 1.35), wb: new THREE.Matrix4().makeTranslation(0, 0.34, -1.35), h: new THREE.Matrix4().makeTranslation(0, 0.72, 2.21), t: new THREE.Matrix4().makeTranslation(0, 0.8, -2.21) };
-  const lo = -E + 10, span = E * 2 - 20;
+  let clock = 0;
+  const idm = (v, v0, gap, dv) => {
+    const sStar = S0 + Math.max(0, v * T_HEAD + (v * dv) / (2 * Math.sqrt(A_MAX * B_COMF)));
+    return A_MAX * (1 - Math.pow(v / v0, 4) - Math.pow(sStar / Math.max(gap, 0.1), 2));
+  };
+
   g.userData.traffic = {
     update(dt) {
-      for (const c of cars) {
-        let v = c.speed;
-        for (const q of cross(c)) { const d = Math.abs(c.p - q); if (d < 22) v *= 0.55 + 0.45 * (d / 22); }
-        c.p += c.dir * v * dt;
-        if (c.p > lo + span) c.p -= span; else if (c.p < lo) c.p += span;
-        if (c.along === 'z') { _o.position.set(c.c, GY + 0.25, c.p); _o.rotation.set(0, c.dir > 0 ? 0 : Math.PI, 0); }
-        else { _o.position.set(c.p, GY + 0.25, c.c); _o.rotation.set(0, c.dir > 0 ? Math.PI / 2 : -Math.PI / 2, 0); }
-        _o.updateMatrix();
-        wm.copy(_o.matrix);
-        body.setMatrixAt(c.idx, wm);
-        cab.setMatrixAt(c.idx, wm);
-        wheels.setMatrixAt(c.idx * 2, part.multiplyMatrices(wm, carOff.wb));
-        wheels.setMatrixAt(c.idx * 2 + 1, part.multiplyMatrices(wm, carOff.wf));
-        heads.setMatrixAt(c.idx, part.multiplyMatrices(wm, carOff.h));
-        tails.setMatrixAt(c.idx, part.multiplyMatrices(wm, carOff.t));
+      if (dt <= 0) return;
+      clock += dt;
+      paintLamps(clock);
+      for (const lane of lanes.values()) {
+        const dir = lane[0].dir;
+        // irəliləmə sırası: istiqamət boyunca öndən arxaya
+        lane.sort((a, b) => (b.p - a.p) * dir);
+        const n = lane.length;
+        for (let i = 0; i < n; i++) {
+          const c = lane[i];
+          // öndəki maşın (ən öndəkinin "öndəkisi" dövrə vuraraq ən arxadakıdır)
+          let gap = Infinity, dv = 0;
+          if (n > 1) {
+            const lead = lane[(i - 1 + n) % n];
+            let dist = (lead.p - c.p) * dir;
+            if (dist <= 0) dist += span;
+            gap = dist - LEN;
+            dv = c.v - lead.v;
+          }
+          // qarşıdakı kəsişmənin svetoforu
+          for (const q of cross(c)) {
+            const stopPos = q - dir * STOP;
+            const dStop = (stopPos - c.p) * dir;
+            if (dStop < -0.3 || dStop > 70) continue;
+            const j = c.along === 'z' ? junctionAt(c.road, q) : junctionAt(q, c.road);
+            const s = signal(j, c.along, clock);
+            const canStop = dStop > (c.v * c.v) / (2 * B_COMF * 1.4);
+            if (s === 'r' || (s === 'y' && canStop)) {
+              const g2 = Math.max(dStop, 0.05);
+              if (g2 < gap) { gap = g2; dv = c.v; }
+            }
+            break;
+          }
+          const acc = Math.max(-9, idm(c.v, c.v0, gap, dv));
+          c.v = Math.max(0, c.v + acc * dt);
+          c.p += dir * c.v * dt;
+          if (c.p > lo + span) c.p -= span; else if (c.p < lo) c.p += span;
+        }
+        for (const c of lane) {
+          if (c.along === 'z') _o.position.set(c.c, GY + 0.25, c.p); else _o.position.set(c.p, GY + 0.25, c.c);
+          _o.rotation.set(0, heading(c.along, c.dir), 0);
+          _o.updateMatrix();
+          wm.copy(_o.matrix);
+          body.setMatrixAt(c.idx, wm);
+          cab.setMatrixAt(c.idx, wm);
+          wheels.setMatrixAt(c.idx * 2, part.multiplyMatrices(wm, carOff.wb));
+          wheels.setMatrixAt(c.idx * 2 + 1, part.multiplyMatrices(wm, carOff.wf));
+          heads.setMatrixAt(c.idx, part.multiplyMatrices(wm, carOff.h));
+          tails.setMatrixAt(c.idx, part.multiplyMatrices(wm, carOff.t));
+        }
       }
       for (const m of [body, cab, wheels, heads, tails]) m.instanceMatrix.needsUpdate = true;
     },
