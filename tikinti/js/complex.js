@@ -313,7 +313,7 @@ export function buildCourtyard(GY = -0.4) {
     new THREE.PlaneGeometry(26, 9).rotateX(-Math.PI / 2),
     new THREE.MeshPhysicalMaterial({ color: 0x1f8fb0, roughness: 0.03, metalness: 0, normalMap: wn, normalScale: new THREE.Vector2(0.35, 0.35), clearcoat: 1, envMapIntensity: 1.3 })
   );
-  water.position.set(0, GY + 0.28, 46);
+  water.position.set(0, GY + 0.32, 46); // hovuz kənarının (üstü GY+0.30) üstündə olmalıdır, yoxsa su görünmür
   water.userData.water = wn;
   g.add(water);
   const deck = new THREE.Mesh(new THREE.BoxGeometry(34, 0.3, 16), std(0xd9cfbf, 0.6));
@@ -473,7 +473,182 @@ export function buildCourtyard(GY = -0.4) {
   rampWall.position.set(60, GY + 0.2, 51);
   g.add(rampWall);
 
+  addLandscape(g, GY, rand, std);
   return g;
+}
+
+/* ---------- Həyətin yaşıllaşdırılması: çəmənlər, ağaclar, gül ləkləri, fəvvarə, padel ---------- */
+function lawnTexture() {
+  // biçilmiş çəmən: növbələşən iki yaşıl zolaq + incə səs-küy
+  const S = 256, c = document.createElement('canvas');
+  c.width = c.height = S;
+  const g = c.getContext('2d');
+  for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? '#6f9448' : '#7ba451'; g.fillRect(0, (i * S) / 8, S, S / 8); }
+  const r = rng(77);
+  for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '40,70,25' : '160,190,110'},${0.06 + r() * 0.08})`; g.fillRect(r() * S, r() * S, 1 + r() * 2, 1 + r() * 2); }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(1 / 16, 1 / 16); // 16 m-də bir təkrar (şəkil koordinatları metrlə)
+  t.anisotropy = 4;
+  return t;
+}
+function roundRect(x0, z0, x1, z1, r) {
+  const s = new THREE.Shape();
+  // ShapeGeometry XY müstəvisindədir; rotateX(-90°) sonra y → -z olur
+  const X0 = x0, X1 = x1, Y0 = -z1, Y1 = -z0;
+  s.moveTo(X0 + r, Y0);
+  s.lineTo(X1 - r, Y0); s.quadraticCurveTo(X1, Y0, X1, Y0 + r);
+  s.lineTo(X1, Y1 - r); s.quadraticCurveTo(X1, Y1, X1 - r, Y1);
+  s.lineTo(X0 + r, Y1); s.quadraticCurveTo(X0, Y1, X0, Y1 - r);
+  s.lineTo(X0, Y0 + r); s.quadraticCurveTo(X0, Y0, X0 + r, Y0);
+  return s;
+}
+function addLandscape(g, GY, rand, std) {
+  // çəmən sahələri (binalar, xiyabanlar, hovuz və meydançalar arasında boş yerlər)
+  const LAWNS = [
+    [-41, 49.5, -19, 63.5], [19, 49.5, 41, 63.5], [-16, 55.5, 16, 63.5],
+    [-19, 16, -4, 37], [4, 16, 19, 37],
+    [-37, 17, -23, 22], [23, 17, 37, 24],
+    [-17, -38, -4, -19], [4, -38, 38, -19],
+    [-45, 70, -5, 86], [5, 70, 45, 86],
+    // kənarlar: korpusların arası, qərb/şərq zolaqları, cənub bağı
+    [-62, 22, -48, 84], [48, 22, 62, 84],
+    [-60, -38, -22, -14], [40, -40, 64, -14],
+    [-44, 90, 44, 114],
+  ];
+  const lawnGeos = LAWNS.map(([x0, z0, x1, z1]) => new THREE.ShapeGeometry(roundRect(x0, z0, x1, z1, 2.5), 4).rotateX(-Math.PI / 2));
+  const lawnMesh = new THREE.Mesh(mergeGeometries(lawnGeos), new THREE.MeshStandardMaterial({ map: lawnTexture(), roughness: 0.95 }));
+  lawnMesh.position.y = GY + 0.1;
+  lawnMesh.receiveShadow = true;
+  g.add(lawnMesh);
+  // çəmən kənarı: açıq daş bordür
+  const curbGeos = [];
+  for (const [x0, z0, x1, z1] of LAWNS) {
+    const outer = roundRect(x0 - 0.35, z0 - 0.35, x1 + 0.35, z1 + 0.35, 2.8);
+    outer.holes.push(roundRect(x0, z0, x1, z1, 2.5));
+    curbGeos.push(new THREE.ExtrudeGeometry(outer, { depth: 0.16, bevelEnabled: false, curveSegments: 4 }).rotateX(-Math.PI / 2));
+  }
+  const curb = new THREE.Mesh(mergeGeometries(curbGeos), std(0xe7e0d3, 0.7));
+  curb.position.y = GY + 0.02;
+  curb.receiveShadow = true;
+  g.add(curb);
+
+  // yumru, sıx ağaclar (maket üslubu): gövdə + 3 yarpaq topası
+  const canopyParts = [];
+  for (const [ox, oy, oz, s] of [[0, 0, 0, 1], [0.8, -0.35, 0.3, 0.72], [-0.7, -0.3, -0.4, 0.68]]) {
+    const b = new THREE.IcosahedronGeometry(1.6 * s, 1);
+    const p = b.attributes.position;
+    for (let i = 0; i < p.count; i++) { const k = 1 + Math.sin(p.getX(i) * 5 + oz) * Math.cos(p.getZ(i) * 4 + ox) * 0.09; p.setXYZ(i, p.getX(i) * k, p.getY(i) * k * 0.86, p.getZ(i) * k); }
+    b.translate(ox, 4.6 + oy, oz);
+    canopyParts.push(b.toNonIndexed ? b.toNonIndexed() : b);
+  }
+  const canopyGeo = mergeGeometries(canopyParts.map((x) => { x.deleteAttribute('uv'); return x; }));
+  canopyGeo.computeVertexNormals();
+  const trunkGeo = new THREE.CylinderGeometry(0.14, 0.2, 3.6, 7).translate(0, 1.8, 0);
+  const TREE_N = 190;
+  const canopies = inst(canopyGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, flatShading: true }), TREE_N);
+  const trunks = inst(trunkGeo, std(0x6b5645, 0.9), TREE_N);
+  const leafCols = [0x5c7f3a, 0x6b8f43, 0x4f7334, 0x7a9a4c, 0x587a3b].map((c) => new THREE.Color(c));
+  const treeAt = (x, z, s) => {
+    if (canopies.count >= TREE_N) return;
+    canopies.setColorAt(canopies.count, leafCols[Math.floor(rand() * leafCols.length)]);
+    const ry = rand() * 6.28;
+    put(canopies, x, GY + 0.1, z, ry, s, s * (0.9 + rand() * 0.25), s);
+    put(trunks, x, GY + 0.1, z, ry, s, s, s);
+  };
+  // hər çəmənə öz sıxlığına görə ağac (kənarlara yaxın, ortada açıq sahə qalsın)
+  for (const [x0, z0, x1, z1] of LAWNS) {
+    const area = (x1 - x0) * (z1 - z0);
+    const n = Math.max(1, Math.round(area / 70));
+    for (let i = 0; i < n; i++) {
+      const edge = rand() < 0.7;
+      let x = x0 + 2.5 + rand() * (x1 - x0 - 5), z = z0 + 2.5 + rand() * (z1 - z0 - 5);
+      if (edge) { if (rand() < 0.5) z = rand() < 0.5 ? z0 + 2.2 : z1 - 2.2; else x = rand() < 0.5 ? x0 + 2.2 : x1 - 2.2; }
+      if (x > 9 && x < 33 && z > -35 && z < -22) continue; // padel kortu
+      if (Math.hypot(x, z - 26) < 6) continue; // fəvvarə
+      treeAt(x, z, 0.75 + rand() * 0.45);
+    }
+  }
+  canopies.instanceMatrix.needsUpdate = trunks.instanceMatrix.needsUpdate = true;
+  if (canopies.instanceColor) canopies.instanceColor.needsUpdate = true;
+  g.add(canopies, trunks);
+
+  // gül ləkləri: çəmən küncləri və kənarları boyunca rəngli topalar
+  const bloomGeo = new THREE.IcosahedronGeometry(0.42, 1).scale(1, 0.7, 1);
+  const blooms = inst(bloomGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, flatShading: true }), 700);
+  const bloomCols = [0xd9869c, 0xb784c4, 0xf1ede4, 0xe8b54f, 0xe07a6a].map((c) => new THREE.Color(c));
+  for (const [x0, z0, x1, z1] of LAWNS) {
+    for (const [cx, cz] of [[x0 + 1.6, z0 + 1.6], [x1 - 1.6, z0 + 1.6], [x0 + 1.6, z1 - 1.6], [x1 - 1.6, z1 - 1.6]]) {
+      const col = bloomCols[Math.floor(rand() * bloomCols.length)];
+      for (let k = 0; k < 12; k++) {
+        if (blooms.count >= 700) break;
+        blooms.setColorAt(blooms.count, col);
+        const s = 0.7 + rand() * 0.5;
+        put(blooms, cx + (rand() - 0.5) * 3.2, GY + 0.28, cz + (rand() - 0.5) * 3.2, rand() * 6, s, s, s);
+      }
+    }
+  }
+  blooms.instanceMatrix.needsUpdate = true;
+  if (blooms.instanceColor) blooms.instanceColor.needsUpdate = true;
+  g.add(blooms);
+
+  // fəvvarə: əsas girişin qarşısında dairəvi hovuzcuq
+  const fBasin = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.6, 0.55, 40), std(0xece6da, 0.5));
+  fBasin.position.set(0, GY + 0.28, 26);
+  const fWater = new THREE.Mesh(new THREE.CylinderGeometry(3.05, 3.05, 0.05, 40), new THREE.MeshPhysicalMaterial({ color: 0x3aa3bf, roughness: 0.05, clearcoat: 1 }));
+  fWater.position.set(0, GY + 0.52, 26);
+  const fJet = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.3, 1.8, 12), new THREE.MeshPhysicalMaterial({ color: 0xdff4fb, roughness: 0.1, transparent: true, opacity: 0.55, transmission: 0.3 }));
+  fJet.position.set(0, GY + 1.35, 26);
+  for (const m of [fBasin, fWater]) { m.castShadow = true; m.receiveShadow = true; }
+  g.add(fBasin, fWater, fJet);
+
+  // padel kortu (arxa tərəfdə, 20 × 10 m, şüşə hasarla)
+  const court = new THREE.Group();
+  court.position.set(21, GY, -28.5);
+  const turf = new THREE.Mesh(new THREE.BoxGeometry(20, 0.12, 10), std(0x2f6f9a, 0.9));
+  turf.position.y = 0.16;
+  turf.receiveShadow = true;
+  court.add(turf);
+  const lineMat = std(0xf4f4f0, 0.6);
+  for (const [w, d, x, z] of [[20, 0.08, 0, -4.96], [20, 0.08, 0, 4.96], [0.08, 10, -9.96, 0], [0.08, 10, 9.96, 0], [0.08, 10, -3.05, 0], [0.08, 10, 3.05, 0], [6.1, 0.08, 0, 0]]) {
+    const l = new THREE.Mesh(new THREE.BoxGeometry(w, 0.02, d), lineMat);
+    l.position.set(x, 0.23, z);
+    court.add(l);
+  }
+  const net = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.9, 10), std(0x1d1f22, 0.8, { transparent: true, opacity: 0.7 }));
+  net.position.set(0, 0.67, 0);
+  court.add(net);
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0xcfe3ea, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.22, depthWrite: false });
+  for (const sx of [-1, 1]) {
+    const back = new THREE.Mesh(new THREE.BoxGeometry(0.06, 3, 10), glassMat);
+    back.position.set(sx * 10, 1.7, 0);
+    court.add(back);
+    for (const sz of [-1, 1]) {
+      const side = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 0.06), glassMat);
+      side.position.set(sx * 9, 1.7, sz * 5);
+      court.add(side);
+    }
+  }
+  const postMat = std(0x2a2c30, 0.5);
+  for (const sx of [-10, -8, 8, 10]) for (const sz of [-5, 5]) {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(0.1, 3.2, 0.1), postMat);
+    p.position.set(sx, 1.75, sz);
+    court.add(p);
+  }
+  court.traverse((o) => { if (o.isMesh && o.material !== glassMat) { o.castShadow = true; o.receiveShadow = true; } });
+  g.add(court);
+
+  // hovuz ətrafına əlavə çətirlər (ağ, açıq)
+  const umbMat = std(0xf3efe7, 0.9, { side: THREE.DoubleSide });
+  for (const [x, z] of [[-15, 40], [15, 40], [-15, 52], [15, 52]]) {
+    const u = new THREE.Mesh(new THREE.ConeGeometry(1.6, 0.5, 8, 1, true), umbMat);
+    u.position.set(x, GY + 2.6, z);
+    u.castShadow = true;
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 2.4, 6), std(0x333333, 0.4));
+    pole.position.set(x, GY + 1.4, z);
+    g.add(u, pole);
+  }
 }
 
 // Kompleksin yerləşmə planı: əsas bina (0,0) mərkəzdədir
