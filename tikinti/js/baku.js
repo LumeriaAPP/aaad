@@ -245,7 +245,8 @@ function cityBoxGeo() {
   return g;
 }
 
-export const CITY_COLORS = [0xd9c9ad, 0xb98a6c, 0xc8c3ba, 0xa8795f, 0xe2dccf, 0x9c8f80, 0xcdb89a].map((c) => new THREE.Color(c));
+// maket üslubu: krem-qum çalarları (bir-biri ilə yarışmır)
+export const CITY_COLORS = [0xf1ebe0, 0xe9e1d2, 0xe4dbc9, 0xede6da, 0xdcd2bf, 0xf4efe6, 0xe6ddcc].map((c) => new THREE.Color(c));
 let _cityMat = null;
 export function cityMaterial() {
   if (_cityMat) return _cityMat;
@@ -278,8 +279,10 @@ export function cityMaterial() {
       .replace('#include <color_fragment>', `#include <color_fragment>
         vec2 cCell; float cWall;
         float cWin = winMask(cCell, cWall);
-        diffuseColor.rgb *= mix(0.62, 1.0, cWall); // dam bir az tünd
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.1, 0.12, 0.14), cWin * 0.88);`)
+        diffuseColor.rgb *= mix(0.9, 1.0, cWall); // dam bir az tünd
+        // gündüz pəncərələr çox yumşaq (maket kimi sadə fasad), gecə tünd şüşə + işıqlar
+        vec3 winCol = mix(diffuseColor.rgb * 0.86, vec3(0.1, 0.12, 0.14), uNight);
+        diffuseColor.rgb = mix(diffuseColor.rgb, winCol, cWin * mix(0.9, 0.88, uNight));`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         {
           float seed = ch(cCell + floor(vCW.xz / 40.0) * 7.13 + vec2(vCN.x * 3.0, vCN.z * 5.0));
@@ -288,7 +291,7 @@ export function cityMaterial() {
           totalEmissiveRadiance += cWin * on * warm * (0.35 + 0.45 * ch(cCell + 3.3)) * uNight * 1.1;
         }`);
   };
-  m.customProgramCacheKey = () => 'city-facade-v1';
+  m.customProgramCacheKey = () => 'city-facade-v2';
   _cityMat = m;
   return m;
 }

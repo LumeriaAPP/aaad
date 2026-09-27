@@ -402,8 +402,9 @@ if (heroVideo) {
 const PATH = [
   { sel: '#top', at: 0, pos: [40, 6, 150], tgt: [-8, 32, 0] },
   { sel: '#manifest', at: 0.5, pos: [-40, 18, 90], tgt: [0, 28, 0] },
-  { sel: '#masterplan', at: 0, pos: [175, 95, 250], tgt: [-45, 12, -55] },
-  { sel: '#masterplan', at: 1, pos: [70, 88, 285], tgt: [-70, 12, -60] },
+  // baş plan: yuxarıdan, maket kimi baxış (ərazinin quruluşu aydın görünür)
+  { sel: '#masterplan', at: 0, pos: [140, 140, 220], tgt: [-40, 10, -40] },
+  { sel: '#masterplan', at: 1, pos: [50, 150, 250], tgt: [-60, 10, -45] },
   { sel: '#about', at: 0, pos: [-30, 24, 78], tgt: [0, 28, 0] },
   { sel: '#about', at: 1, pos: [26, 46, 34], tgt: [0, 44, 0] },
   { sel: '#numbers', at: 0.5, pos: [-60, 80, 90], tgt: [0, 26, 0] },

@@ -984,15 +984,14 @@ body.sun-on .minimap { bottom: 240px; }
   border-radius: 50%;
   display: grid; place-items: center;
   font-weight: 600; font-size: 0.85rem; color: #fff;
-  background: #b5452f;
-  border: 2px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), 0 0 0 0 rgba(181, 69, 47, 0.6);
+  background: rgba(30, 48, 66, 0.9);
+  border: 1.5px solid rgba(246, 239, 228, 0.85);
+  box-shadow: 0 3px 10px rgba(20, 30, 40, 0.35);
   pointer-events: auto;
   transition: transform 0.25s var(--ease), background 0.2s, opacity 0.3s;
-  animation: mpPulse 2.6s infinite;
 }
 .mp-marker:hover, .mp-marker.is-on { transform: scale(1.18); background: var(--gold-2); }
-.mp-marker--main { width: 42px; height: 42px; margin: -21px 0 0 -21px; background: var(--gold-2); font-size: 1rem; }
+.mp-marker--main { width: 42px; height: 42px; margin: -21px 0 0 -21px; background: var(--gold-2); font-size: 1rem; animation: mpPulse 2.6s infinite; }
 @keyframes mpPulse { 0% { box-shadow: 0 4px 14px rgba(0,0,0,.45), 0 0 0 0 rgba(var(--gold-rgb), .55); } 70% { box-shadow: 0 4px 14px rgba(0,0,0,.45), 0 0 0 14px rgba(var(--gold-rgb), 0); } 100% { box-shadow: 0 4px 14px rgba(0,0,0,.45), 0 0 0 0 rgba(var(--gold-rgb), 0); } }
 .mp-card {
   position: absolute; left: 0; top: 0;

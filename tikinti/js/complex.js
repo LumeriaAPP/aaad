@@ -134,11 +134,11 @@ export function facadeMats() {
   if (FM) return FM;
   FM = {
     stone: new THREE.MeshStandardMaterial({ color: 0xdcd6cb, roughness: 0.75 }),
-    stoneDark: new THREE.MeshStandardMaterial({ color: 0x5a5d62, roughness: 0.7 }),
-    bronze: new THREE.MeshStandardMaterial({ color: 0x40444a, roughness: 0.6, metalness: 0.2 }),
+    stoneDark: new THREE.MeshStandardMaterial({ color: 0xa39a8d, roughness: 0.7 }),
+    bronze: new THREE.MeshStandardMaterial({ color: 0x847b6f, roughness: 0.6, metalness: 0.2 }),
     green: new THREE.MeshStandardMaterial({ color: 0x46703a, roughness: 0.9, flatShading: true }),
     rail: new THREE.MeshStandardMaterial({ color: 0x9fb2bd, roughness: 0.05, metalness: 0.3, transparent: true, opacity: 0.35, depthWrite: false }),
-    roof: new THREE.MeshStandardMaterial({ color: 0x6f6d69, roughness: 0.9 }),
+    roof: new THREE.MeshStandardMaterial({ color: 0xbfb7aa, roughness: 0.9 }),
     wood: new THREE.MeshStandardMaterial({ color: 0x7a5a40, roughness: 0.7 }),
     shop: Object.assign(new THREE.MeshStandardMaterial({ color: 0x2b2722, emissive: 0xffb574, emissiveIntensity: 0.06, roughness: 0.2, metalness: 0.3 }), { userData: { nightGlow: 0.06 } }),
     uplight: Object.assign(new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0.0, blending: THREE.AdditiveBlending, depthWrite: false }), { userData: { nightOpacity: 0.55 } }),
