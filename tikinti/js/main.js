@@ -1205,7 +1205,10 @@ canvas.addEventListener('pointerup', (e) => {
 // buludlar (günəşin rənginə görə boyanır)
 const clouds = Q.has('noclouds') ? null : createClouds(scene, { lite: LITE });
 let skyAlt = 40, skyNightK = 0;
-let sunTween = null; // { alt, az, t0, dur } — keçidin başlanğıc günəş mövqeyi
+// baş plan rejimləri üçün günəşin yolu: bir tağ üzərində qərbə doğru (keçid günün gedişi kimi görünür)
+const SUN_ARC = { sunset: { alt: 17, az: 235 }, dusk: { alt: -2.5, az: 252 }, night: { alt: -9, az: 266 } };
+let sunTween = null;
+const curArc = { alt: 0, az: 0 }; // günəşin son hesablanmış yeri (radian) — ay işığı ilə qarışmır // { alt, az, t0, dur } — keçidin başlanğıc günəş mövqeyi
 const sunSim = { on: false, playing: false, y: new Date().getFullYear(), m: 6, d: 21, min: 12 * 60 };
 const skyMesh = new Sky();
 skyMesh.scale.setScalar(3600);
@@ -1274,7 +1277,7 @@ function rebuildSkyEnv() {
 function applySun() {
   const date = localDate(sunSim.y, sunSim.m, sunSim.d, sunSim.min);
   // "Günbatımı" rejimi: günəş bədii mövqedə — alçaqdan, kameraya görə qabaq-soldan (binaların üzü parlaq, kölgələr uzun)
-  let { altitude, azimuth } = sunSim.art ? { altitude: THREE.MathUtils.degToRad(17), azimuth: THREE.MathUtils.degToRad(235) } : sunPosition(date);
+  let { altitude, azimuth } = sunSim.art ? { altitude: THREE.MathUtils.degToRad(sunSim.art.alt), azimuth: THREE.MathUtils.degToRad(sunSim.art.az) } : sunPosition(date);
   // rejim dəyişəndə günəş yeni yerə birdən-birə yox, sürətli amma rəvan keçir
   if (sunTween) {
     const k = Math.min(1, (performance.now() - sunTween.t0) / sunTween.dur);
@@ -1283,8 +1286,10 @@ function applySun() {
     dAz = Math.atan2(Math.sin(dAz), Math.cos(dAz));
     altitude = sunTween.alt + (altitude - sunTween.alt) * e;
     azimuth = sunTween.az + dAz * e;
+    sunTween.curAlt = altitude; sunTween.curAz = azimuth;
     if (k >= 1) sunTween = null;
   }
+  curArc.alt = altitude; curArc.az = azimuth;
   sunDirection(altitude, azimuth, lightDir);
   const altDeg = THREE.MathUtils.radToDeg(altitude);
   skyAlt = altDeg;
@@ -1299,7 +1304,8 @@ function applySun() {
     sunLight.color.lerpColors(SUN_WARM, SUN_DAY, smooth(2, 28, altDeg));
   } else {
     // günəş batıb: ay işığı (soyuq, zəif) formaları göstərir
-    lightDir.set(0.35, 0.82, -0.45).normalize();
+    if (sunSim.art) sunDirection(THREE.MathUtils.degToRad(10), azimuth, lightDir); // eyni tərəfdən, alçaq və zəif — işıq sıçramır
+    else lightDir.set(0.35, 0.82, -0.45).normalize();
     sunLight.intensity = 0.55 * night;
     sunLight.color.set(0x9fb2e0);
   }
@@ -1504,10 +1510,9 @@ $$('[data-daytime]').forEach((b) => b.addEventListener('click', () => {
   const instant = firstDaytime; firstDaytime = false;
   // günəş simulyasiyası daxilində: günəş hərəkət edir; gündüz ↔ digərləri: yumşaq keçid
   if (!instant && mode !== 'day' && sunSim.on) {
-    const alt = Math.asin(THREE.MathUtils.clamp(lightDir.y, -1, 1)), az = Math.atan2(lightDir.x, -lightDir.z);
     sunSim.m = 6; sunSim.d = 21; sunSim.min = mode === 'sunset' ? 19 * 60 + 8 : mode === 'dusk' ? 20 * 60 + 31 : 20 * 60 + 58;
-    sunSim.art = mode === 'sunset';
-    sunTween = { alt, az, t0: performance.now(), dur: 1400 };
+    sunSim.art = SUN_ARC[mode];
+    sunTween = { alt: sunTween ? sunTween.curAlt : curArc.alt, az: sunTween ? sunTween.curAz : curArc.az, t0: performance.now(), dur: 1400 };
     applySun();
     sunPanel.hidden = true;
     return;
@@ -1521,7 +1526,7 @@ function applyDaytime(mode) {
     sunSim.m = 6; sunSim.d = 21; sunSim.min = mode === 'sunset' ? 19 * 60 + 8 : mode === 'dusk' ? 20 * 60 + 31 : 20 * 60 + 58;
     setSunMode(true);
     setSunDay(6, 21);
-    if (mode === 'sunset') { sunSim.art = true; applySun(); }
+    sunSim.art = SUN_ARC[mode]; applySun();
     sunPanel.hidden = true; // baş planda panel lazım deyil — "Günəş" düyməsi ilə açılır
   } else {
     setSunMode(false);
