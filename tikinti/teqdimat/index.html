@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<title>3D Satış Sistemi — təqdimat</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="3D Satış Sistemi: alıcı kompleksdən mənzilə qədər hər şeyi 3D-də özü seçir. Tikinti şirkətləri üçün təqdimat.">
+<meta name="theme-color" content="#08090a">
+<meta property="og:type" content="website">
+<meta property="og:title" content="3D Satış Sistemi — təqdimat">
+<meta property="og:description" content="Binanı hələ tikilməmiş satın. Alıcı mənzili 3D-də seçir, içində gəzir, günəşi görür.">
+<meta property="og:image" content="https://nova-residence-peach.vercel.app/teqdimat/shots/korpus.webp">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..800&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --ink: #08090a;
+    --ink-2: #0f1112;
+    --line: #202426;
+    --paper: #ecebe6;
+    --mute: #858a8c;
+    --dim: #3a3f41;
+    --acc: #7cc3b6;
+    --display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    --gut: clamp(16px, 4vw, 56px);
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--ink); overflow-x: clip; }
+  @media (max-width: 620px) { .hide-s { display: none; } .hero__copy h1 .out { font-size: 0.82em; } }
+  body { background: var(--ink); color: var(--paper); font-family: var(--display); font-size: 16px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+  ::selection { background: var(--acc); color: var(--ink); }
+
+  .mono { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); }
+  .lvl { display: inline-flex; align-items: center; gap: 10px; }
+  .lvl::before { content: ""; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 8px solid var(--acc); }
+  .lvl b { color: var(--acc); font-weight: 500; }
+
+  h1, h2, h3 { margin: 0; font-weight: 700; text-wrap: balance; }
+  .xl { font-size: clamp(44px, 10.5vw, 170px); line-height: 0.86; letter-spacing: -0.035em; font-variation-settings: "wdth" 70; text-transform: uppercase; }
+  .lg { font-size: clamp(34px, 6.2vw, 96px); line-height: 0.92; letter-spacing: -0.03em; font-variation-settings: "wdth" 75; text-transform: uppercase; }
+  .md { font-size: clamp(22px, 2.4vw, 32px); line-height: 1.1; letter-spacing: -0.01em; font-weight: 600; font-variation-settings: "wdth" 88; }
+  .lead { font-size: clamp(17px, 1.45vw, 21px); color: #b9bcbb; max-width: 34em; font-weight: 400; }
+  em.acc { font-style: normal; color: var(--acc); }
+  .out { color: transparent; -webkit-text-stroke: 1px var(--paper); }
+
+  .wrap { padding-inline: var(--gut); }
+  section { position: relative; }
+
+  /* ── yuxarı xətt ── */
+  .bar { position: fixed; inset: 0 0 auto 0; z-index: 30; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: calc(16px + env(safe-area-inset-top, 0px)) var(--gut) 16px; mix-blend-mode: difference; }
+  .bar .mono { color: #fff; }
+  .bar a { text-decoration: none; }
+  .bar a:hover { text-decoration: underline; text-underline-offset: 4px; }
+
+  /* ── hündürlük şkalası (sağda) ── */
+  .elev { position: fixed; right: calc(var(--gut) * 0.45); top: 50%; transform: translateY(-50%); z-index: 25; display: flex; align-items: stretch; gap: 10px; height: min(56vh, 460px); pointer-events: none; }
+  .elev__track { position: relative; width: 1px; background: var(--dim); }
+  .elev__fill { position: absolute; left: 0; bottom: 0; width: 1px; height: 0; background: var(--acc); }
+  .elev__ticks { display: flex; flex-direction: column-reverse; justify-content: space-between; }
+  .elev__ticks span { font-family: var(--mono); font-size: 10px; color: var(--dim); letter-spacing: 0.08em; transition: color .3s; line-height: 1; }
+  .elev__ticks span.on { color: var(--paper); }
+  @media (max-width: 860px) { .elev { display: none; } }
+
+  /* ── 0: giriş ── */
+  .hero { height: 170vh; }
+  .hero__stage { position: sticky; top: 0; height: 100vh; min-height: 560px; overflow: hidden; display: grid; align-content: end; }
+  .hero__media { position: absolute; inset: 0; transform-origin: 50% 60%; will-change: transform; }
+  .hero__media video { width: 100%; height: 100%; object-fit: cover; display: block; filter: saturate(0.85) contrast(1.05); }
+  .hero__shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8,9,10,0.55) 0%, rgba(8,9,10,0.15) 35%, rgba(8,9,10,0.85) 88%, var(--ink) 100%); }
+  .hero__veil { position: absolute; inset: 0; background: var(--ink); opacity: 0; }
+  .hero__copy { position: relative; display: grid; gap: clamp(20px, 3vw, 36px); padding-bottom: clamp(36px, 7vh, 80px); }
+  .hero__copy h1 span { display: block; will-change: transform; }
+  .hero__foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 24px; }
+  .cue { display: inline-flex; align-items: center; gap: 12px; }
+  .cue i { width: 1px; height: 38px; background: linear-gradient(var(--paper), transparent); animation: cue 2.2s ease-in-out infinite; transform-origin: top; }
+  @keyframes cue { 0%, 100% { transform: scaleY(0.35); } 50% { transform: scaleY(1); } }
+
+  /* ── ümumi bölmə ── */
+  .floor { padding-block: clamp(90px, 16vh, 180px); border-top: 1px solid var(--line); }
+  .floor__head { display: grid; gap: 22px; margin-bottom: clamp(40px, 7vh, 80px); }
+
+  /* ── 1: problem ── */
+  .pains { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); border-top: 1px solid var(--line); }
+  .pain { display: grid; gap: 12px; padding: 28px 24px 34px 0; border-bottom: 1px solid var(--line); }
+  .pain + .pain { padding-left: 24px; border-left: 1px solid var(--line); }
+  .pain p { margin: 0; color: #a3a7a7; max-width: 30ch; }
+  @media (max-width: 620px) { .pain + .pain { padding-left: 0; border-left: 0; } }
+
+  /* ── sözbəsöz açılan cümlə ── */
+  .reveal { height: 220vh; }
+  .reveal__stage { position: sticky; top: 0; height: 100vh; display: grid; place-items: center; }
+  .reveal p { margin: 0; max-width: 17ch; font-size: clamp(36px, 6.4vw, 104px); line-height: 0.98; letter-spacing: -0.03em; font-weight: 700; font-variation-settings: "wdth" 72; text-transform: uppercase; }
+  .reveal p span { color: var(--dim); transition: color .25s linear; }
+  .reveal p span.on { color: var(--paper); }
+  .reveal p span.on.hl { color: var(--acc); }
+
+  /* ── alıcının yolu ── */
+  .journey { border-top: 1px solid var(--line); padding-top: clamp(90px, 16vh, 180px); }
+  .journey__intro { display: grid; gap: 24px; margin-bottom: clamp(20px, 6vh, 60px); }
+  .path { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; list-style: none; margin: 0; padding: 0; }
+  .path li { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; padding: 7px 12px; border: 1px solid var(--dim); color: var(--paper); }
+  .path li + li::before { content: "→"; margin: 0 12px 0 -2px; color: var(--acc); border: 0; }
+  .path--hero li { background: rgba(8, 9, 10, 0.35); backdrop-filter: blur(6px); }
+  .journey__grid { display: grid; grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr); gap: clamp(32px, 5vw, 88px); }
+  .step { min-height: 100vh; display: grid; align-content: center; gap: 18px; padding-block: 40px; }
+  .step__n { display: flex; gap: 14px; align-items: baseline; }
+  .step__n b { font-family: var(--display); font-size: clamp(44px, 4.4vw, 72px); line-height: .8; font-weight: 300; letter-spacing: -0.05em; font-variation-settings: "wdth" 62; color: var(--acc); }
+  .st { font-size: clamp(30px, 3.4vw, 54px); line-height: 0.98; letter-spacing: -0.025em; font-weight: 700; font-variation-settings: "wdth" 76; text-transform: uppercase; }
+  .step p { margin: 0; color: #a9adac; max-width: 38ch; }
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 4px 0 0; padding: 0; }
+  .tags li { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; padding: 6px 10px; border: 1px solid var(--line); color: #c9cccb; display: inline-flex; align-items: center; gap: 7px; }
+  .tags i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid var(--line); max-width: 380px; }
+  .kv div { padding: 12px 16px; display: grid; gap: 2px; }
+  .kv div + div { border-left: 1px solid var(--line); }
+  .kv dt { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--mute); }
+  .kv dd { margin: 0; font-size: 22px; font-weight: 600; font-variation-settings: "wdth" 85; font-variant-numeric: tabular-nums; }
+  .step__img { display: none; margin: 8px 0 0; }
+  @media (min-width: 861px) { .journey__grid { padding-right: calc(var(--gut) + 64px); } }
+  .journey__screen { position: sticky; top: 0; height: 100vh; display: grid; align-content: center; gap: 14px; }
+  .device { border: 1px solid var(--dim); border-radius: 14px; overflow: hidden; background: var(--ink-2); box-shadow: 0 40px 120px -40px rgba(124, 195, 182, 0.18), 0 30px 80px -30px #000; }
+  .device__bar { display: flex; align-items: center; gap: 7px; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+  .device__bar i { width: 9px; height: 9px; border-radius: 50%; background: var(--dim); }
+  .device__bar span { margin-left: 12px; font-size: 10px; }
+  .device__view { position: relative; aspect-ratio: 1.6; overflow: hidden; }
+  .shot { position: absolute; inset: 0; opacity: 0; transform: scale(1.06); transition: opacity .7s ease, transform 1.4s cubic-bezier(.2, .7, .2, 1); }
+  .shot.on { opacity: 1; transform: scale(1); }
+  .shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .device__cap { display: flex; gap: 10px; align-items: center; min-height: 1.6em; }
+  .device__cap::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--acc); flex: none; }
+  .lead-card { position: absolute; inset: 0; display: grid; place-items: center; background: radial-gradient(60% 60% at 50% 45%, rgba(124, 195, 182, 0.14), transparent 70%), var(--ink-2); padding: 24px; }
+  .lead-card > div { width: min(380px, 100%); display: grid; gap: 12px; padding: 22px; border: 1px solid var(--dim); border-radius: 14px; background: rgba(8, 9, 10, 0.7); }
+  .lead-card .badge { justify-self: start; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--acc); border: 1px solid rgba(124, 195, 182, .45); border-radius: 999px; padding: 4px 10px; }
+  .lead-card h4 { margin: 0; font-size: 30px; font-weight: 600; font-variation-settings: "wdth" 85; letter-spacing: -0.01em; }
+  .lead-card p { margin: 0; color: var(--mute); font-size: 14px; }
+  .lead-card span.cta { display: block; text-align: center; padding: 14px; border-radius: 10px; background: var(--acc); color: var(--ink); font-weight: 700; margin-top: 6px; }
+  .step .lead-card { position: relative; aspect-ratio: 1.3; border: 1px solid var(--line); border-radius: 12px; }
+  @media (max-width: 860px) {
+    .journey__grid { grid-template-columns: 1fr; }
+    .journey__screen { display: none; }
+    .step { min-height: 0; padding-block: 44px; border-top: 1px solid var(--line); }
+    .step__img { display: block; }
+    .step__img img { width: 100%; border: 1px solid var(--dim); border-radius: 10px; display: block; }
+  }
+
+  /* ── sürüşən lent ── */
+  .ribbon { overflow: hidden; padding-block: clamp(28px, 5vh, 48px); border-top: 1px solid var(--line); }
+  .ribbon__row { display: flex; gap: 0.35em; white-space: nowrap; font-size: clamp(56px, 12vw, 200px); line-height: 1; font-weight: 800; letter-spacing: -0.03em; font-variation-settings: "wdth" 62; text-transform: uppercase; will-change: transform; }
+  .ribbon__row span:nth-child(even) { color: transparent; -webkit-text-stroke: 1px var(--dim); }
+
+  /* ── tam ekran şəkil ── */
+  .band { position: relative; height: 130vh; overflow: hidden; border-top: 1px solid var(--line); }
+  .band img { position: absolute; left: 0; top: -15%; width: 100%; height: 130%; object-fit: cover; will-change: transform; filter: saturate(.9); }
+  .band::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, var(--ink) 0%, rgba(8,9,10,.2) 30%, rgba(8,9,10,.25) 60%, var(--ink) 100%); }
+  .band__copy { position: absolute; inset: 0; z-index: 2; display: grid; align-content: center; gap: 22px; }
+  .band__copy h2 { text-shadow: 0 4px 40px rgba(0,0,0,.35); max-width: 13ch; }
+
+  /* ── 4: əvvəl / indi ── */
+  .vs { width: 100%; border-collapse: collapse; }
+  .vs th, .vs td { text-align: left; vertical-align: top; padding: 22px 20px 22px 0; border-bottom: 1px solid var(--line); }
+  .vs thead th { padding-block: 0 14px; }
+  .vs td:first-child { width: 22%; }
+  .vs td.old { color: var(--mute); text-decoration: line-through; text-decoration-color: var(--dim); text-decoration-thickness: 1px; width: 36%; }
+  .vs td.new { font-size: clamp(18px, 1.6vw, 22px); font-weight: 600; font-variation-settings: "wdth" 90; }
+  .vs td.new::before { content: "→ "; color: var(--acc); }
+  .table-wrap { overflow-x: auto; }
+  @media (max-width: 620px) {
+    .vs thead { display: none; }
+    .vs, .vs tbody, .vs tr, .vs td { display: block; width: auto !important; }
+    .vs tr { padding-block: 18px; border-bottom: 1px solid var(--line); }
+    .vs td { border: 0; padding: 3px 0; }
+  }
+
+  /* ── 5: proses ── */
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); counter-reset: s; }
+  .steps li { counter-increment: s; display: grid; gap: 14px; align-content: start; padding: 0 28px 0 0; }
+  .steps li + li { padding-left: 28px; border-left: 1px solid var(--line); }
+  .steps li::before { content: "0" counter(s); font-size: clamp(64px, 7vw, 120px); line-height: .85; font-weight: 300; letter-spacing: -0.05em; font-variation-settings: "wdth" 62; color: transparent; -webkit-text-stroke: 1px var(--mute); }
+  .steps p { margin: 0; color: #a3a7a7; max-width: 32ch; }
+  @media (max-width: 860px) { .steps { grid-template-columns: 1fr; gap: 44px; } .steps li + li { padding-left: 0; border-left: 0; } }
+
+  /* ── 6: son ── */
+  .roof { padding-block: clamp(110px, 22vh, 220px) 40px; border-top: 1px solid var(--line); overflow: hidden; }
+  .roof h2 { max-width: 12ch; }
+  .ctas { display: flex; flex-wrap: wrap; gap: 14px; margin-top: clamp(36px, 6vh, 64px); }
+  .btn { display: inline-flex; align-items: center; gap: 14px; padding: 18px 26px; border: 1px solid var(--paper); text-decoration: none; font-weight: 600; font-variation-settings: "wdth" 90; letter-spacing: .01em; transition: background .3s, color .3s; }
+  .btn:hover, .btn:focus-visible { background: var(--paper); color: var(--ink); }
+  .btn--acc { background: var(--acc); border-color: var(--acc); color: var(--ink); }
+  .btn--acc:hover, .btn--acc:focus-visible { background: var(--paper); border-color: var(--paper); }
+  .btn span { font-family: var(--mono); font-weight: 400; }
+  a:focus-visible, .btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 4px; }
+  .foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-top: clamp(90px, 16vh, 160px); padding-top: 18px; border-top: 1px solid var(--line); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cue i { animation: none; }
+    .hero { height: auto; } .hero__stage { position: relative; }
+    .reveal { height: auto; } .reveal__stage { position: relative; height: auto; padding-block: 140px; }
+    .reveal p span { color: var(--paper); }
+    .shot { transition: none; transform: none; }
+    .ribbon__row, .band img, .hero__media { transform: none !important; }
+  }
+  body { margin: 0; }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <span class="mono">3D Satış Sistemi<span class="hide-s"> · MTK rəhbərliyi üçün</span></span>
+  <a class="mono" href="/" target="_blank" rel="noopener">Canlı demo ↗</a>
+</header>
+
+<aside class="elev" aria-hidden="true">
+  <div class="elev__ticks" id="ticks"></div>
+  <div class="elev__track"><div class="elev__fill" id="fill"></div></div>
+</aside>
+
+<main>
+  <!-- ±0.000 -->
+  <section class="hero" data-level="±0.000" data-name="Təməl" id="hero">
+    <div class="hero__stage">
+      <div class="hero__media" id="heroMedia">
+        <video autoplay muted loop playsinline preload="auto" poster="/assets/video/hero-poster.jpg">
+          <source src="/assets/video/hero.mp4" type="video/mp4">
+          <source src="/assets/video/hero.webm" type="video/webm">
+        </video>
+        <div class="hero__shade"></div>
+      </div>
+      <div class="hero__veil" id="heroVeil"></div>
+      <div class="hero__copy wrap">
+        <span class="mono lvl"><b>±0.000</b> Təməl</span>
+        <h1 class="xl" id="heroTitle"><span>Binanı</span><span class="out">hələ tikilməmiş</span><span>satın<em class="acc">.</em></span></h1>
+        <div class="hero__foot">
+          <div style="display:grid;gap:18px"><p class="lead">Alıcı mənzili 3D-də seçir, içində gəzir və günəşin otağa neçədə düşdüyünü görür. Hamısı sizin saytınızda, gecə-gündüz.</p><ol class="path path--hero"><li>Kompleks</li><li>Korpus</li><li>Mərtəbə</li><li>Mənzil</li><li>Satış</li></ol></div>
+          <span class="mono cue"><i></i>Aşağı sürüşdürün</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- +3.30 problem -->
+  <section class="floor wrap" data-level="+3.300" data-name="Problem">
+    <div class="floor__head">
+      <span class="mono lvl"><b>+3.300</b> Problem</span>
+      <h2 class="lg">Alıcı ömürlük qərarı bir <span class="out">PDF-ə</span> baxıb verir.</h2>
+    </div>
+    <div class="pains">
+      <div class="pain"><h3 class="md">Renderlər bir-birinə bənzəyir</h3><p>Beş şəkil, bir broşür. Alıcı hansı mənzilin hansı tərəfə baxdığını bilmir.</p></div>
+      <div class="pain"><h3 class="md">Satış ofisi axşam bağlanır</h3><p>Ciddi alıcılar axşam, evdən, telefondan baxır. Həmin saatda onlara cavab verən yoxdur.</p></div>
+      <div class="pain"><h3 class="md">Maket ofisdə qalır</h3><p>Baha başa gələn maketi yalnız ofisə gəlib çıxan adam görür.</p></div>
+      <div class="pain"><h3 class="md">Hər zəng eyni suallardır</h3><p>Neçənci mərtəbə? Neçə kvadrat? Satılıb, yoxsa boşdur? Menecerin günü bununla keçir.</p></div>
+    </div>
+  </section>
+
+  <!-- sözbəsöz -->
+  <section class="reveal wrap" data-level="+6.600" data-name="Fərq">
+    <div class="reveal__stage">
+      <p id="revealText" data-hl="Satış|kağızdadır.">Çertyoj rəqəmsaldır. Smeta rəqəmsaldır. Layihə rəqəmsaldır. Satış isə hələ də kağızdadır.</p>
+    </div>
+  </section>
+
+  <div class="ribbon" aria-hidden="true">
+    <div class="ribbon__row" data-drift="-1"><span>Kompleks</span><span>Korpus</span><span>Mərtəbə</span><span>Mənzil</span><span>Satış</span><span>Kompleks</span><span>Korpus</span></div>
+  </div>
+
+  <!-- +9.90 alıcının yolu -->
+  <section class="journey" data-level="+9.900" data-name="Alıcının yolu" id="journey">
+    <div class="journey__intro wrap">
+      <span class="mono lvl"><b>+9.900</b> Alıcının yolu</span>
+      <h2 class="lg">Layihəni göstərmək yox. <em class="acc">Alıcıya seçdirmək.</em></h2>
+      <p class="lead">Alıcı kompleksdən mənzilə qədər hər qərarı 3D-də özü verir. Doqquz addım, bir link, satış ofisinə gəlmədən.</p>
+      <ol class="path"><li>Kompleks</li><li>Korpus</li><li>Mərtəbə</li><li>Mənzil</li><li>Satış</li></ol>
+    </div>
+    <div class="journey__grid wrap">
+      <div class="journey__steps" id="steps">
+        <article class="step" data-cap="8 korpus, hər biri interaktiv nöqtə ilə işarələnib" data-url="Kompleks">
+          <span class="mono step__n"><b>01</b>Kompleks</span>
+          <h3 class="st">Bütün kompleks ovucunun içində.</h3>
+          <p>Alıcı linki açan kimi kompleksi 3D-də görür: korpuslar, qapalı həyət, hovuz və parkinq. Görünüş bir toxunuşla gündüzdən gecəyə keçir.</p>
+          <ul class="tags"><li>Gündüz</li><li>Axşam</li><li>Gecə</li></ul>
+          <figure class="step__img"><img src="/teqdimat/shots/kompleks.webp" alt="3D kompleks: korpuslar nömrələnmiş nöqtələrlə" loading="lazy"></figure>
+        </article>
+        <article class="step" data-cap="“3D-də mənzil seç” düyməsi birbaşa daxili plana aparır" data-url="Korpus 1">
+          <span class="mono step__n"><b>02</b>Korpus</span>
+          <h3 class="st">Korpusa toxunur, rəqəmlər danışır.</h3>
+          <p>Nömrəyə toxunanda kamera korpusa yaxınlaşır və qısa kart açılır: mərtəbə sayı, mənzil sayı, satış vəziyyəti. Oradan birbaşa mənzil seçiminə keçir.</p>
+          <dl class="kv"><div><dt>Korpus 1</dt><dd>16 mərtəbə</dd></div><div><dt>Mənzil sayı</dt><dd>75</dd></div></dl>
+          <figure class="step__img"><img src="/teqdimat/shots/korpus.webp" alt="Korpus kartı: mərtəbə, mənzil, vəziyyət" loading="lazy"></figure>
+        </article>
+        <article class="step" data-cap="12-ci mərtəbə işıqlanıb: 3 mənzil satışda" data-url="Korpus 1">
+          <span class="mono step__n"><b>03</b>Mərtəbə</span>
+          <h3 class="st">Bina açılır, mərtəbə üzə çıxır.</h3>
+          <p>Sol paneldə bütün mərtəbələr və hər birində neçə boş mənzil qaldığı görünür. Mərtəbənin üzərinə gələndə binada da işıqlanır. Otaq sayına görə filtr var.</p>
+          <ul class="tags"><li>1 otaq</li><li>2 otaq</li><li>3 otaq</li></ul>
+          <figure class="step__img"><img src="/teqdimat/shots/mertebe.webp" alt="Mərtəbə siyahısı və işıqlanan mərtəbə" loading="lazy"></figure>
+        </article>
+        <article class="step" data-cap="12-ci mərtəbə: № 51, 52, 53 satışda · № 54, 55 satılıb" data-url="Korpus 1 / 12-ci mərtəbə">
+          <span class="mono step__n"><b>04</b>Mənzil</span>
+          <h3 class="st">Rəng statusu deyir. Toxunuş qiyməti.</h3>
+          <p>Mərtəbə yuxarıdan, mebeli ilə görünür. Hər mənzilin konturu statusuna görə rənglənir. Üzərinə gələndə sahə, otaq sayı və qiymət çıxır.</p>
+          <ul class="tags"><li><i style="background:#3ecf8e"></i>Satışda</li><li><i style="background:#f5b544"></i>Bron edilib</li><li><i style="background:#ef5b5b"></i>Satılıb</li></ul>
+          <figure class="step__img"><img src="/teqdimat/shots/menzil.webp" alt="Mərtəbə yuxarıdan: mənzillər, mebel, status" loading="lazy"></figure>
+        </article>
+        <article class="step" data-cap="Mənzil № 51 · 99 m² · 252 000 ₼ · mənzərə şimal-qərb" data-url="12-ci mərtəbə / Mənzil № 51">
+          <span class="mono step__n"><b>05</b>Plan</span>
+          <h3 class="st">Plan, qiymət, mənzərə. Bir kartda.</h3>
+          <p>Mənzilə toxunanda tam kart açılır: ölçülü 2D plan, sahə, mərtəbə, pəncərələrin baxdığı tərəf və günəş saatları. Buradan virtual tura və dizayn studiyasına keçid var.</p>
+          <dl class="kv"><div><dt>Mənzil № 51</dt><dd>99 m²</dd></div><div><dt>Otaq / mərtəbə</dt><dd>2 · 12/16</dd></div></dl>
+          <figure class="step__img"><img src="/teqdimat/shots/plan.webp" alt="Mənzil kartı: 2D plan, sahə, mənzərə" loading="lazy"></figure>
+        </article>
+        <article class="step" data-cap="21 iyun · gün çıxır 05:10 · batır 20:16" data-url="Mənzil № 51 / Günəş">
+          <span class="mono step__n"><b>06</b>Günəş</span>
+          <h3 class="st">Günəşin otağa neçədə girdiyini əvvəlcədən bilir.</h3>
+          <p>Hər otaq ayrıca bölmədə açılır. Günəş simulyasiyası Bakının koordinatları ilə istənilən günün istənilən saatındakı işığı göstərir.</p>
+          <ul class="tags"><li>Qonaq otağı</li><li>Yataq otağı</li><li>Uşaq otağı</li><li>Mətbəx</li></ul>
+          <figure class="step__img"><img src="/teqdimat/shots/gunes.webp" alt="Qonaq otağı və günəş simulyasiyası paneli" loading="lazy"></figure>
+        </article>
+        <article class="step" data-cap="Qonaq otağı + mətbəx seçilib · divar rəngi, 9 təyinat variantı" data-url="Dizayn studiyası">
+          <span class="mono step__n"><b>07</b>Dizayn</span>
+          <h3 class="st">Açarı almadan evi öz zövqünə qurur.</h3>
+          <p>Otağın təyinatını dəyişir, yataq otağı iş otağına çevrilir. Mebeli sürüşdürüb yerləşdirir, divar rəngini və döşəməni seçir. Hamısı canlı 3D modeldə.</p>
+          <dl class="kv"><div><dt>Otaq təyinatı</dt><dd>9 variant</dd></div><div><dt>Hazır stil</dt><dd>5</dd></div></dl>
+          <figure class="step__img"><img src="/teqdimat/shots/studio.webp" alt="Dizayn studiyası paneli" loading="lazy"></figure>
+        </article>
+        <article class="step" data-cap="Sağ altdakı mini plan alıcının yerini göstərir" data-url="Mənzil № 51 / Virtual tur">
+          <span class="mono step__n"><b>08</b>Virtual tur</span>
+          <h3 class="st">Qapıdan girir, otaqları öz addımı ilə gəzir.</h3>
+          <p>Bu artıq təqdimat deyil, təcrübədir. Alıcı mənzilin içində sərbəst gəzir və ətrafa baxır. Kompüterdə klaviatura ilə, telefonda barmaqla. Otaqlar arasında bir toxunuşla keçir.</p>
+          <ul class="tags"><li>Sürüşdür · ətrafa bax</li><li>WASD · hərəkət</li><li>Klik · ora get</li></ul>
+          <figure class="step__img"><img src="/teqdimat/shots/tur.webp" alt="Virtual tur: dəhliz, otaqlar, mini plan" loading="lazy"></figure>
+        </article>
+        <article class="step" data-cap="3D təcrübə → mənzil seçimi → satış" data-url="Müraciət">
+          <span class="mono step__n"><b>09</b>Satış</span>
+          <h3 class="st">Seçim bitdi. <em class="acc">Zəng menecerə gəlir.</em></h3>
+          <p>Son addımda alıcının bütün seçimi bir kartda toplanır və birbaşa satış menecerinə gedir. Menecer artıq “hansı mənzil?” soruşmur, “nə vaxt baxmağa gəlirsiniz?” soruşur.</p>
+          <div class="step__img"><div class="lead-card"><div><span class="badge">● Mənzil seçildi</span><h4>Mənzil № 51</h4><p>2 otaq · 99 m² · 12-ci mərtəbə</p><span class="cta">Satış meneceri ilə əlaqə saxla</span></div></div></div>
+        </article>
+      </div>
+      <div class="journey__screen" aria-hidden="true">
+        <div class="device">
+          <div class="device__bar"><i></i><i></i><i></i><span class="mono" id="devUrl">Kompleks</span></div>
+          <div class="device__view" id="devView">
+            <div class="shot on"><img src="/teqdimat/shots/kompleks.webp" alt=""></div>
+            <div class="shot"><img src="/teqdimat/shots/korpus.webp" alt=""></div>
+            <div class="shot"><img src="/teqdimat/shots/mertebe.webp" alt=""></div>
+            <div class="shot"><img src="/teqdimat/shots/menzil.webp" alt=""></div>
+            <div class="shot"><img src="/teqdimat/shots/plan.webp" alt=""></div>
+            <div class="shot"><img src="/teqdimat/shots/gunes.webp" alt=""></div>
+            <div class="shot"><img src="/teqdimat/shots/studio.webp" alt=""></div>
+            <div class="shot"><img src="/teqdimat/shots/tur.webp" alt=""></div>
+            <div class="shot"><div class="lead-card"><div><span class="badge">● Mənzil seçildi</span><h4>Mənzil № 51</h4><p>2 otaq · 99 m² · 12-ci mərtəbə</p><span class="cta">Satış meneceri ilə əlaqə saxla</span></div></div></div>
+          </div>
+        </div>
+        <p class="mono device__cap" id="devCap">8 korpus, hər biri interaktiv nöqtə ilə işarələnib</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- tam ekran şəkil -->
+  <section class="band" aria-label="İnsanlar kvadrat metr almır">
+    <img src="/assets/img/yasamaq.webp" alt="Yaşayış kompleksi" data-par="0.18" loading="lazy">
+    <div class="band__copy wrap">
+      <span class="mono" style="color:#fff">Satış psixologiyası</span>
+      <h2 class="lg">İnsanlar kvadrat metr almır. <em class="acc">Səhər günəşini</em> alır.</h2>
+    </div>
+  </section>
+
+  <!-- +16.50 nəticə -->
+  <section class="floor wrap" data-level="+13.200" data-name="Nəticə">
+    <div class="floor__head">
+      <span class="mono lvl"><b>+13.200</b> Nəticə</span>
+      <h2 class="lg">Satış ofisiniz <span class="out">heç vaxt</span> bağlanmır.</h2>
+    </div>
+    <div class="table-wrap">
+      <table class="vs">
+        <thead><tr><th class="mono"></th><th class="mono">Əvvəl</th><th class="mono">İndi</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">Alıcı nə görür</td><td class="old">Bir neçə render və PDF broşür</td><td class="new">Bütün binanı, hər mənzili, içəridən</td></tr>
+          <tr><td class="mono">Nə vaxt</td><td class="old">İş saatlarında, ofisə gələndə</td><td class="new">Gecə-gündüz, telefondan</td></tr>
+          <tr><td class="mono">Menecer</td><td class="old">Eyni suallara təkrar cavab verir</td><td class="new">Qərarını vermiş alıcı ilə danışır</td></tr>
+          <tr><td class="mono">Yeni blok</td><td class="old">Yeni broşür, yeni çap, yeni maket</td><td class="new">Admin paneldən əlavə olunur</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- +19.80 proses -->
+  <section class="floor wrap" data-level="+16.500" data-name="Proses">
+    <div class="floor__head">
+      <span class="mono lvl"><b>+16.500</b> Necə işləyir</span>
+      <h2 class="lg">Çertyojdan satışa<br>üç addım.</h2>
+    </div>
+    <ol class="steps">
+      <li><h3 class="md">Planları göndərirsiniz</h3><p>Baş plan, mərtəbə planları, fasad şəkilləri. Hazır 3D modeliniz varsa, onu da.</p></li>
+      <li><h3 class="md">Biz 3D-ə çeviririk</h3><p>Bina, mənzillər, həyət və küçə. Şirkətinizin rəngləri, loqosu və şriftləri ilə.</p></li>
+      <li><h3 class="md">Satış başlayır</h3><p>Sayt sizin domeninizdə açılır. Növbəti bloku admin paneldən özünüz əlavə edirsiniz.</p></li>
+    </ol>
+  </section>
+
+  <!-- +23.10 dam -->
+  <section class="roof wrap" data-level="+19.800" data-name="Dam">
+    <span class="mono lvl"><b>+19.800</b> Dam</span>
+    <h2 class="xl" style="margin-top:24px">Növbəti layihənizi <em class="acc">ekranda</em> satın.</h2>
+    <div class="ctas">
+      <a class="btn btn--acc" href="/" target="_blank" rel="noopener">Canlı demonu açın <span>↗</span></a>
+    </div>
+    <div class="foot">
+      <span class="mono">Demodakı bina nümunədir, sizin layihənizlə əvəz olunur</span>
+      <span class="mono">Mənzil məlumatları və qiymətlər nümunədir</span>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = (s) => document.querySelector(s);
+  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const vh = () => innerHeight;
+
+  // hündürlük şkalası: hər bölmə bir mərtəbədir
+  const floors = [...document.querySelectorAll('[data-level]')];
+  const ticks = $('#ticks');
+  floors.forEach((f) => { const s = document.createElement('span'); s.textContent = f.dataset.level; ticks.appendChild(s); });
+  const tickEls = [...ticks.children];
+
+  // sözbəsöz cümlə
+  const rv = $('#revealText');
+  const hl = new Set(rv.dataset.hl.split('|'));
+  rv.innerHTML = rv.textContent.trim().split(/\s+/).map((w) => `<span class="${hl.has(w) ? 'hl' : ''}">${w}</span>`).join(' ');
+  const words = [...rv.children];
+  const revealSec = rv.closest('.reveal');
+
+  const hero = $('#hero'), heroMedia = $('#heroMedia'), heroVeil = $('#heroVeil');
+  const heroLines = [...$('#heroTitle').children];
+  const steps = [...document.querySelectorAll('#steps .step')];
+  const shots = [...document.querySelectorAll('#devView .shot')];
+  const devCap = $('#devCap'), devUrl = $('#devUrl');
+  let activeStep = 0;
+  const pars = [...document.querySelectorAll('[data-par]')];
+  const ribbons = [...document.querySelectorAll('[data-drift]')];
+  const fill = $('#fill');
+
+  // bölmənin ekrandan keçmə irəliləyişi (0 → 1), sticky bölmələr üçün
+  const pinProgress = (el) => { const r = el.getBoundingClientRect(); return clamp(-r.top / (r.height - vh())); };
+
+  function frame() {
+    const y = scrollY, H = vh();
+    const docH = document.documentElement.scrollHeight - H;
+    fill.style.height = (clamp(y / docH) * 100).toFixed(2) + '%';
+    let cur = 0;
+    floors.forEach((f, i) => { if (f.getBoundingClientRect().top < H * 0.5) cur = i; });
+    tickEls.forEach((t, i) => t.classList.toggle('on', i <= cur));
+
+    // alıcının yolu: ekranın ortasına ən yaxın addım aktivdir
+    if (innerWidth > 860) {
+      let best = activeStep, bd = Infinity;
+      steps.forEach((s, i) => { const r = s.getBoundingClientRect(); const d = Math.abs(r.top + r.height / 2 - H / 2); if (d < bd) { bd = d; best = i; } });
+      if (best !== activeStep) {
+        activeStep = best;
+        shots.forEach((s, i) => s.classList.toggle('on', i === best));
+        devCap.textContent = steps[best].dataset.cap;
+        devUrl.textContent = steps[best].dataset.url;
+      }
+    }
+
+    if (reduce) return;
+
+    // giriş: video yaxınlaşır, sətirlər müxtəlif sürətlə qalxır
+    const hp = pinProgress(hero);
+    heroMedia.style.transform = `scale(${1 + hp * 0.22})`;
+    heroVeil.style.opacity = (clamp((hp - 0.35) / 0.65) * 0.85).toFixed(3);
+    heroLines.forEach((l, i) => { l.style.transform = `translate3d(${(i % 2 ? 1 : -1) * hp * (i + 1) * 40}px, ${-hp * (i + 1) * 30}px, 0)`; });
+
+    // cümlə
+    const rp = pinProgress(revealSec);
+    const n = Math.floor(clamp((rp - 0.08) / 0.75) * words.length + 0.001);
+    words.forEach((w, i) => w.classList.toggle('on', i < n));
+
+    // parallax şəkillər
+    pars.forEach((img) => {
+      const r = img.parentElement.getBoundingClientRect();
+      if (r.bottom < -100 || r.top > H + 100) return;
+      const c = (r.top + r.height / 2 - H / 2) / H;
+      img.style.transform = `translate3d(0, ${(-c * parseFloat(img.dataset.par) * r.height).toFixed(1)}px, 0)`;
+    });
+    ribbons.forEach((rb) => {
+      const r = rb.getBoundingClientRect();
+      const c = (r.top - H) / (H + r.height);
+      rb.style.transform = `translate3d(${(c * 30 * parseFloat(rb.dataset.drift)).toFixed(2)}%, 0, 0)`;
+    });
+  }
+
+  let ticking = false;
+  const req = () => { if (!ticking) { ticking = true; requestAnimationFrame(() => { ticking = false; frame(); }); } };
+  addEventListener('scroll', req, { passive: true });
+  addEventListener('resize', req);
+  frame();
+})();
+</script>
+
+</body>
+</html>
