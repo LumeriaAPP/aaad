@@ -31,9 +31,9 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0xc9a48e, 0.00028);
+scene.fog = new THREE.FogExp2(0xd7a88a, 0.00085);
 const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.2, 9000);
-camera.position.set(-620, 260, 520);
+camera.position.set(-520, 240, 420);
 
 // göy üzü: günbatımı, günəş dənizin üzərində (qərb, -x)
 const sunDir = new THREE.Vector3();
@@ -55,7 +55,7 @@ skyScene.add(skyEnv);
 scene.environment = pmrem.fromScene(skyScene, 0, 0.1, 1000).texture;
 scene.environmentIntensity = 0.6;
 
-const sun = new THREE.DirectionalLight(0xffb27a, 4.2);
+const sun = new THREE.DirectionalLight(0xffb27a, 3.0);
 sun.castShadow = true;
 sun.shadow.mapSize.set(LITE ? 2048 : 4096, LITE ? 2048 : 4096);
 sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.6;
@@ -73,7 +73,7 @@ scene.add(hemi);
 
 /* ---------------- sahil xətti ---------------- */
 const shoreX = (z) => -40 + 28 * Math.sin(z / 95) + 12 * Math.sin(z / 37 + 1.3);
-const Z0 = -900, Z1 = 900;
+const Z0 = -2600, Z1 = 2600;
 const std = (color, roughness = 0.8, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness, ...extra });
 
 // dəniz
@@ -85,48 +85,30 @@ const sea = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000).rotateX(-Math.PI 
 sea.position.set(-2500, -0.6, 0);
 sea.receiveShadow = true;
 scene.add(sea);
-// dayaz su (sahil yanında firuzəyi zolaq)
-{
-  const pos = [], col = [], idx = [];
-  const N = 240;
-  for (let i = 0; i <= N; i++) {
-    const z = Z0 + (Z1 - Z0) * (i / N), sx = shoreX(z);
-    for (const [dx, a] of [[2, 0.85], [-25, 0.55], [-70, 0]]) { pos.push(sx + dx, -0.45, z); col.push(0.25, 0.78, 0.82, a); }
-  }
-  for (let i = 0; i < N; i++) for (let j = 0; j < 2; j++) { const a = i * 3 + j, b = a + 3; idx.push(a, a + 1, b, a + 1, b + 1, b); }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 4));
-  g.setIndex(idx); g.computeVertexNormals();
-  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, transparent: true, roughness: 0.1, depthWrite: false }));
-  m.renderOrder = 1;
-  scene.add(m);
-}
-
 // quru: çimərlik → promenad → yaşıllıq → təpə (bir lent, hündürlük səs-küylə)
 const landHeight = (x, z) => {
   const d = x - shoreX(z);
   if (d < 0) return -1.2 + d * 0.02;
   let h = Math.min(1.6, d * 0.06);
   const hill = THREE.MathUtils.smoothstep(d, 260, 520);
-  h += hill * (70 + 45 * noise.noise(x / 260, z / 260) + 12 * noise.noise(x / 60, z / 60));
+  h += hill * (55 + 30 * noise.noise(x / 420, z / 420) + 4 * noise.noise(x / 90, z / 90));
   return h;
 };
 {
-  const NZ = 220, NX = 90;
+  const NZ = 420, NX = 110;
   const pos = [], col = [], idx = [];
   const cSand = new THREE.Color(0xe8cfa8), cWet = new THREE.Color(0xb99f7c), cGrass = new THREE.Color(0x6f8f48), cRock = new THREE.Color(0x8a7458), cDry = new THREE.Color(0xa9955f);
   const c = new THREE.Color();
   for (let i = 0; i <= NZ; i++) {
     const z = Z0 + (Z1 - Z0) * (i / NZ), sx = shoreX(z);
     for (let j = 0; j <= NX; j++) {
-      const d = -30 + Math.pow(j / NX, 1.6) * 1100;
+      const d = -30 + Math.pow(j / NX, 2.0) * 4200;
       const x = sx + d;
       pos.push(x, landHeight(x, z), z);
       if (d < 3) c.copy(cWet);
       else if (d < 34) c.copy(cSand);
       else if (d < 260) c.copy(cGrass).lerp(cDry, 0.3 + 0.3 * noise.noise(x / 40, z / 40));
-      else c.copy(cDry).lerp(cRock, THREE.MathUtils.smoothstep(d, 300, 520) * (0.6 + 0.4 * noise.noise(x / 30, z / 30)));
+      else c.copy(cGrass).lerp(cDry, 0.55).lerp(cRock, THREE.MathUtils.smoothstep(d, 320, 700) * (0.45 + 0.25 * noise.noise(x / 80, z / 80)));
       col.push(c.r, c.g, c.b);
     }
   }
@@ -198,12 +180,13 @@ const pierCurve = new THREE.CatmullRomCurve3([
 /* ---------------- binalar ---------------- */
 const FLOOR_H = 3.5, SLAB = 0.32;
 const M = {
-  slab: std(0xf4efe7, 0.55),
-  glass: new THREE.MeshPhysicalMaterial({ color: 0x1b2429, roughness: 0.05, metalness: 0.5, envMapIntensity: 1.1 }),
+  slab: std(0xfbf8f2, 0.5),
+  glass: new THREE.MeshPhysicalMaterial({ color: 0x3e4a52, roughness: 0.04, metalness: 0.6, envMapIntensity: 1.6 }),
+  mull: std(0x2a2724, 0.5, { metalness: 0.4 }),
   glassIn: new THREE.MeshPhysicalMaterial({ color: 0xcfe0e6, roughness: 0.02, transparent: true, opacity: 0.12, depthWrite: false, side: THREE.DoubleSide }),
-  planter: std(0x55773a, 0.95, { flatShading: true }),
-  rail: new THREE.MeshPhysicalMaterial({ color: 0xbfd4da, roughness: 0.05, transparent: true, opacity: 0.28, depthWrite: false }),
-  roof: std(0xa65a36, 0.7),
+  planter: std(0x5d8a3a, 0.95, { flatShading: true }),
+  rail: new THREE.MeshPhysicalMaterial({ color: 0xe8f1f2, roughness: 0.05, transparent: true, opacity: 0.35, depthWrite: false }),
+  roof: std(0x8e5a3e, 0.75),
   wood: new THREE.MeshStandardMaterial({ map: (() => { const t = woodTexture([150, 104, 70]); t.repeat.set(8, 1); return t; })(), roughness: 0.55 }),
   shop: new THREE.MeshStandardMaterial({ color: 0x3a2a1c, emissive: 0xffc47a, emissiveIntensity: 0.55, roughness: 0.2, metalness: 0.3 }),
 };
@@ -233,16 +216,17 @@ function inPoly(pts, x, z) {
   return c;
 }
 
-const LETTERS = 'ABCDEFGHİJ';
-const BLD = [
-  // z (sahil boyu), sahildən məsafə, uzun ox, en, mərtəbə, fırlanma əlavəsi
-  [-380, 105, 34, 17, 8, 0.15], [-300, 125, 30, 16, 9, -0.1], [-225, 100, 36, 18, 10, 0.2],
-  [-140, 128, 32, 17, 9, -0.05], [-60, 108, 40, 20, 10, 0.1], [20, 132, 34, 18, 8, -0.2],
-  [95, 110, 38, 19, 9, 0.05], [175, 150, 30, 16, 7, 0.25], [250, 118, 34, 17, 8, -0.1], [325, 160, 28, 15, 6, 0.1],
-];
+const LETTERS = 'ABCDEFGHİJKLMNOPQRSTUVWXYZ';
+const BLD = [];
+{
+  const r = rng(4242);
+  for (let i = 0; i < 12; i++) BLD.push([-440 + i * 72 + r() * 10, 78 + r() * 10, 28 + r() * 5, 11 + r() * 1.5, 8 + Math.floor(r() * 3), (r() - 0.5) * 0.5]);
+  for (let i = 0; i < 9; i++) BLD.push([-405 + i * 92 + r() * 14, 142 + r() * 16, 27 + r() * 5, 10.5 + r() * 1.5, 10 + Math.floor(r() * 4), (r() - 0.5) * 0.6]);
+}
 const buildings = [];
+const mullGeo = new THREE.BoxGeometry(0.1, FLOOR_H - SLAB, 0.1);
 const shrubGeo = new THREE.IcosahedronGeometry(0.9, 1);
-const shrubs = new THREE.InstancedMesh(shrubGeo, std(0x4f7434, 0.95, { flatShading: true }), 6000);
+const shrubs = new THREE.InstancedMesh(shrubGeo, std(0x5a8a36, 0.95, { flatShading: true }), 14000);
 shrubs.count = 0; shrubs.castShadow = true;
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
 BLD.forEach(([z, dist, rx, rz, floors, rot], bi) => {
@@ -261,29 +245,37 @@ BLD.forEach(([z, dist, rx, rz, floors, rot], bi) => {
   for (let f = 0; f < floors; f++) {
     const fg = new THREE.Group();
     fg.position.y = 4.4 + f * FLOOR_H;
-    const s = 1 - f * 0.014, oz = f * 0.55; // yuxarı mərtəbələr quruya doğru geri çəkilir (pilləli terraslar)
-    const slabPts = lerpPts(base, s, 0, oz);
+    const s = 1 - f * 0.012, oz = f * 0.35; // yuxarı mərtəbələr quruya doğru geri çəkilir (pilləli terraslar)
+    const wav = (p, k) => { const a = Math.atan2(p.y, p.x); const w = 1 + 0.045 * Math.sin(a * 3 + f * 0.9 + bi) + 0.025 * Math.sin(a * 5 - f * 1.3); return new THREE.Vector2(p.x * s * k * w, p.y * s * k * w + oz); };
+    const slabPts = base.map((p) => wav(p, 1));
     const corePts = lerpPts(base, s * 0.9, 0, oz + rz * 0.04);
     const slab = new THREE.Mesh(extrude(slabPts, SLAB), M.slab); slab.castShadow = slab.receiveShadow = true;
     const core = new THREE.Mesh(extrude(corePts, FLOOR_H - SLAB), M.glass); core.position.y = SLAB; core.receiveShadow = true;
-    const plant = new THREE.Mesh(extrude(slabPts, 0.5, lerpPts(base, s * 0.965, 0, oz)), M.planter); plant.position.y = SLAB; plant.castShadow = true;
+    const plant = new THREE.Mesh(extrude(slabPts, 0.75, lerpPts(base, s * 0.955, 0, oz)), M.planter); plant.position.y = SLAB; plant.castShadow = true;
     const rail = new THREE.Mesh(extrude(lerpPts(base, s * 0.998, 0, oz), 1.05, lerpPts(base, s * 0.99, 0, oz)), M.rail); rail.position.y = SLAB;
     fg.add(slab, core, plant, rail);
+    plant.geometry.dispose(); plant.geometry = extrude(slabPts, 0.6, base.map((p) => wav(p, 0.955)));
+    rail.geometry.dispose(); rail.geometry = extrude(base.map((p) => wav(p, 0.998)), 1.05, base.map((p) => wav(p, 0.99)));
     fg.userData = { floor: f + 1, slabPts, corePts, core };
-    // dibçəklərdə kollar
-    for (let k = 0; k < slabPts.length; k += 2) {
-      if (r() < 0.35) continue;
+    // dibçəklərdə kollar (mərtəbə ilə birlikdə hərəkət edir)
+    const sh = new THREE.InstancedMesh(shrubGeo, shrubs.material, slabPts.length); sh.count = 0; sh.castShadow = true;
+    for (let k = 0; k < slabPts.length; k += 1) {
+      if (r() < 0.6) continue;
       const p = slabPts[k].clone().multiplyScalar(0.985);
-      const sc = 0.55 + r() * 0.6;
-      _p.set(p.x, fg.position.y + SLAB + 0.5 + sc * 0.4, p.y).applyEuler(g.rotation).add(g.position);
-      _m.compose(_p, _q.identity(), _s.set(sc, sc * 0.8, sc));
-      if (shrubs.count < 6000) shrubs.setMatrixAt(shrubs.count++, _m);
+      const sc = 0.4 + r() * 0.45;
+      _m.compose(_p.set(p.x, SLAB + 0.45 + sc * 0.35, p.y), _q.identity(), _s.set(sc, sc * 0.8, sc));
+      sh.setMatrixAt(sh.count++, _m);
     }
+    fg.add(sh);
+    // şüşə fasadda şaquli çərçivələr
+    const mu = new THREE.InstancedMesh(mullGeo, M.mull, corePts.length); mu.count = 0;
+    for (let k = 0; k < corePts.length; k += 2) { const p = corePts[k]; _m.compose(_p.set(p.x, SLAB + (FLOOR_H - SLAB) / 2, p.y), _q.identity(), _s.set(1, 1, 1)); mu.setMatrixAt(mu.count++, _m); }
+    fg.add(mu);
     g.add(fg); floorGroups.push(fg);
   }
   // terrakota dam (əyri, yumşaq kənarlı) + dam bağı
   const topY = 4.4 + floors * FLOOR_H;
-  const roofSlab = new THREE.Mesh(extrude(lerpPts(base, (1 - floors * 0.014) * 0.9, 0, floors * 0.55), 0.6, null, 0.8), M.roof);
+  const roofSlab = new THREE.Mesh(extrude(lerpPts(base, (1 - floors * 0.014) * 0.95, 0, floors * 0.55), 0.7, null, 0.9), M.roof);
   roofSlab.position.y = topY + 0.3; roofSlab.castShadow = true; g.add(roofSlab);
   if (bi % 3 === 1) { const gr = new THREE.Mesh(extrude(lerpPts(base, (1 - floors * 0.014) * 0.55, rx * 0.15, floors * 0.55), 0.8), M.planter); gr.position.y = topY + 1.4; g.add(gr); }
   scene.add(g);
@@ -313,9 +305,9 @@ const PG = palmGeometries();
 const palmSpots = [];
 {
   const r = rng(55);
-  for (let z = Z0 + 20; z < Z1 - 20; z += 9 + r() * 6) { palmSpots.push([shoreX(z) + 31 + r() * 2, z]); palmSpots.push([shoreX(z) + 52 + r() * 3, z + 4]); }
-  for (let i = 0; i < 260; i++) {
-    const z = -460 + r() * 900, d = 60 + r() * 150, x = shoreX(z) + d;
+  for (let z = -800; z < 700; z += 8 + r() * 5) { palmSpots.push([shoreX(z) + 31 + r() * 2, z]); palmSpots.push([shoreX(z) + 52 + r() * 3, z + 4]); }
+  for (let i = 0; i < 700; i++) {
+    const z = -500 + r() * 980, d = 58 + r() * 190, x = shoreX(z) + d;
     if (buildings.some((b) => b.group.position.distanceTo(new THREE.Vector3(x, b.group.position.y, z)) < Math.max(b.rx, b.rz) * 1.25)) continue;
     palmSpots.push([x, z]);
   }
@@ -332,6 +324,23 @@ const palmSpots = [];
   });
   trunks.castShadow = fronds.castShadow = true;
   scene.add(trunks, fronds);
+}
+
+/* ---------------- yarpaqlı ağaclar (binalar arası sıx yaşıllıq) ---------------- */
+{
+  const r = rng(808), spots = [];
+  for (let i = 0; i < 2600 && spots.length < 900; i++) {
+    const z = -520 + r() * 1020, d = 56 + r() * 260, x = shoreX(z) + d;
+    if (buildings.some((b) => Math.hypot(b.group.position.x - x, b.group.position.z - z) < Math.max(b.rx, b.rz) * 1.15)) continue;
+    spots.push([x, z]);
+  }
+  const g = new THREE.IcosahedronGeometry(2.6, 1).scale(1, 0.85, 1).translate(0, 5.2, 0);
+  const trunk = new THREE.CylinderGeometry(0.2, 0.3, 4, 6).translate(0, 2, 0);
+  const cm = new THREE.InstancedMesh(g, std(0xffffff, 0.9, { flatShading: true }), spots.length);
+  const tm = new THREE.InstancedMesh(trunk, std(0x6b5645, 0.9), spots.length);
+  const cols = [0x4f7a32, 0x5f8a3b, 0x456d2c, 0x6d9444].map((c) => new THREE.Color(c));
+  spots.forEach(([x, z], i) => { const s = 0.7 + r() * 0.7; _m.compose(_p.set(x, landHeight(x, z), z), _q.setFromEuler(new THREE.Euler(0, r() * 6, 0)), _s.set(s, s, s)); cm.setMatrixAt(i, _m); tm.setMatrixAt(i, _m); cm.setColorAt(i, cols[i % 4]); });
+  cm.castShadow = true; scene.add(cm, tm);
 }
 
 /* ---------------- çimərlik: şezlonqlar, çətirlər, yaxtalar ---------------- */
@@ -370,10 +379,10 @@ const palmSpots = [];
   const pts = [];
   for (let i = 0; i < 900; i++) {
     const z = -900 + r() * 1800, d = 250 + r() * 800, x = shoreX(z) + d;
-    if (d < 330 && Math.abs(z) < 480) continue;
+    if (d < 380 && Math.abs(z) < 560) continue;
     pts.push([x, z, 6 + r() * (d > 500 ? 14 : 26), 8 + r() * 14, 8 + r() * 12]);
   }
-  const walls = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), std(0xd9cfbf, 0.9), pts.length);
+  const walls = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), std(0xc9b89f, 0.95), pts.length);
   const roofs = new THREE.InstancedMesh(new THREE.ConeGeometry(0.75, 1, 4).rotateY(Math.PI / 4).translate(0, 0.5, 0), std(0xb4613e, 0.8), pts.length);
   pts.forEach(([x, z, h, w, d], i) => {
     const y = landHeight(x, z) - 0.5, ry = r() * 0.4;
@@ -394,7 +403,7 @@ composer.addPass(new OutputPass());
 /* ---------------- idarəetmə ---------------- */
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true; controls.dampingFactor = 0.07;
-controls.maxPolarAngle = Math.PI * 0.47; controls.minDistance = 25; controls.maxDistance = 1400;
+controls.maxPolarAngle = Math.PI * 0.44; controls.minDistance = 25; controls.maxDistance = 620;
 controls.target.set(60, 20, -20);
 const tweens = new Set();
 function tween(ms, fn, done) { const t = { t0: performance.now(), ms, fn, done }; tweens.add(t); return t; }
@@ -431,11 +440,11 @@ function renderPanel() {
   if (!b) { ui.panel.hidden = true; return; }
   let rows = '';
   for (let f = b.floors; f >= 1; f--) {
-    const st = [0, 1, 2].map((i) => aptStatus(b, f, i));
+    const st = [0, 1, 2, 3].map((i) => aptStatus(b, f, i));
     const free = st.filter((s) => s === 'a').length;
     rows += `<button class="fl${state.floor === f ? ' on' : ''}" data-f="${f}"><b>${f}</b><span>${f}-ci mərtəbə<small>${free} mənzil satışda</small></span><i>${st.map((s) => `<em style="background:${STATUS[s][1]}"></em>`).join('')}</i></button>`;
   }
-  ui.panel.innerHTML = `<div class="ph"><button class="x" data-close>✕</button><small>Bayıl Bulvarı</small><h3>Blok ${b.id}</h3><p>${b.floors} mərtəbə · ${b.floors * 3} mənzil · dəniz mənzərəsi</p></div><div class="fls">${rows}</div>`;
+  ui.panel.innerHTML = `<div class="ph"><button class="x" data-close>✕</button><small>Bayıl Bulvarı</small><h3>Blok ${b.id}</h3><p>${b.floors} mərtəbə · ${b.floors * 4} mənzil · dəniz mənzərəsi</p></div><div class="fls">${rows}</div>`;
   ui.panel.hidden = false;
 }
 ui.panel.addEventListener('click', (e) => {
@@ -471,10 +480,10 @@ function buildInterior(b, f) {
   const core = fg.userData.corePts;
   const g = new THREE.Group(); g.position.y = SLAB;
   furnitureMaterials();
-  const wallMat = std(0xefe9df, 0.9), floorMat = new THREE.MeshStandardMaterial({ map: (() => { const t = woodTexture([188, 150, 112]); t.repeat.set(10, 10); return t; })(), roughness: 0.5 });
+  const wallMat = std(0xefe9df, 0.9), floorMat = new THREE.MeshStandardMaterial({ map: (() => { const t = woodTexture([196, 160, 122]); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(0.35, 0.35); return t; })(), roughness: 0.5 });
   const flr = new THREE.Mesh(new THREE.ShapeGeometry(toShape(core)).rotateX(-Math.PI / 2), floorMat); flr.position.y = 0.02; flr.receiveShadow = true; g.add(flr);
   const xs = core.map((p) => p.x), minX = Math.min(...xs), maxX = Math.max(...xs);
-  const cuts = [minX + (maxX - minX) / 3, minX + (2 * (maxX - minX)) / 3];
+  const cuts = [1, 2, 3].map((k) => minX + ((maxX - minX) * k) / 4);
   const H = FLOOR_H - SLAB - 0.05;
   const wall = (x0, z0, x1, z1) => {
     const len = Math.hypot(x1 - x0, z1 - z0); if (len < 0.3) return;
@@ -485,7 +494,7 @@ function buildInterior(b, f) {
   for (const x of cuts) { const [lo, hi] = zRange(core, x); wall(x, lo + 0.1, x, hi - 0.1); }
   const apts = [];
   const edges = [minX, ...cuts, maxX];
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     const x0 = edges[i], x1 = edges[i + 1], cx = (x0 + x1) / 2;
     const [lo, hi] = zRange(core, cx);
     const mid = lo + (hi - lo) * 0.58; // dəniz tərəfi (−z) qonaq otağı, quru tərəfi yataq otağı
@@ -510,9 +519,9 @@ function buildInterior(b, f) {
     // lampa
     const lamp = new THREE.PointLight(0xffd7a8, 6, 14, 1.6); lamp.position.set(cx, H - 0.4, (lo + mid) / 2); g.add(lamp);
     let area = 0; for (let k = 0; k < core.length; k++) { const a = core[k], c2 = core[(k + 1) % core.length]; if ((a.x + c2.x) / 2 >= x0 && (a.x + c2.x) / 2 < x1) area += 0; }
-    area = Math.round(w * (hi - lo) * 0.82);
+    area = Math.round(w * (hi - lo) * 0.8);
     const st = aptStatus(b, f, i);
-    apts.push({ no: `${b.id}-${f}${i + 1}`, cx, cz: (lo + mid) / 2, lo, mid, hi, x0, x1, area, rooms: area > 150 ? 3 : 2, price: Math.round(area * (4200 + f * 60) / 1000) * 1000, st });
+    apts.push({ no: `${b.id}-${f}${i + 1}`, cx, cz: (lo + mid) / 2, lo, mid, hi, x0, x1, area, rooms: area > 170 ? 4 : area > 120 ? 3 : 2, price: Math.round(area * (4200 + f * 60) / 1000) * 1000, st });
   }
   fg.add(g); interior = g;
   interior.userData = { b, f, apts, core };
@@ -558,7 +567,7 @@ function enterApt(a) {
   const seaDir = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), b.group.rotation.y);
   fp.yaw = Math.atan2(-seaDir.x, -seaDir.z); fp.pitch = -0.05;
   aimSun(fp.pos, 40);
-  renderer.toneMappingExposure = 0.75;
+  renderer.toneMappingExposure = 0.55;
   $('#apt').hidden = true; ui.panel.hidden = true; ui.aptLabels.innerHTML = ''; ui.markers.hidden = true;
   $('#inside').hidden = false;
   ui.hint.textContent = isTouch ? 'Ətrafa baxmaq üçün sürüşdürün · ▲▼ ilə hərəkət' : 'Siçanla sürüşdürüb ətrafa baxın · W A S D ilə gəzin';
@@ -576,7 +585,7 @@ function closeInterior() {
 function backToOverview() {
   closeInterior(); state.mode = 'overview'; state.b = null; ui.panel.hidden = true;
   aimSun(new THREE.Vector3(80, 0, -20), 330);
-  flyTo(new THREE.Vector3(-420, 190, 330), new THREE.Vector3(60, 20, -20), 1800);
+  flyTo(new THREE.Vector3(-260, 150, 300), new THREE.Vector3(80, 10, -40), 1800);
   ui.hint.textContent = 'Blokun hərfinə toxunun — mərtəbə və mənzil seçimi';
 }
 $('#exitApt').addEventListener('click', () => { const b = state.b, f = interior?.userData.f; closeInterior(); state.mode = 'building'; if (b && f) { state.b = b; selectFloor(f); } });
@@ -633,7 +642,7 @@ function frame() {
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); });
 
 // giriş: dənizdən sahilə uçuş
-flyTo(new THREE.Vector3(-420, 190, 330), new THREE.Vector3(60, 20, -20), 3200);
+flyTo(new THREE.Vector3(-260, 150, 300), new THREE.Vector3(80, 10, -40), 3200);
 ui.hint.textContent = 'Blokun hərfinə toxunun — mərtəbə və mənzil seçimi';
 requestAnimationFrame(() => $('#loader').classList.add('done'));
 requestAnimationFrame(frame);
